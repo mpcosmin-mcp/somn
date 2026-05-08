@@ -14,63 +14,91 @@ The AI roasts and weekly stories use Claude Haiku 4.5 (cheap, ~$0.50/month for 3
 
 ---
 
-## 2. Google Sheet — add REM column
+## 2. Google Sheet — add `rem` and `journal` columns
 
-The existing Sheet stores `date | name | sleep_score | rhr | hrv`. We add `rem` as a 6th column.
+Current Sheet schema: `date | name | sleep_score | rhr | hrv | score`.
+We add 2 new columns at the end: `rem` (REM minutes) and `journal` (free-text daily note).
 
 1. Open the team's Sleep Tracker Google Sheet
-2. Add a new column header `rem` after `hrv`
-3. Old rows leave `rem` empty — that's fine, UI shows `—`
+2. After the `score` column, add two new column headers:
+   - `rem`
+   - `journal`
+3. Old rows leave them empty — UI shows `—` for missing REM, no journal section if empty
 
-### Update the Apps Script (so REM gets written)
+Final header row: `date | name | sleep_score | rhr | hrv | score | rem | journal`
 
-1. In the Sheet: `Extensions → Apps Script`
-2. Find the `doGet` function (the one that handles `?action=write`)
-3. Make sure the parameter list includes `rem` — example:
+### Update the Apps Script — REPLACE the entire `doGet` function
+
+Open `Extensions → Apps Script` and **replace the whole file** with this. It adds:
+- `rem` and `journal` parameter handling on writes
+- **Upsert** logic (find existing row by date+name, update in place; otherwise append) — fixes the duplicate-row bug from the old `appendRow`-only version
+- JSONP callback support (kept for backwards compatibility with v1)
 
 ```javascript
+const SHEET_NAME = 'Sheet1';
+
 function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sheet1');
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const callback = e.parameter.callback;
+  const respond = (obj) => {
+    const out = JSON.stringify(obj);
+    return ContentService.createTextOutput(callback ? `${callback}(${out})` : out)
+      .setMimeType(callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
+  };
 
   if (e.parameter.action === 'write') {
-    const date = e.parameter.date;
-    const name = e.parameter.name;
-    const ss = parseFloat(e.parameter.sleep_score) || 0;
+    const date = String(e.parameter.date || '');
+    const name = String(e.parameter.name || '');
+    const sleepScore = parseFloat(e.parameter.sleep_score) || 0;
     const rhr = parseFloat(e.parameter.rhr) || 0;
-    const hrv = e.parameter.hrv === '' ? '' : parseFloat(e.parameter.hrv);
-    const rem = e.parameter.rem === '' ? '' : parseFloat(e.parameter.rem);  // NEW
+    const hrv = e.parameter.hrv ? parseFloat(e.parameter.hrv) : '';
+    const score = e.parameter.score ? parseFloat(e.parameter.score) : '';   // legacy column
+    const rem = e.parameter.rem ? parseFloat(e.parameter.rem) : '';         // NEW
+    const journal = String(e.parameter.journal || '');                       // NEW
 
-    // Find existing row for date+name; update if found, append if not
     const data = sheet.getDataRange().getValues();
-    let found = -1;
+    const headers = data[0] || [];
+    const dateIdx = headers.indexOf('date');
+    const nameIdx = headers.indexOf('name');
+
+    // Find existing row by (date, name) for upsert
+    let foundRow = -1;
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === date && data[i][1] === name) { found = i + 1; break; }
-    }
-    if (found > 0) {
-      sheet.getRange(found, 1, 1, 6).setValues([[date, name, ss, rhr, hrv, rem]]);
-    } else {
-      sheet.appendRow([date, name, ss, rhr, hrv, rem]);
+      if (String(data[i][dateIdx]) === date && String(data[i][nameIdx]) === name) {
+        foundRow = i + 1;
+        break;
+      }
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    const rowValues = [date, name, sleepScore, rhr, hrv, score, rem, journal];
+    if (foundRow > 0) {
+      sheet.getRange(foundRow, 1, 1, rowValues.length).setValues([rowValues]);
+    } else {
+      sheet.appendRow(rowValues);
+    }
+
+    return respond({ status: 'ok', upsert: foundRow > 0 ? 'update' : 'append' });
   }
 
-  // Read all
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const rows = data.slice(1).map(r => {
-    const o = {};
-    headers.forEach((h, i) => o[h] = r[i]);
-    return o;
-  });
-  return ContentService.createTextOutput(JSON.stringify({ data: rows }))
-    .setMimeType(ContentService.MimeType.JSON);
+  // Read all rows
+  const rows = sheet.getDataRange().getValues();
+  const data = rows.length < 2 ? [] : (() => {
+    const headers = rows[0];
+    return rows.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = row[i]);
+      return obj;
+    });
+  })();
+
+  return respond({ status: 'ok', data });
 }
 ```
 
-4. **Deploy → Manage deployments → Edit (pencil) → New version → Deploy**.
-   Keep the same web app URL — that's what's hardcoded in `src/lib/config.ts`.
+After pasting:
+1. **Save** (`Ctrl+S`)
+2. **Deploy → Manage deployments → Edit (pencil) → New version → Deploy**
+3. Keep the **same web app URL** — that's what's hardcoded in `src/lib/config.ts`. Don't change "Who has access" or "Execute as" — keep them as before.
 
 ---
 

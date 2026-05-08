@@ -56,3 +56,19 @@ export async function chatTurn(user: string, messages: ChatMessage[], entries: S
   const json = (await res.json()) as { text?: string };
   return json.text ?? '';
 }
+
+export interface Patterns {
+  personal: string;
+  team: string;
+}
+
+export async function fetchPatterns(user: string, entries: SleepEntry[]): Promise<Patterns> {
+  const res = await fetch('/api/patterns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user, entries }),
+  });
+  if (!res.ok) return { personal: '', team: '' };
+  const json = (await res.json()) as Patterns;
+  return { personal: json.personal ?? '', team: json.team ?? '' };
+}

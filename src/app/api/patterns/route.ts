@@ -1,0 +1,140 @@
+import { NextRequest, NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
+import { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } from '@/lib/config';
+import { type SleepEntry, NAMES, FIRST_NAME, lastNDays, aggregate } from '@/lib/sleep';
+
+/**
+ * POST /api/patterns
+ * Body: { user: string, entries: SleepEntry[] }
+ * Returns: { personal: string, team: string }
+ *
+ * Weekly pattern finder. Takes last 30 days, asks Haiku to spot 2-3
+ * concrete patterns. Personal section uses journal text as bonus context
+ * (alcohol, sport, stress correlations).
+ *
+ * Cached per ISO week on the client — server is stateless.
+ */
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
+interface ReqBody {
+  user: string;
+  entries: SleepEntry[];
+}
+
+const dayName = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
+
+export async function POST(req: NextRequest) {
+  try {
+    const { user, entries } = (await req.json()) as ReqBody;
+    if (!ANTHROPIC_API_KEY) {
+      return NextResponse.json({ personal: '', team: '', reason: 'no_api_key' });
+    }
+    if (!user || !entries?.length) {
+      return NextResponse.json({ personal: '', team: '' });
+    }
+
+    const fn = FIRST_NAME[user] ?? user.split(' ')[0];
+
+    // Personal context: last 30 days, full detail
+    const mine = lastNDays(entries.filter(e => e.name === user), 30).sort((a, b) => a.date.localeCompare(b.date));
+    if (mine.length < 5) {
+      return NextResponse.json({
+        personal: `Mai puțin de 5 loguri în ultimele 30 zile pentru ${fn} — nu pot găsi pattern-uri încă.`,
+        team: '',
+      });
+    }
+
+    const personalLines = mine.map(e => {
+      const d = new Date(e.date + 'T12:00:00');
+      const dn = dayName[d.getDay()];
+      const j = e.journal ? ` — "${e.journal.replace(/"/g, "'")}"` : '';
+      return `  ${e.date} (${dn}): SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}${j}`;
+    }).join('\n');
+
+    // Team context: last 30 days, aggregated per person + week-over-week trend
+    const last30 = lastNDays(entries, 30);
+    const last7 = lastNDays(entries, 7);
+    const aggLast30 = aggregate(last30);
+    const aggLast7 = aggregate(last7);
+
+    const teamLines = NAMES.map(n => {
+      const a30 = aggLast30.find(x => x.name === n);
+      const a7 = aggLast7.find(x => x.name === n);
+      const fnN = FIRST_NAME[n] ?? n.split(' ')[0];
+      if (!a30) return `  ${fnN}: zero loguri în 30 zile`;
+      const trend = a7 ? a7.ss - a30.ss : 0;
+      const trendTxt = trend > 0 ? `↑${trend}` : trend < 0 ? `↓${Math.abs(trend)}` : '→';
+      return `  ${fnN}: 30d avg SS ${a30.ss} (RHR ${a30.rhr}, REM ${a30.rem ?? '—'}), 7d trend ${trendTxt} vs 30d`;
+    }).join('\n');
+
+    const prompt = `Ești un analist de date de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Caută pattern-uri concrete în date și notițe.
+
+DATE PERSONALE — ${fn} (ultimele 30 zile, cronologic):
+${personalLines}
+
+DATE TEAM (agregat 30 zile + tendință 7 zile vs 30):
+${teamLines}
+
+Returnează UN OBIECT JSON cu DOUĂ chei:
+
+{
+  "personal": "...",
+  "team": "..."
+}
+
+PERSONAL (despre ${fn}, max 3 propoziții): găsește 1-3 pattern-uri concrete:
+- ziua/zilele săptămânii cu cel mai bun/prost somn
+- corelații observabile între SS/REM și alte metrici (ex: "RHR sub 56 → REM cu 15% peste medie")
+- pattern-uri din notițe ("când scrie sport → SS în jos cu 8")
+- tendințe (ex: "REM-ul a crescut cu 12% în ultimele 2 săptămâni")
+Folosește cifre reale. Niciun pattern generic ("dormi mai mult"). Concret sau nimic.
+
+TEAM (despre toți 3, max 2 propoziții): găsește 1-2 chestii misto despre echipă:
+- cine improvează, cine slăbește
+- contraste interesante (ex: "Clara dormi mai bine în weekend, Petrica mai bine în weekday")
+- nimic generic
+
+Reguli:
+- Română, ton prieten-tehnic, observativ-amuzant
+- Fără emoji, fără bullet points
+- Răspunde DOAR cu JSON, nimic altceva
+- Dacă nu găsești nimic concret într-o secțiune, scrie "Insuficiente date pentru un pattern clar."`;
+
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const msg = await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw = msg.content
+      .filter(b => b.type === 'text')
+      .map(b => (b as { text: string }).text)
+      .join('')
+      .trim();
+
+    // Try parsing as JSON; fallback to splitting heuristics
+    let personal = '';
+    let team = '';
+    try {
+      // Strip markdown code fences if Haiku wraps
+      const cleaned = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+      const parsed = JSON.parse(cleaned) as { personal?: string; team?: string };
+      personal = parsed.personal ?? '';
+      team = parsed.team ?? '';
+    } catch {
+      // Fallback: split on label-like patterns
+      const personalMatch = raw.match(/(?:personal[:\s]+)([\s\S]+?)(?=team[:\s]+|$)/i);
+      const teamMatch = raw.match(/team[:\s]+([\s\S]+)/i);
+      personal = personalMatch?.[1].trim() ?? raw;
+      team = teamMatch?.[1].trim() ?? '';
+    }
+
+    return NextResponse.json({ personal, team });
+  } catch (err) {
+    console.error('[/api/patterns]', err);
+    return NextResponse.json({ personal: '', team: '', error: err instanceof Error ? err.message : 'unknown' }, { status: 200 });
+  }
+}

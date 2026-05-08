@@ -19,12 +19,19 @@ interface RawSheetRow {
   rhr?: string | number;
   hrv?: string | number | null | '';
   rem?: string | number | null | '';
+  journal?: string | null | '';
 }
 
 function parseNum(v: string | number | null | undefined): number | null {
   if (v === '' || v == null) return null;
   const n = parseFloat(String(v));
   return isNaN(n) ? null : n;
+}
+
+function parseStr(v: string | null | undefined): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s ? s : null;
 }
 
 export async function GET() {
@@ -37,14 +44,20 @@ export async function GET() {
 
     const entries: SleepEntry[] = rows
       .filter(r => !String(r.name || '').startsWith(DUEL_ROW_MARKER))
-      .map(r => ({
-        date: String(r.date || '').trim().slice(0, 10),
-        name: String(r.name || '').trim(),
-        ss: parseNum(r.sleep_score) ?? 0,
-        rhr: parseNum(r.rhr) ?? 0,
-        hrv: parseNum(r.hrv),
-        rem: parseNum(r.rem),
-      }))
+      .map(r => {
+        // Date might come as ISO string from Apps Script — normalize to YYYY-MM-DD
+        let dateStr = String(r.date || '').trim();
+        if (dateStr.length > 10) dateStr = dateStr.slice(0, 10);
+        return {
+          date: dateStr,
+          name: String(r.name || '').trim(),
+          ss: parseNum(r.sleep_score) ?? 0,
+          rhr: parseNum(r.rhr) ?? 0,
+          hrv: parseNum(r.hrv),
+          rem: parseNum(r.rem),
+          journal: parseStr(r.journal),
+        };
+      })
       .filter(r => r.date && r.name);
 
     return NextResponse.json({ entries });
@@ -66,7 +79,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { date, name, ss, rhr, hrv, rem } = body as Partial<SleepEntry>;
+    const { date, name, ss, rhr, hrv, rem, journal } = body as Partial<SleepEntry>;
     if (!date || !name || ss == null || rhr == null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -78,6 +91,7 @@ export async function POST(req: NextRequest) {
       rhr: String(rhr),
       hrv: hrv == null ? '' : String(hrv),
       rem: rem == null ? '' : String(rem),
+      journal: journal ?? '',
     });
     const url = `${SHEETS_API}?${params}`;
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });

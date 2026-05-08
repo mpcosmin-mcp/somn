@@ -20,6 +20,7 @@ export function LogEntry({
   onClose?: () => void;
 }) {
   const [date, setDate] = useState(todayStr());
+  const [journal, setJournal] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -38,11 +39,13 @@ export function LogEntry({
       if (remRef.current) remRef.current.value = existing.rem != null ? String(existing.rem) : '';
       if (rhrRef.current) rhrRef.current.value = String(existing.rhr);
       if (hrvRef.current) hrvRef.current.value = existing.hrv != null ? String(existing.hrv) : '';
+      setJournal(existing.journal ?? '');
     } else {
       if (ssRef.current) ssRef.current.value = '';
       if (remRef.current) remRef.current.value = '';
       if (rhrRef.current) rhrRef.current.value = '';
       if (hrvRef.current) hrvRef.current.value = '';
+      setJournal('');
     }
   }, [date, existing]);
 
@@ -54,6 +57,7 @@ export function LogEntry({
     const hrvVal = hrvRef.current?.value;
     const rem = remVal ? parseFloat(remVal) : null;
     const hrv = hrvVal ? parseFloat(hrvVal) : null;
+    const journalText = journal.trim();
 
     if (isNaN(ss) || isNaN(rhr)) {
       setErr('SS și RHR sunt obligatorii');
@@ -63,7 +67,7 @@ export function LogEntry({
     if (rhr < 30 || rhr > 150) { setErr('RHR în afara intervalului plauzibil'); return; }
 
     setSaving(true);
-    const entry: SleepEntry = { date, name: user, ss, rhr, hrv, rem };
+    const entry: SleepEntry = { date, name: user, ss, rhr, hrv, rem, journal: journalText || null };
     try {
       await submitEntry(entry);
       onSaved(entry);
@@ -112,6 +116,28 @@ export function LogEntry({
         <Field ref={remRef} label="REM"         hint="minute" ph="95" />
         <Field ref={rhrRef} label="RHR"         hint="bpm"    ph="58" />
         <Field ref={hrvRef} label="HRV"         hint="ms"     ph="45" />
+      </div>
+
+      {/* Optional journal */}
+      <div className="mb-4">
+        <label className="label block mb-1.5">notă · opțional</label>
+        <textarea
+          value={journal}
+          onChange={e => setJournal(e.target.value)}
+          rows={2}
+          maxLength={500}
+          placeholder="cum te-ai simțit? de ce crezi că ai dormit așa? (alcool, sport, stres, ce-ai mâncat...)"
+          className={cn(
+            'w-full px-3 py-2 rounded-lg text-xs resize-none',
+            'bg-[var(--color-card)] text-[var(--color-fg)]',
+            'border border-[var(--color-border)]',
+            'placeholder:text-[var(--color-fg-dim)]',
+            'focus:outline-none focus:border-[var(--color-accent)]',
+          )}
+        />
+        <div className="text-[9px] text-[var(--color-fg-dim)] num text-right mt-0.5">
+          {journal.length}/500 · AI-ul folosește nota asta când te roastuieste
+        </div>
       </div>
 
       {existing && (

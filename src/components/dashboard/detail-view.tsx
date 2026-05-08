@@ -132,37 +132,50 @@ export function DetailView({ entries, user, onUserChange }: { entries: SleepEntr
         <MetricCard title="HRV" unit="ms" series={hrvVals} avg={avg(hrvVals)} best={best(hrvVals)} color="#60a5fa" />
       </div>
 
-      {/* Recent log table */}
+      {/* Recent log list — with journal entries inline */}
       <Card className="p-5">
         <div className="label mb-3">istoric · ultimele {Math.min(filtered.length, 14)} loguri</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs num">
-            <thead>
-              <tr className="text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
-                <th className="text-left font-semibold py-2 pr-3">data</th>
-                <th className="text-right font-semibold px-2">SS</th>
-                <th className="text-right font-semibold px-2">REM</th>
-                <th className="text-right font-semibold px-2">RHR</th>
-                <th className="text-right font-semibold pl-2">HRV</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...filtered].reverse().slice(0, 14).map(e => (
-                <tr key={e.date} className="border-b border-[var(--color-border-subtle)] last:border-0">
-                  <td className="py-2 pr-3 text-[var(--color-fg-muted)]">{fmtDateShort(e.date)}</td>
-                  <td className="text-right px-2 font-bold" style={{ color: ssColor(e.ss) }}>{e.ss}</td>
-                  <td className="text-right px-2 font-bold" style={{ color: e.rem != null ? remColor(e.rem) : '#52525b' }}>{e.rem ?? '—'}</td>
-                  <td className="text-right px-2 font-bold" style={{ color: rhrColor(e.rhr) }}>{e.rhr}</td>
-                  <td className="text-right pl-2 font-bold" style={{ color: hrvColor(e.hrv) }}>{e.hrv ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="text-center py-4 text-xs text-[var(--color-fg-dim)] italic">niciun log în acest interval</div>
-          )}
+        {filtered.length === 0 && (
+          <div className="text-center py-4 text-xs text-[var(--color-fg-dim)] italic">niciun log în acest interval</div>
+        )}
+        <div className="space-y-2">
+          {[...filtered].reverse().slice(0, 14).map(e => (
+            <HistoryRow key={e.date} entry={e} />
+          ))}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function HistoryRow({ entry }: { entry: SleepEntry }) {
+  return (
+    <div className="rounded-lg border border-[var(--color-border-subtle)] hover:border-[var(--color-border)] transition-colors px-3 py-2">
+      <div className="flex items-center gap-3 num text-xs">
+        <span className="text-[var(--color-fg-muted)] w-24 shrink-0">{fmtDateShort(entry.date)}</span>
+        <span className="flex items-baseline gap-1">
+          <span className="text-[var(--color-fg-muted)] text-[10px]">SS</span>
+          <span className="font-bold" style={{ color: ssColor(entry.ss) }}>{entry.ss}</span>
+        </span>
+        <span className="flex items-baseline gap-1">
+          <span className="text-[var(--color-fg-muted)] text-[10px]">REM</span>
+          <span className="font-bold" style={{ color: entry.rem != null ? remColor(entry.rem) : '#52525b' }}>{entry.rem ?? '—'}</span>
+        </span>
+        <span className="flex items-baseline gap-1">
+          <span className="text-[var(--color-fg-muted)] text-[10px]">RHR</span>
+          <span className="font-bold" style={{ color: rhrColor(entry.rhr) }}>{entry.rhr}</span>
+        </span>
+        <span className="flex items-baseline gap-1">
+          <span className="text-[var(--color-fg-muted)] text-[10px]">HRV</span>
+          <span className="font-bold" style={{ color: hrvColor(entry.hrv) }}>{entry.hrv ?? '—'}</span>
+        </span>
+        {entry.journal && <span className="ml-auto text-[var(--color-fg-dim)] text-[10px]">📝</span>}
+      </div>
+      {entry.journal && (
+        <div className="mt-2 pt-2 border-t border-[var(--color-border-subtle)] text-[11px] text-[var(--color-fg-muted)] italic leading-relaxed">
+          &ldquo;{entry.journal}&rdquo;
+        </div>
+      )}
     </div>
   );
 }

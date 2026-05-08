@@ -12,7 +12,7 @@ import { UserPicker } from '@/components/dashboard/user-picker';
 import { LogEntry } from '@/components/dashboard/log-entry';
 import { Hero } from '@/components/dashboard/hero';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
-import { DailyRoast, WeeklyStory } from '@/components/dashboard/ai-blocks';
+import { DailyRoast, WeeklyStory, PatternCard } from '@/components/dashboard/ai-blocks';
 
 export default function Home() {
   const { user, setUser, hydrated } = useUser();
@@ -130,6 +130,8 @@ export default function Home() {
               <DailyRoast user={user} entries={entries} />
               <WeeklyStory entries={entries} />
             </div>
+
+            <PatternCard user={user} entries={entries} />
 
             {/* Mobile-only quick links to chat/detail (header hides them on small screens) */}
             <div className="sm:hidden flex gap-2">

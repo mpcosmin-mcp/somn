@@ -4,12 +4,13 @@
    ───────────────────────────────────────────────────────── */
 
 export interface SleepEntry {
-  date: string;          // YYYY-MM-DD (sleep date = night before wake)
+  date: string;            // YYYY-MM-DD (sleep date = night before wake)
   name: string;
-  ss: number;            // sleep score 0-100
-  rhr: number;           // resting heart rate, bpm
-  hrv: number | null;    // heart rate variability, ms
-  rem: number | null;    // REM minutes (NEW in v2)
+  ss: number;              // sleep score 0-100
+  rhr: number;             // resting heart rate, bpm
+  hrv: number | null;      // heart rate variability, ms
+  rem: number | null;      // REM minutes (NEW in v2)
+  journal: string | null;  // free-form daily note (NEW in v2)
 }
 
 export interface AggEntry {
