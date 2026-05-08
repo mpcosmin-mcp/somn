@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# somn · sleep tracker v2
 
-## Getting Started
+Sleep tracker for IT people who care about REM, RHR, HRV — and being roasted by Claude every morning.
 
-First, run the development server:
+Three users, one Google Sheet, single-page Next.js, deployed on Vercel. Dark mode by default because we live in dark mode.
+
+## Stack
+
+- **Next.js 16** App Router + React 19
+- **Tailwind CSS v4** + Geist fonts
+- **Claude Haiku 4.5** via `@anthropic-ai/sdk` for daily roasts and weekly stories
+- **Google Sheets** as backend (via existing Apps Script endpoint)
+- **Vercel** for hosting + automatic deploys
+
+## What's in the box
+
+- **Main page (`/`)** — REM headline number, team row with sparklines, AI daily roast, expandable weekly story
+- **Detail page (`/detail`)** — per-user drill-down with 7d/30d/all-time sparklines, XP/level, history table, REM education tips
+- **Log entry** — inline 4-field form (SS, REM, RHR, HRV), supports retroactive dates
+- **No auth** — 3-name picker stored in localStorage. Trust-based, like v1
+
+## Local dev
 
 ```bash
+npm install
+cp .env.local.example .env.local
+# fill in ANTHROPIC_API_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Push to GitHub → import in Vercel → add env vars → done.
 
-## Learn More
+See [SETUP.md](./SETUP.md) for the one-time setup checklist (API key, env vars, Apps Script REM column).
 
-To learn more about Next.js, take a look at the following resources:
+## Migrating from v1
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Same Google Sheet — old data preserved
+- New `rem` column added; old rows show `—`
+- v1 still lives at the existing GitHub Pages URL (read-only archive)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── page.tsx              # main dashboard
+│   ├── detail/page.tsx       # per-user drill-down
+│   ├── api/
+│   │   ├── sheets/           # GET all entries, POST new
+│   │   ├── roast/            # POST → Claude Haiku 1-liner
+│   │   └── story/            # POST → Claude Haiku weekly recap
+│   ├── layout.tsx
+│   └── globals.css           # design tokens
+├── components/
+│   ├── ui/                   # Button, Card, Avi, Sparkline, Metric, Input
+│   └── dashboard/            # Hero, TeamRow, LogEntry, DetailView, AI blocks, REM tips
+└── lib/
+    ├── sleep.ts              # types, color helpers, aggregate
+    ├── gamify.ts             # XP = logs×10 + SS bonus, 3-tier system
+    ├── client-api.ts         # /api/* fetchers
+    ├── config.ts             # server-side env reads
+    ├── user.ts               # localStorage user picker
+    └── utils.ts              # cn(), date formatters, week keys
+```

@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ─────────────────────────────────────────────────────────
+   sleep tracker v2 — design tokens
+   dark-first IT-dev aesthetic. monospace numbers.
+   single accent: lime-400 (energy/wake). zinc neutrals.
+   ───────────────────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Surfaces */
+  --color-bg: #09090b;          /* zinc-950 */
+  --color-surface: #0f0f12;     /* slightly lifted */
+  --color-card: #18181b;        /* zinc-900 */
+  --color-border: #27272a;      /* zinc-800 */
+  --color-border-subtle: #1c1c1f;
+
+  /* Text */
+  --color-fg: #fafafa;          /* zinc-50 */
+  --color-fg-muted: #a1a1aa;    /* zinc-400 */
+  --color-fg-dim: #52525b;      /* zinc-600 */
+
+  /* Accent */
+  --color-accent: #a3e635;      /* lime-400 */
+  --color-accent-soft: #65a30d; /* lime-600 */
+  --color-accent-glow: rgba(163, 230, 53, 0.15);
+
+  /* Sleep score gradient stops (blue → green → amber → red) */
+  --color-ss-top: #60a5fa;      /* blue-400 */
+  --color-ss-good: #4ade80;     /* green-400 */
+  --color-ss-ok: #fbbf24;       /* amber-400 */
+  --color-ss-poor: #fb923c;     /* orange-400 */
+  --color-ss-bad: #f87171;      /* red-400 */
+
+  /* Per-person */
+  --color-clara: #f472b6;       /* pink-400 */
+  --color-petrica: #60a5fa;     /* blue-400 */
+  --color-cornel: #34d399;      /* emerald-400 */
+
+  /* Fonts (set via next/font in layout) */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+* {
+  border-color: var(--color-border);
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numeric typography — tabular for stable column widths */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Tiny uppercase labels (Linear/Vercel style) */
+.label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--color-fg-muted);
+}
+
+/* Card primitive */
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+/* Soft glow on accent surfaces */
+.glow-accent {
+  box-shadow: 0 0 32px var(--color-accent-glow);
+}
+
+/* Subtle dotted bg pattern for hero sections */
+.dots {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* Reduce motion respectfully */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* Scrollbar — minimal, on-theme */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-fg-dim); }
+
+/* Selection */
+::selection { background: var(--color-accent); color: var(--color-bg); }
