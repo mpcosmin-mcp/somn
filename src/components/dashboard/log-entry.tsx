@@ -123,19 +123,19 @@ export function LogEntry({
     const tier = ssTier(savedEntry.ss);
 
     return (
-      <Card className="p-5 max-w-md mx-auto w-full">
-        <div className="text-center mb-4">
+      <Card className="p-4 sm:p-5 max-w-md mx-auto w-full">
+        <div className="text-center mb-3 sm:mb-4">
           <div className="text-2xl mb-1">✓</div>
           <div className="font-bold text-lg">salvat</div>
           <div className="text-[10px] text-[var(--color-fg-muted)] num">{fmtDate(savedEntry.date)}</div>
         </div>
 
         {/* Hero: SS giant */}
-        <div className="text-center mb-4 py-4 rounded-xl dots">
+        <div className="text-center mb-3 sm:mb-4 py-3 sm:py-4 rounded-xl dots">
           <div className="label mb-1">Sleep Score</div>
           <div className="flex items-baseline justify-center gap-2">
             <span
-              className="num font-bold leading-none text-6xl"
+              className="num font-bold leading-none text-5xl sm:text-6xl"
               style={{ color: ssColor(savedEntry.ss) }}
             >
               {savedEntry.ss}
@@ -148,7 +148,7 @@ export function LogEntry({
         </div>
 
         {/* REM / RHR / HRV grid */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-3 sm:mb-4">
           <Stat label="REM" value={savedEntry.rem}  unit="min"  color={savedEntry.rem != null ? remColor(savedEntry.rem) : '#52525b'} />
           <Stat label="RHR" value={savedEntry.rhr}  unit="bpm"  color={rhrColor(savedEntry.rhr)} />
           <Stat label="HRV" value={savedEntry.hrv}  unit="ms"   color={hrvColor(savedEntry.hrv)} />

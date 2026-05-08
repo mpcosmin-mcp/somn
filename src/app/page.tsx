@@ -51,32 +51,45 @@ export default function Home() {
   const todayLogged = entries.some(e => e.date === today && e.name === user);
 
   return (
-    <main className="min-h-screen pb-12">
+    <main className="min-h-screen pb-12 pb-safe">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 bg-[var(--color-bg)]/80 backdrop-blur-md border-b border-[var(--color-border)]">
-        <div className="max-w-5xl mx-auto px-4 md:px-6 h-14 flex items-center gap-2">
-          <Link href="/" className="num font-bold text-lg tracking-tight">somn</Link>
-          <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--color-fg-muted)] hidden sm:inline">
+      <header className="sticky top-0 z-30 bg-[var(--color-bg)]/80 backdrop-blur-md border-b border-[var(--color-border)] pt-safe">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 h-14 flex items-center gap-1.5 sm:gap-2">
+          <Link href="/" className="num font-bold text-lg tracking-tight shrink-0">somn</Link>
+          <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--color-fg-muted)] hidden md:inline">
             sleep · IT · ai
           </span>
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
             <Button size="sm" variant={todayLogged ? 'secondary' : 'primary'} onClick={() => setShowLog(s => !s)}>
-              {showLog ? 'închide' : todayLogged ? 'log' : '+ log azi'}
+              {showLog ? 'închide' : todayLogged ? 'log' : '+ log'}
             </Button>
-            <Button size="sm" variant="ghost" onClick={toggleChat} aria-label="Toggle chat" title="Chat (esc to close)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              onClick={toggleChat}
+              aria-label="Toggle chat"
+              title="Chat (esc to close)"
+              className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="hidden sm:inline">chat</span>
-            </Button>
-            <Link href={`/detail?u=${encodeURIComponent(user)}`} className="hidden sm:inline-flex">
-              <Button size="sm" variant="ghost">detalii</Button>
+            </button>
+            <Link
+              href={`/detail?u=${encodeURIComponent(user)}`}
+              className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+              title="Detalii"
+              aria-label="Detalii"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v18h18" />
+                <path d="M8 17l4-7 3 4 5-9" />
+              </svg>
             </Link>
             <ThemeToggle />
             <button
               onClick={() => setUser(null)}
-              className="ml-1"
+              className="ml-0.5 shrink-0"
               title="Schimbă utilizator"
+              aria-label="Schimbă utilizator"
             >
               <Avi name={user} size="sm" />
             </button>
@@ -84,7 +97,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 space-y-4">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 space-y-4">
         {loading && (
           <div className="text-center text-[var(--color-fg-muted)] text-sm py-12">
             <div className="num text-xs mb-2">~$ fetching sheets...</div>
@@ -145,12 +158,6 @@ export default function Home() {
 
             <PatternCard user={user} entries={entries} />
 
-            {/* Mobile-only quick link to detail (chat is in side panel) */}
-            <div className="sm:hidden">
-              <Link href={`/detail?u=${encodeURIComponent(user)}`}>
-                <Button variant="secondary" className="w-full">📊 detalii</Button>
-              </Link>
-            </div>
 
             <div className="pt-4 text-center hidden sm:block">
               <Link
@@ -165,9 +172,9 @@ export default function Home() {
         )}
       </div>
 
-      <footer className="max-w-5xl mx-auto px-4 md:px-6 mt-16 py-6 border-t border-[var(--color-border)] flex items-center justify-between text-[10px] num text-[var(--color-fg-dim)]">
-        <span>~$ next.js · vercel · claude haiku</span>
-        <span>{entries.length} log{entries.length !== 1 ? 's' : ''} · {new Set(entries.map(e => e.date)).size} days</span>
+      <footer className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 mt-12 sm:mt-16 py-6 border-t border-[var(--color-border)] flex items-center justify-between gap-2 text-[10px] num text-[var(--color-fg-dim)]">
+        <span className="truncate">~$ next.js · vercel · claude haiku</span>
+        <span className="shrink-0">{entries.length} log{entries.length !== 1 ? 's' : ''} · {new Set(entries.map(e => e.date)).size} days</span>
       </footer>
     </main>
   );

@@ -87,9 +87,9 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
   const sortedNames = [...NAMES].sort((a, b) => calcXP(entries, b) - calcXP(entries, a));
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 dots">
+    <main className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-8 dots">
       <div className="w-full max-w-md">
-        <div className="flex items-center gap-2 mb-8">
+        <div className="flex items-center gap-2 mb-6 sm:mb-8">
           <span className="num text-3xl font-bold tracking-tight">somn</span>
           <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--color-fg-muted)] font-medium">
             sleep · IT · ai

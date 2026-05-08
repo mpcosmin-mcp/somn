@@ -67,28 +67,32 @@ function DetailInner() {
   }
 
   return (
-    <main className="min-h-screen pb-12">
-      <header className="sticky top-0 z-30 bg-[var(--color-bg)]/80 backdrop-blur-md border-b border-[var(--color-border)]">
-        <div className="max-w-5xl mx-auto px-4 md:px-6 h-14 flex items-center gap-3">
-          <Link href="/" className="num font-bold text-lg tracking-tight">somn</Link>
-          <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--color-fg-muted)] hidden sm:inline">
+    <main className="min-h-screen pb-12 pb-safe">
+      <header className="sticky top-0 z-30 bg-[var(--color-bg)]/80 backdrop-blur-md border-b border-[var(--color-border)] pt-safe">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 h-14 flex items-center gap-1.5 sm:gap-2">
+          <Link href="/" className="num font-bold text-lg tracking-tight shrink-0">somn</Link>
+          <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--color-fg-muted)] hidden md:inline">
             · detalii
           </span>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
             <Link href="/"><Button size="sm" variant="ghost">← dashboard</Button></Link>
-            <Button size="sm" variant="ghost" onClick={toggleChat} aria-label="Toggle chat" title="Chat">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              onClick={toggleChat}
+              aria-label="Toggle chat"
+              title="Chat"
+              className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="hidden sm:inline">chat</span>
-            </Button>
+            </button>
             <ThemeToggle />
             <Avi name={user} size="sm" />
           </div>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 space-y-4">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 space-y-4">
         {loading && (
           <div className="text-center text-[var(--color-fg-muted)] text-sm py-12 num">~$ loading data...</div>
         )}
@@ -99,38 +103,43 @@ function DetailInner() {
             <RemEducation />
 
             {/* Admin: cleanup duplicates from Sheet */}
-            <Card className="px-4 py-3 flex items-center gap-3 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <div className="label">admin</div>
-                <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
-                  curăță rândurile duplicate din Sheet (același date+nume).
+            <Card className="px-4 py-3">
+              <div className="flex items-start sm:items-center gap-3 flex-col sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <div className="label">admin</div>
+                  <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
+                    curăță rândurile duplicate din Sheet (același date+nume).
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                  {cleanupStatus && (
+                    <span className="text-[10px] num text-[var(--color-fg-muted)] flex-1 sm:flex-none">{cleanupStatus}</span>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={cleaning}
+                    className="ml-auto"
+                    onClick={async () => {
+                      setCleaning(true);
+                      setCleanupStatus(null);
+                      try {
+                        const res = await cleanupDuplicates();
+                        if (res.ok) {
+                          setCleanupStatus(`gata · ${res.removed} șterse`);
+                          await load();
+                        } else {
+                          setCleanupStatus('eroare');
+                        }
+                      } finally {
+                        setCleaning(false);
+                      }
+                    }}
+                  >
+                    {cleaning ? 'curăț...' : 'curăță duplicate'}
+                  </Button>
                 </div>
               </div>
-              {cleanupStatus && (
-                <span className="text-[10px] num text-[var(--color-fg-muted)]">{cleanupStatus}</span>
-              )}
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={cleaning}
-                onClick={async () => {
-                  setCleaning(true);
-                  setCleanupStatus(null);
-                  try {
-                    const res = await cleanupDuplicates();
-                    if (res.ok) {
-                      setCleanupStatus(`gata · ${res.removed} șterse`);
-                      await load();
-                    } else {
-                      setCleanupStatus('eroare');
-                    }
-                  } finally {
-                    setCleaning(false);
-                  }
-                }}
-              >
-                {cleaning ? 'curăț...' : 'curăță duplicate'}
-              </Button>
             </Card>
           </>
         )}

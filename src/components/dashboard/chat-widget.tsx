@@ -113,25 +113,34 @@ export function ChatWidget({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-[var(--color-border)] px-4 py-3 flex items-center gap-2 shrink-0">
-        <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-[10px] num font-bold">
+      <div className="border-b border-[var(--color-border)] px-3 py-2.5 flex items-center gap-2 shrink-0 pt-safe">
+        <div className="w-9 h-9 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-[11px] num font-bold shrink-0">
           ai
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm">claude</div>
-          <div className="text-[10px] text-[var(--color-fg-muted)] num">haiku · context: 30d data + journals</div>
+          <div className="font-semibold text-sm leading-tight">claude</div>
+          <div className="text-[10px] text-[var(--color-fg-muted)] num truncate">haiku · ultimele 30 zile + jurnale</div>
         </div>
         {messages.length > 0 && (
-          <Button size="sm" variant="ghost" onClick={clearChat} title="șterge conversația">×</Button>
+          <button
+            onClick={clearChat}
+            className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+            title="Șterge conversația"
+            aria-label="Șterge conversația"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+          </button>
         )}
         {onClose && (
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-card)] transition-colors"
+            className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
             aria-label="Închide chat"
             title="Închide"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -197,7 +206,7 @@ export function ChatWidget({
       </div>
 
       {/* Composer */}
-      <div className="border-t border-[var(--color-border)] px-3 py-2 shrink-0">
+      <div className="border-t border-[var(--color-border)] px-3 pt-2 pb-2 pb-safe shrink-0">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
@@ -206,14 +215,21 @@ export function ChatWidget({
             onKeyDown={handleKey}
             placeholder="întreabă..."
             rows={1}
-            className="flex-1 resize-none rounded-lg px-2.5 py-2 bg-[var(--color-card)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)] placeholder:text-[var(--color-fg-dim)] max-h-32"
+            className="flex-1 resize-none rounded-lg px-3 py-2.5 bg-[var(--color-card)] border border-[var(--color-border)] text-sm focus:outline-none focus:border-[var(--color-accent)] placeholder:text-[var(--color-fg-dim)] max-h-32"
             disabled={sending}
           />
-          <Button size="sm" variant="primary" disabled={sending || !input.trim()} onClick={() => send(input)}>
-            ↑
-          </Button>
+          <button
+            onClick={() => send(input)}
+            disabled={sending || !input.trim()}
+            className="tap rounded-lg bg-[var(--color-accent)] text-[var(--color-bg)] font-semibold hover:brightness-110 active:brightness-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shrink-0"
+            aria-label="Trimite"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
-        <div className="text-[9px] num text-[var(--color-fg-dim)] mt-1 px-0.5">
+        <div className="text-[9px] num text-[var(--color-fg-dim)] mt-1 px-0.5 hidden sm:block">
           enter = trimite · shift+enter = newline
         </div>
       </div>

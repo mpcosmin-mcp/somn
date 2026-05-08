@@ -27,7 +27,7 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
   const isToday = last.date === todayStr();
 
   return (
-    <section className="relative dots rounded-3xl px-5 md:px-8 py-8 md:py-10 overflow-hidden">
+    <section className="relative dots rounded-2xl sm:rounded-3xl px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10 overflow-hidden">
       <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
         <div>
           <div className="label text-[var(--color-fg-muted)]">{isToday ? 'Aseară' : 'Ultima noapte'} · {fn}</div>
@@ -39,24 +39,24 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
       </div>
 
       {/* SS is the headline */}
-      <div className="flex items-end gap-6 mb-6 flex-wrap">
-        <div>
+      <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6 flex-wrap">
+        <div className="min-w-0">
           <div className="label mb-1">Sleep Score</div>
           <div className="flex items-baseline gap-2">
             <span
-              className="num font-bold leading-none text-7xl md:text-8xl"
+              className="num font-bold leading-none text-6xl sm:text-7xl md:text-8xl"
               style={{ color: ssColor(last.ss) }}
             >
               {last.ss}
             </span>
-            <span className="text-lg text-[var(--color-fg-muted)] font-medium">/100</span>
+            <span className="text-base sm:text-lg text-[var(--color-fg-muted)] font-medium">/100</span>
           </div>
           <div className="text-xs font-bold uppercase tracking-wider mt-2" style={{ color: ssT.color }}>
             {ssT.label}
           </div>
         </div>
-        <div className="flex-1 min-w-0 flex justify-end pb-2">
-          <Sparkline values={ssSeries} width={180} height={48} color={ssColor(last.ss)} showDots />
+        <div className="flex-1 min-w-[120px] flex justify-end pb-2">
+          <Sparkline values={ssSeries} width={140} height={40} color={ssColor(last.ss)} showDots className="sm:w-[180px] sm:h-[48px]" />
         </div>
       </div>
 
@@ -72,13 +72,13 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
 
 function Stat({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {
   return (
-    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl px-3 py-3">
+    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl px-2.5 sm:px-3 py-2.5 sm:py-3">
       <div className="label mb-1">{label}</div>
-      <div className="flex items-baseline gap-1.5">
-        <span className="num font-bold text-2xl leading-none" style={{ color: value == null ? '#52525b' : color }}>
+      <div className="flex items-baseline gap-1">
+        <span className="num font-bold text-xl sm:text-2xl leading-none truncate" style={{ color: value == null ? '#52525b' : color }}>
           {value ?? '—'}
         </span>
-        <span className="text-[10px] text-[var(--color-fg-muted)]">{unit}</span>
+        <span className="text-[9px] sm:text-[10px] text-[var(--color-fg-muted)] shrink-0">{unit}</span>
       </div>
     </div>
   );

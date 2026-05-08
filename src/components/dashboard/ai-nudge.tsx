@@ -63,25 +63,26 @@ export function AINudge({ user, entries }: { user: string; entries: SleepEntry[]
         style={{ background: 'radial-gradient(circle at 100% 0%, rgba(163, 230, 53, 0.18), transparent 60%)' }}
       />
       <div className="relative flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-base shrink-0">
+        <div className="w-10 h-10 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-lg shrink-0">
           {current.emoji}
         </div>
         <div className="flex-1 min-w-0">
           <div className="label mb-0.5">claude · ai e aici</div>
           <button
             onClick={handleAsk}
-            className="text-sm font-semibold text-left hover:text-[var(--color-accent)] transition-colors"
+            className="text-sm font-semibold text-left hover:text-[var(--color-accent)] transition-colors w-full text-left leading-tight"
           >
-            {current.text} <span className="text-[var(--color-fg-muted)] text-xs font-normal">→ întreabă</span>
+            <span className="break-words">{current.text}</span>
+            <span className="text-[var(--color-fg-muted)] text-xs font-normal block sm:inline sm:ml-1 mt-0.5">→ întreabă</span>
           </button>
         </div>
         <button
           onClick={next}
           aria-label="alt prompt"
           title="alt prompt"
-          className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+          className="tap shrink-0 rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 12a9 9 0 11-3-6.7L21 8" />
             <path d="M21 3v5h-5" />
           </svg>

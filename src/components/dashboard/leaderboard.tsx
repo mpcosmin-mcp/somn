@@ -101,20 +101,20 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       {/* Champion banner */}
       {champion && (
         <div
-          className="px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-3"
+          className="px-4 sm:px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-3"
           style={{ background: `linear-gradient(90deg, ${personColor(champion.name)}18, transparent 70%)` }}
         >
-          <span className="text-2xl">🏆</span>
+          <span className="text-2xl shrink-0">🏆</span>
           <div className="flex-1 min-w-0">
-            <div className="label" style={{ color: personColor(champion.name) }}>
+            <div className="label truncate" style={{ color: personColor(champion.name) }}>
               campion · {periodLabel}
             </div>
-            <div className="font-bold text-sm">
+            <div className="font-bold text-sm truncate">
               {FIRST_NAME[champion.name]} <span className="num text-[var(--color-fg-muted)] font-medium">· SS {champion.ss}</span>
             </div>
           </div>
           {champion.rem != null && (
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <div className="label">REM</div>
               <div className="num font-bold text-sm" style={{ color: remColor(champion.rem) }}>{champion.rem}m</div>
             </div>
@@ -170,7 +170,7 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
     <Link
       href={`/detail?u=${encodeURIComponent(row.name)}`}
       className={`block group rounded-xl px-3 py-2.5 transition-all ${
-        isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : 'hover:bg-[var(--color-surface)]'
+        isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : 'active:bg-[var(--color-surface)] sm:hover:bg-[var(--color-surface)]'
       }`}
     >
       <div className="flex items-center gap-3">
@@ -182,14 +182,14 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
               {FIRST_NAME[row.name]}
             </span>
             {isMe && <span className="text-[8px] uppercase tracking-wider text-[var(--color-accent)] font-bold">tu</span>}
-            <span className="text-[9px] num font-bold px-1 py-0.5 rounded" style={{ color: tier.color, background: tier.color + '15' }}>
+            <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
               {tier.icon} Lv{row.level}
             </span>
             {row.badges.slice(0, 2).map((b, i) => (
               <span key={i} className="text-[10px]" title={b.label}>{b.emoji}</span>
             ))}
           </div>
-          <div className="text-[9px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5">
+          <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5 flex-wrap">
             {row.hasData ? (
               <>
                 <span className="num">RHR <strong style={{ color: rhrColor(row.rhr) }}>{row.rhr}</strong></span>
@@ -213,7 +213,7 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="num font-bold text-2xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
+          <div className="num font-bold text-2xl sm:text-3xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
             {row.hasData ? row.ss : '—'}
           </div>
           {row.rem != null && period === 'today' && (

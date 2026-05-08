@@ -4,14 +4,14 @@ import { useTheme } from '@/lib/theme';
 export function ThemeToggle() {
   const { theme, toggle, hydrated } = useTheme();
   if (!hydrated) {
-    return <div className="w-8 h-8" aria-hidden />;
+    return <div className="tap" aria-hidden />;
   }
   return (
     <button
       onClick={toggle}
       title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
       aria-label="Toggle theme"
-      className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-card)] transition-colors"
+      className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
     >
       {theme === 'dark' ? (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

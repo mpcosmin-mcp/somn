@@ -151,25 +151,32 @@ export function DetailView({ entries, user, onUserChange }: { entries: SleepEntr
 function HistoryRow({ entry }: { entry: SleepEntry }) {
   return (
     <div className="rounded-lg border border-[var(--color-border-subtle)] hover:border-[var(--color-border)] transition-colors px-3 py-2">
-      <div className="flex items-center gap-3 num text-xs">
-        <span className="text-[var(--color-fg-muted)] w-24 shrink-0">{fmtDateShort(entry.date)}</span>
-        <span className="flex items-baseline gap-1">
-          <span className="text-[var(--color-fg-muted)] text-[10px]">SS</span>
-          <span className="font-bold" style={{ color: ssColor(entry.ss) }}>{entry.ss}</span>
-        </span>
-        <span className="flex items-baseline gap-1">
-          <span className="text-[var(--color-fg-muted)] text-[10px]">REM</span>
-          <span className="font-bold" style={{ color: entry.rem != null ? remColor(entry.rem) : '#52525b' }}>{entry.rem ?? '—'}</span>
-        </span>
-        <span className="flex items-baseline gap-1">
-          <span className="text-[var(--color-fg-muted)] text-[10px]">RHR</span>
-          <span className="font-bold" style={{ color: rhrColor(entry.rhr) }}>{entry.rhr}</span>
-        </span>
-        <span className="flex items-baseline gap-1">
-          <span className="text-[var(--color-fg-muted)] text-[10px]">HRV</span>
-          <span className="font-bold" style={{ color: hrvColor(entry.hrv) }}>{entry.hrv ?? '—'}</span>
-        </span>
-        {entry.journal && <span className="ml-auto text-[var(--color-fg-dim)] text-[10px]">📝</span>}
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3 num text-xs">
+        {/* Date row + journal icon (always visible) */}
+        <div className="flex items-center justify-between sm:justify-start sm:w-28 sm:shrink-0">
+          <span className="text-[var(--color-fg-muted)] font-semibold">{fmtDateShort(entry.date)}</span>
+          {entry.journal && <span className="sm:hidden text-[var(--color-fg-dim)] text-[10px]">📝</span>}
+        </div>
+        {/* Metrics row — wraps on small screens if needed */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="flex items-baseline gap-1">
+            <span className="text-[var(--color-fg-muted)] text-[10px]">SS</span>
+            <span className="font-bold" style={{ color: ssColor(entry.ss) }}>{entry.ss}</span>
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-[var(--color-fg-muted)] text-[10px]">REM</span>
+            <span className="font-bold" style={{ color: entry.rem != null ? remColor(entry.rem) : '#52525b' }}>{entry.rem ?? '—'}</span>
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-[var(--color-fg-muted)] text-[10px]">RHR</span>
+            <span className="font-bold" style={{ color: rhrColor(entry.rhr) }}>{entry.rhr}</span>
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-[var(--color-fg-muted)] text-[10px]">HRV</span>
+            <span className="font-bold" style={{ color: hrvColor(entry.hrv) }}>{entry.hrv ?? '—'}</span>
+          </span>
+        </div>
+        {entry.journal && <span className="hidden sm:inline ml-auto text-[var(--color-fg-dim)] text-[10px]">📝</span>}
       </div>
       {entry.journal && (
         <div className="mt-2 pt-2 border-t border-[var(--color-border-subtle)] text-[11px] text-[var(--color-fg-muted)] italic leading-relaxed">

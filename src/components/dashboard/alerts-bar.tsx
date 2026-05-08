@@ -35,18 +35,20 @@ export function AlertsBar({ entries, user }: { entries: SleepEntry[]; user: stri
         return (
           <div
             key={a.id}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs border"
+            className="flex items-center gap-2.5 pl-3 pr-1 py-1.5 rounded-xl text-xs border"
             style={{ background: s.bg, borderColor: s.border, color: 'var(--color-fg)' }}
           >
-            <span className="text-base shrink-0">{a.emoji}</span>
-            <span className="flex-1 leading-snug">{a.text}</span>
+            <span className="text-base shrink-0 leading-none">{a.emoji}</span>
+            <span className="flex-1 leading-snug py-1">{a.text}</span>
             <button
               onClick={() => dismiss(a.id)}
-              className="opacity-50 hover:opacity-100 transition-opacity text-[var(--color-fg-muted)] text-sm shrink-0"
+              className="tap rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-black/10 transition-all text-[var(--color-fg-muted)] shrink-0"
               title="Dismiss"
               aria-label="Dismiss alert"
             >
-              ×
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
             </button>
           </div>
         );
