@@ -8,7 +8,8 @@ Three users, one Google Sheet, single-page Next.js, deployed on Vercel. Dark mod
 
 **Documentation:**
 - [SETUP.md](./SETUP.md) — one-time setup checklist (API key, env vars, Sheet schema, Apps Script)
-- [BLUEPRINT.md](./BLUEPRINT.md) — full architecture, patterns, lessons, reusable recipes for future builds
+- [BLUEPRINT.md](./BLUEPRINT.md) — what was built in *somn* specifically: architecture, patterns, lessons, gotchas
+- [TEMPLATE.md](./TEMPLATE.md) — generic full-stack template for AI-powered dashboards (DB → API → AI tools → frontend with instant sync). Use this when starting a new project.
 - [CHANGELOG.md](./CHANGELOG.md) — release history
 
 ## Stack
