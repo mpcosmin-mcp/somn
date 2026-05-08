@@ -19,16 +19,8 @@ export async function submitEntry(e: Omit<SleepEntry, never>): Promise<void> {
   if (!res.ok) throw new Error(`POST /api/sheets ${res.status}`);
 }
 
-export async function fetchDailyRoast(name: string, entries: SleepEntry[]): Promise<string> {
-  const res = await fetch('/api/roast', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, entries: entries.slice(-7) }),
-  });
-  if (!res.ok) return '';
-  const json = (await res.json()) as { text?: string };
-  return json.text ?? '';
-}
+/* fetchDailyRoast is intentionally NOT exported — DailyRoast component inlines
+   the call so it can include the journal length in the cache key. */
 
 export async function fetchWeeklyStory(entries: SleepEntry[]): Promise<string> {
   const res = await fetch('/api/story', {

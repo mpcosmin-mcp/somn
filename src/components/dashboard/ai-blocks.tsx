@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { type SleepEntry, FIRST_NAME } from '@/lib/sleep';
-import { fetchDailyRoast, fetchWeeklyStory, fetchPatterns, type Patterns } from '@/lib/client-api';
+import { fetchWeeklyStory, fetchPatterns, type Patterns } from '@/lib/client-api';
 import { weekKey } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 

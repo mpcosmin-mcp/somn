@@ -15,6 +15,7 @@ import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { DailyRoast, WeeklyStory, PatternCard } from '@/components/dashboard/ai-blocks';
 import { AlertsBar } from '@/components/dashboard/alerts-bar';
 import { AINudge } from '@/components/dashboard/ai-nudge';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
 import { toggleChat } from '@/lib/chat-toggle';
 
 export default function Home() {
@@ -98,11 +99,7 @@ export default function Home() {
       </header>
 
       <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 space-y-4">
-        {loading && (
-          <div className="text-center text-[var(--color-fg-muted)] text-sm py-12">
-            <div className="num text-xs mb-2">~$ fetching sheets...</div>
-          </div>
-        )}
+        {loading && <DashboardSkeleton />}
 
         {err && (
           <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
@@ -114,11 +111,13 @@ export default function Home() {
         {!loading && (
           <>
             {/* Pattern alerts (auto-detected, dismissable) */}
-            <AlertsBar entries={entries} user={user} />
+            <div className="fade-in-up delay-0">
+              <AlertsBar entries={entries} user={user} />
+            </div>
 
             {/* Today CTA banner — visible if today not logged yet */}
             {!todayLogged && !showLog && (
-              <div className="dots rounded-2xl px-5 py-4 border border-[var(--color-accent)]/30 flex items-center gap-3">
+              <div className="dots rounded-2xl px-5 py-4 border border-[var(--color-accent)]/30 flex items-center gap-3 fade-in-up delay-1">
                 <span className="text-2xl">🌙</span>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-sm">{fn}, încă n-ai logat azi</div>
@@ -130,36 +129,45 @@ export default function Home() {
 
             {/* Log dialog */}
             {showLog && (
-              <LogEntry
-                user={user}
-                entries={entries}
-                onSaved={(saved) => {
-                  // Update state — but DON'T close the modal. LogEntry will show
-                  // its instant-feedback screen and the user closes via "ok" button.
-                  setEntries(prev => {
-                    const filtered = prev.filter(e => !(e.date === saved.date && e.name === saved.name));
-                    return [...filtered, saved];
-                  });
-                }}
-                onClose={() => setShowLog(false)}
-              />
+              <div className="fade-in-up delay-0">
+                <LogEntry
+                  user={user}
+                  entries={entries}
+                  onSaved={(saved) => {
+                    // Update state — but DON'T close the modal. LogEntry shows
+                    // its feedback screen and the user closes via "ok" button.
+                    setEntries(prev => {
+                      const filtered = prev.filter(e => !(e.date === saved.date && e.name === saved.name));
+                      return [...filtered, saved];
+                    });
+                  }}
+                  onClose={() => setShowLog(false)}
+                />
+              </div>
             )}
 
-            <Hero entries={entries} user={user} />
+            <div className="fade-in-up delay-1">
+              <Hero entries={entries} user={user} />
+            </div>
 
-            <AINudge user={user} entries={entries} />
+            <div className="fade-in-up delay-2">
+              <AINudge user={user} entries={entries} />
+            </div>
 
-            <Leaderboard entries={entries} currentUser={user} />
+            <div className="fade-in-up delay-2">
+              <Leaderboard entries={entries} currentUser={user} />
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 fade-in-up delay-3">
               <DailyRoast user={user} entries={entries} />
               <WeeklyStory entries={entries} />
             </div>
 
-            <PatternCard user={user} entries={entries} />
+            <div className="fade-in-up delay-4">
+              <PatternCard user={user} entries={entries} />
+            </div>
 
-
-            <div className="pt-4 text-center hidden sm:block">
+            <div className="pt-4 text-center hidden sm:block fade-in-up delay-5">
               <Link
                 href={`/detail?u=${encodeURIComponent(user)}`}
                 className="inline-flex items-center gap-2 text-sm text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors group"

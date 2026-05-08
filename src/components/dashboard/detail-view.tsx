@@ -135,14 +135,19 @@ export function DetailView({ entries, user, onUserChange }: { entries: SleepEntr
       {/* Recent log list — with journal entries inline */}
       <Card className="p-5">
         <div className="label mb-3">istoric · ultimele {Math.min(filtered.length, 14)} loguri</div>
-        {filtered.length === 0 && (
-          <div className="text-center py-4 text-xs text-[var(--color-fg-dim)] italic">niciun log în acest interval</div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-8 text-xs text-[var(--color-fg-muted)]">
+            <div className="text-2xl mb-2">📭</div>
+            <div className="italic">niciun log în acest interval</div>
+            <div className="text-[10px] text-[var(--color-fg-dim)] mt-1">încearcă alt range</div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {[...filtered].reverse().slice(0, 14).map(e => (
+              <HistoryRow key={e.date} entry={e} />
+            ))}
+          </div>
         )}
-        <div className="space-y-2">
-          {[...filtered].reverse().slice(0, 14).map(e => (
-            <HistoryRow key={e.date} entry={e} />
-          ))}
-        </div>
       </Card>
     </div>
   );

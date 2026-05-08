@@ -138,10 +138,10 @@ export function ChatWidget({
             onClick={onClose}
             className="tap rounded-lg flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
             aria-label="Închide chat"
-            title="Închide"
+            title="Închide (esc)"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 5l7 7-7 7" />
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         )}

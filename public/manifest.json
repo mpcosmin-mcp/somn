@@ -1,0 +1,26 @@
+{
+  "name": "somn — sleep tracker",
+  "short_name": "somn",
+  "description": "Sleep, REM, RHR & HRV tracker for IT people. Built with Next.js, AI-fueled, ruthlessly minimal.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "lang": "ro",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["health", "lifestyle", "productivity"]
+}

@@ -15,10 +15,14 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
 
   if (!last) {
     return (
-      <section className="relative dots rounded-3xl px-6 py-12 md:py-16 text-center">
-        <div className="text-sm text-[var(--color-fg-muted)] uppercase tracking-[0.2em] mb-2">{fn}</div>
-        <div className="text-2xl font-semibold">Niciun log încă.</div>
-        <div className="text-[var(--color-fg-muted)] mt-2 text-sm">Apasă <span className="text-[var(--color-accent)] font-bold">log</span> sus dreapta ca să începi.</div>
+      <section className="relative dots rounded-2xl sm:rounded-3xl px-6 py-10 sm:py-14 text-center">
+        <div className="text-3xl mb-3">🌙</div>
+        <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-fg-muted)] mb-2 font-semibold">{fn}</div>
+        <div className="text-xl sm:text-2xl font-semibold mb-1">Niciun log încă.</div>
+        <div className="text-sm text-[var(--color-fg-muted)] max-w-xs mx-auto">
+          Apasă <span className="text-[var(--color-accent)] font-bold">+ log</span> sus dreapta ca să începi.
+          REM-ul tău nu se loghează singur.
+        </div>
       </section>
     );
   }

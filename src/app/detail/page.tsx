@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { DetailSkeleton } from '@/components/ui/skeleton';
 import { toggleChat } from '@/lib/chat-toggle';
 import { DetailView } from '@/components/dashboard/detail-view';
 import { RemEducation } from '@/components/dashboard/rem-tips';
@@ -93,9 +94,7 @@ function DetailInner() {
       </header>
 
       <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 space-y-4">
-        {loading && (
-          <div className="text-center text-[var(--color-fg-muted)] text-sm py-12 num">~$ loading data...</div>
-        )}
+        {loading && <DetailSkeleton />}
 
         {!loading && (
           <>
