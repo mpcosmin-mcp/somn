@@ -7,6 +7,7 @@ import { useUser } from '@/lib/user';
 import { fetchAllEntries } from '@/lib/client-api';
 import { Button } from '@/components/ui/button';
 import { Avi } from '@/components/ui/avi';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { DetailView } from '@/components/dashboard/detail-view';
 import { RemEducation } from '@/components/dashboard/rem-tips';
 
@@ -71,6 +72,8 @@ function DetailInner() {
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Link href="/"><Button size="sm" variant="ghost">← dashboard</Button></Link>
+            <Link href="/chat" className="hidden sm:inline-flex"><Button size="sm" variant="ghost">chat</Button></Link>
+            <ThemeToggle />
             <Avi name={user} size="sm" />
           </div>
         </div>

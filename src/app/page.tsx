@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { type SleepEntry, FIRST_NAME } from '@/lib/sleep';
 import { useUser } from '@/lib/user';
 import { fetchAllEntries } from '@/lib/client-api';
+import { todayStr, fmtDate } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { UserPicker } from '@/components/dashboard/user-picker';
 import { LogEntry } from '@/components/dashboard/log-entry';
 import { Hero } from '@/components/dashboard/hero';
-import { TeamRow } from '@/components/dashboard/team-row';
+import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { DailyRoast, WeeklyStory } from '@/components/dashboard/ai-blocks';
 
 export default function Home() {
@@ -42,26 +44,32 @@ export default function Home() {
   }
 
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];
+  const today = todayStr();
+  const todayLogged = entries.some(e => e.date === today && e.name === user);
 
   return (
     <main className="min-h-screen pb-12">
       {/* Top bar */}
       <header className="sticky top-0 z-30 bg-[var(--color-bg)]/80 backdrop-blur-md border-b border-[var(--color-border)]">
-        <div className="max-w-5xl mx-auto px-4 md:px-6 h-14 flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 h-14 flex items-center gap-2">
           <Link href="/" className="num font-bold text-lg tracking-tight">somn</Link>
           <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--color-fg-muted)] hidden sm:inline">
             sleep · IT · ai
           </span>
-          <div className="ml-auto flex items-center gap-2">
-            <Button size="sm" variant="primary" onClick={() => setShowLog(s => !s)}>
-              {showLog ? 'închide' : '+ log'}
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button size="sm" variant={todayLogged ? 'secondary' : 'primary'} onClick={() => setShowLog(s => !s)}>
+              {showLog ? 'închide' : todayLogged ? 'log' : '+ log azi'}
             </Button>
-            <Link href={`/detail?u=${encodeURIComponent(user)}`}>
-              <Button size="sm" variant="secondary">detalii</Button>
+            <Link href="/chat" className="hidden sm:inline-flex">
+              <Button size="sm" variant="ghost">chat</Button>
             </Link>
+            <Link href={`/detail?u=${encodeURIComponent(user)}`} className="hidden sm:inline-flex">
+              <Button size="sm" variant="ghost">detalii</Button>
+            </Link>
+            <ThemeToggle />
             <button
               onClick={() => setUser(null)}
-              className="ml-1 group"
+              className="ml-1"
               title="Schimbă utilizator"
             >
               <Avi name={user} size="sm" />
@@ -86,13 +94,24 @@ export default function Home() {
 
         {!loading && (
           <>
-            {/* Log dialog (inline, expandable) */}
+            {/* Today CTA banner — visible if today not logged yet */}
+            {!todayLogged && !showLog && (
+              <div className="dots rounded-2xl px-5 py-4 border border-[var(--color-accent)]/30 flex items-center gap-3">
+                <span className="text-2xl">🌙</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm">{fn}, încă n-ai logat azi</div>
+                  <div className="text-xs text-[var(--color-fg-muted)]">{fmtDate(today)}</div>
+                </div>
+                <Button variant="primary" size="sm" onClick={() => setShowLog(true)}>+ log</Button>
+              </div>
+            )}
+
+            {/* Log dialog */}
             {showLog && (
               <LogEntry
                 user={user}
                 entries={entries}
                 onSaved={(saved) => {
-                  // Optimistic: replace any existing entry for that date+user
                   setEntries(prev => {
                     const filtered = prev.filter(e => !(e.date === saved.date && e.name === saved.name));
                     return [...filtered, saved];
@@ -105,15 +124,24 @@ export default function Home() {
 
             <Hero entries={entries} user={user} />
 
-            <div>
-              <div className="label mb-2 px-1">echipa · ultimele date</div>
-              <TeamRow entries={entries} currentUser={user} />
+            <Leaderboard entries={entries} currentUser={user} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <DailyRoast user={user} entries={entries} />
+              <WeeklyStory entries={entries} />
             </div>
 
-            <DailyRoast user={user} entries={entries} />
-            <WeeklyStory entries={entries} />
+            {/* Mobile-only quick links to chat/detail (header hides them on small screens) */}
+            <div className="sm:hidden flex gap-2">
+              <Link href="/chat" className="flex-1">
+                <Button variant="secondary" className="w-full">💬 chat cu ai</Button>
+              </Link>
+              <Link href={`/detail?u=${encodeURIComponent(user)}`} className="flex-1">
+                <Button variant="secondary" className="w-full">📊 detalii</Button>
+              </Link>
+            </div>
 
-            <div className="pt-4 text-center">
+            <div className="pt-4 text-center hidden sm:block">
               <Link
                 href={`/detail?u=${encodeURIComponent(user)}`}
                 className="inline-flex items-center gap-2 text-sm text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors group"

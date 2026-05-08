@@ -40,3 +40,19 @@ export async function fetchWeeklyStory(entries: SleepEntry[]): Promise<string> {
   const json = (await res.json()) as { text?: string };
   return json.text ?? '';
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export async function chatTurn(user: string, messages: ChatMessage[], entries: SleepEntry[]): Promise<string> {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user, messages, entries }),
+  });
+  if (!res.ok) return 'Eroare la generare.';
+  const json = (await res.json()) as { text?: string };
+  return json.text ?? '';
+}
