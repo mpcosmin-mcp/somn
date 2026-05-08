@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } from '@/lib/config';
-import { type SleepEntry, NAMES, FIRST_NAME, aggregate } from '@/lib/sleep';
+import { type SleepEntry, NAMES, FIRST_NAME } from '@/lib/sleep';
 
 /**
  * POST /api/story
- * Body: { entries: SleepEntry[] }   // last 7 days for the team
- * Returns: { text: string }         // 3-4 propoziții recap săptămânal
+ * Body: { entries: SleepEntry[] }
+ * Returns: { text: string }   // 3-4 propoziții, recap săptămânal
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const dayShort = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,23 +30,32 @@ export async function POST(req: NextRequest) {
     const weekData = entries.filter(e => e.date >= cutStr && e.date <= lastDate);
     if (weekData.length < 3) return NextResponse.json({ text: '' });
 
-    const agg = aggregate(weekData);
-    const summary = NAMES.map(n => {
-      const a = agg.find(x => x.name === n);
-      const fn = FIRST_NAME[n] ?? n.split(' ')[0];
-      if (!a) return `${fn}: zero zile logate`;
-      const remTxt = a.rem != null ? `${a.rem} min REM mediu` : 'fără REM';
-      return `${fn}: ${a.entries} zile, SS mediu ${a.ss}, RHR ${a.rhr}, ${remTxt}`;
-    }).join('\n');
+    // Detailed daily breakdown per person for the week + their journals
+    const sections = NAMES.map(name => {
+      const fn = FIRST_NAME[name] ?? name.split(' ')[0];
+      const theirs = weekData.filter(e => e.name === name).sort((a, b) => a.date.localeCompare(b.date));
+      if (!theirs.length) return `${fn}: zero loguri săptămâna asta`;
+      const lines = theirs.map(e => {
+        const d = new Date(e.date + 'T12:00:00');
+        const dn = dayShort[d.getDay()];
+        const j = e.journal ? ` — "${e.journal.replace(/\s+/g, ' ').replace(/"/g, "'").slice(0, 100)}"` : '';
+        return `  ${e.date} (${dn}): SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}${j}`;
+      });
+      const avg = Math.round(theirs.reduce((s, e) => s + e.ss, 0) / theirs.length);
+      return `${fn} (${theirs.length} zile, SS mediu ${avg}):\n${lines.join('\n')}`;
+    }).join('\n\n');
 
-    const prompt = `Ești naratorul unui dashboard de somn al unei echipe IT din Sibiu — Clara, Petrica, Cornel. Programatori care iubesc sportul, mâncarea sănătoasă, AI-ul.
+    const prompt = `Ești naratorul amuzant al unui dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Programatori care iubesc sportul, mâncarea sănătoasă, AI-ul.
 
-Recap săptămâna trecută (${cutStr} → ${lastDate}):
-${summary}
+═══════════ Săptămâna ${cutStr} → ${lastDate} ═══════════
 
-Scrie un mini-recap de 3-4 propoziții în română, ton de povestitor amuzant care îi cunoaște pe cei 3. Menționează-i pe toți. Folosește datele concrete (cifre reale). Dacă cineva a dormit excelent, laudă-l; dacă a fost slab, fă mișto cu drag. Bonus dacă strecori un comentariu legat de REM (90+ min e bun, sub 70 e slab).
+${sections}
 
-Fără emoji, fără bullet points, narativ. Răspunde DOAR cu textul.`;
+═══════════════════════════════════════════════════════
+
+Scrie un mini-recap de 3-4 propoziții în română, narativ. Menționează-i pe toți 3. Folosește cifre/zile/jurnale specifice (nu generic). Dacă cineva a dormit excelent, laudă-l; dacă slab, fă mișto cu drag — pe baza datelor reale. Bonus dacă strecori observații despre REM (90+ bun, sub 70 slab) sau HRV / pattern-uri vizibile (ex: zi proastă + jurnal cu alcool).
+
+Fără emoji, fără bullet points. Răspunde DOAR cu textul.`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const msg = await client.messages.create({

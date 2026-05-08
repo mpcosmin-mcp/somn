@@ -7,7 +7,7 @@ import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor } from '@
 import { fmtDateShort } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
-import { Sparkline } from '@/components/ui/sparkline';
+import { BgChart } from '@/components/ui/bg-chart';
 import { Metric } from '@/components/ui/metric';
 
 type Range = '7' | '30' | 'all';
@@ -198,15 +198,25 @@ interface MetricCardProps {
 }
 
 function MetricCard({ title, unit, series, avg, best, color, lowerBetter }: MetricCardProps) {
+  const present = series.filter((v): v is number => v != null);
+  const enoughForChart = present.length >= 2;
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className="label">{title}</div>
-        <Sparkline values={series} width={120} height={28} color={color} />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Metric label="medie" value={avg} unit={unit} color={color} size="md" />
-        <Metric label={lowerBetter ? 'minim' : 'maxim'} value={best} unit={unit} color={color} size="md" />
+    <Card className="p-5 relative overflow-hidden min-h-[140px]">
+      {/* Background area chart — fills the entire card behind the text */}
+      {enoughForChart && <BgChart values={series} color={color} />}
+      {!enoughForChart && (
+        <span className="absolute top-4 right-5 text-[10px] italic text-[var(--color-fg-dim)] z-0">insuficient</span>
+      )}
+
+      {/* Content overlays the chart */}
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="label">{title}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Metric label="medie" value={avg} unit={unit} color={color} size="md" />
+          <Metric label={lowerBetter ? 'minim' : 'maxim'} value={best} unit={unit} color={color} size="md" />
+        </div>
       </div>
     </Card>
   );

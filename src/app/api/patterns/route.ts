@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } from '@/lib/config';
-import { type SleepEntry, NAMES, FIRST_NAME, lastNDays, aggregate } from '@/lib/sleep';
+import { type SleepEntry, NAMES, FIRST_NAME, lastNDays } from '@/lib/sleep';
 
 /**
  * POST /api/patterns
@@ -53,20 +53,18 @@ export async function POST(req: NextRequest) {
       return `  ${e.date} (${dn}): SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}${j}`;
     }).join('\n');
 
-    // Team context: last 30 days, aggregated per person + week-over-week trend
-    const last30 = lastNDays(entries, 30);
-    const last7 = lastNDays(entries, 7);
-    const aggLast30 = aggregate(last30);
-    const aggLast7 = aggregate(last7);
-
-    const teamLines = NAMES.map(n => {
-      const a30 = aggLast30.find(x => x.name === n);
-      const a7 = aggLast7.find(x => x.name === n);
+    // Team context: detailed daily for each teammate (last 30 days)
+    const teamLines = NAMES.filter(n => n !== user).map(n => {
       const fnN = FIRST_NAME[n] ?? n.split(' ')[0];
-      if (!a30) return `  ${fnN}: zero loguri în 30 zile`;
-      const trend = a7 ? a7.ss - a30.ss : 0;
-      const trendTxt = trend > 0 ? `↑${trend}` : trend < 0 ? `↓${Math.abs(trend)}` : '→';
-      return `  ${fnN}: 30d avg SS ${a30.ss} (RHR ${a30.rhr}, REM ${a30.rem ?? '—'}), 7d trend ${trendTxt} vs 30d`;
+      const theirs = lastNDays(entries.filter(e => e.name === n), 30).sort((a, b) => a.date.localeCompare(b.date));
+      if (!theirs.length) return `  ${fnN}: zero loguri în 30 zile`;
+      const lines = theirs.map(e => {
+        const d = new Date(e.date + 'T12:00:00');
+        const dn = dayName[d.getDay()];
+        const j = e.journal ? ` — "${e.journal.replace(/"/g, "'").slice(0, 80)}"` : '';
+        return `    ${e.date} (${dn}): SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}${j}`;
+      });
+      return `  ${fnN} (${theirs.length} loguri):\n${lines.join('\n')}`;
     }).join('\n');
 
     const prompt = `Ești un analist de date de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Caută pattern-uri concrete în date și notițe.

@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } from '@/lib/config';
-import { type SleepEntry, NAMES, FIRST_NAME, aggregate, lastNDays } from '@/lib/sleep';
+import { type SleepEntry, NAMES, FIRST_NAME, lastNDays } from '@/lib/sleep';
 
 /**
  * POST /api/chat
  * Body: {
- *   user: string,                                  // current user's full name
- *   messages: { role: 'user'|'assistant', content: string }[],   // conversation
- *   entries: SleepEntry[],                          // all team data (we slice context)
+ *   user: string,
+ *   messages: { role: 'user'|'assistant', content: string }[],
+ *   entries: SleepEntry[],
  * }
- * Returns: { text: string }                         // assistant reply
+ * Returns: { text: string }
+ *
+ * The system prompt now contains DETAILED DAILY data for ALL THREE team members
+ * (last 30 days), not just the current user. This lets Claude roast/compare
+ * specific nights for anyone without saying "I only have aggregates".
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +24,23 @@ interface ReqBody {
   user: string;
   messages: { role: 'user' | 'assistant'; content: string }[];
   entries: SleepEntry[];
+}
+
+const dayShort = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
+
+/** Format a person's last-N-days entries as a compact text table */
+function formatPerson(name: string, entries: SleepEntry[], days: number): string {
+  const fn = FIRST_NAME[name] ?? name.split(' ')[0];
+  const mine = lastNDays(entries.filter(e => e.name === name), days)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!mine.length) return `${fn}: zero loguri în ultimele ${days} zile`;
+  const lines = mine.map(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    const dn = dayShort[d.getDay()];
+    const j = e.journal ? ` · "${e.journal.replace(/\s+/g, ' ').replace(/"/g, "'").slice(0, 100)}"` : '';
+    return `  ${e.date} ${dn}: SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}${j}`;
+  });
+  return `${fn} (${mine.length} loguri):\n${lines.join('\n')}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -33,43 +54,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ text: '' });
     }
 
-    // Build sleep-data context: last 30 days team summary + last 7 days for current user (detailed)
     const fn = FIRST_NAME[user] ?? user.split(' ')[0];
-    const last30 = lastNDays(entries, 30);
-    const teamAgg = aggregate(last30);
-    const teamLines = NAMES.map(n => {
-      const a = teamAgg.find(x => x.name === n);
-      const fnN = FIRST_NAME[n] ?? n.split(' ')[0];
-      if (!a) return `- ${fnN}: zero zile logate în ultimele 30`;
-      return `- ${fnN}: ${a.entries} zile, SS mediu ${a.ss}, RHR ${a.rhr}, HRV ${a.hrv ?? '—'}, REM ${a.rem ?? '—'}min`;
-    }).join('\n');
 
-    const last7Mine = lastNDays(entries.filter(e => e.name === user), 7).sort((a, b) => a.date.localeCompare(b.date));
-    const mineLines = last7Mine.map(e =>
-      `  ${e.date}: SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}min`,
-    ).join('\n');
+    // Build full team context: detailed last 30 days per user, with journals
+    const teamSections = NAMES.map(n => formatPerson(n, entries, 30)).join('\n\n');
 
     const system = `Ești un asistent inteligent integrat într-un dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Toți programatori, le place sportul, mâncatul sănătos, AI-ul.
 
-Userul curent: ${fn}.
-Răspunde concis, în română, ton prietenos-tehnic. Folosește datele lor reale când răspunzi (nu inventa cifre). Maxim 4-5 propoziții decât nu cere user-ul mai mult. Fără emoji exagerate, fără bullet points dacă nu e necesar.
+Userul curent (cu care vorbești): **${fn}**.
 
-DATE TEAM (ultimele 30 zile, agregat):
-${teamLines}
+Ai DATE ZILNICE complete pentru TOȚI 3 din ultimele 30 zile — poți compara, roastui, felicita pe oricine, oriunde, oricând. Folosește cifrele și jurnalele lor REALE când răspunzi.
 
-DATE ${fn} (ultimele 7 zile, detaliat):
-${mineLines || '  (niciun log)'}
+═══════════ DATE ECHIPĂ (zilnic, ultimele 30 zile) ═══════════
+
+${teamSections}
+
+═══════════════════════════════════════════════════════════════
 
 Reguli:
-- Dacă user-ul întreabă despre date concrete, folosește numerele de mai sus
-- Dacă întreabă cum să-și îmbunătățească somnul/REM/HRV, dă sfaturi concrete bazate pe ce ai (alcool, sport târziu, cofeină, temperatură cameră)
-- Dacă vrea să comparam cu alții, folosește datele team
-- Dacă întreabă off-topic (programare, sport, nutriție), poți răspunde scurt dar redirecționează spre somn dacă se poate
-- Nu poți modifica date sau loga — doar discuți`;
+- Răspunde în română, ton prieten-tehnic, casual și roasty când e cazul
+- Maxim 4-5 propoziții decât dacă userul cere mai mult
+- Folosește numere REALE din date (SS, REM, RHR, HRV, jurnale) — niciodată inventat
+- Dacă userul cere comparație/roast/felicitare, FĂ-O cu nume specifice și cifre specifice — NU spune "n-am date detaliate" pentru că le ai
+- Dacă userul cere despre tine personal, focusează-te pe ${fn}
+- Fără bullet points decât la întrebări care chiar le cer
+- Nu poți modifica/loga date — doar discuți despre ele`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-
-    // Cap context at last 20 messages for cost control
     const trimmed = messages.slice(-20);
 
     const msg = await client.messages.create({
