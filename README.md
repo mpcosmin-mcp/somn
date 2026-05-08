@@ -1,8 +1,15 @@
-# somn · sleep tracker v2
+# somn · sleep tracker
+
+> **Production:** https://somn-xi.vercel.app
 
 Sleep tracker for IT people who care about REM, RHR, HRV — and being roasted by Claude every morning.
 
 Three users, one Google Sheet, single-page Next.js, deployed on Vercel. Dark mode by default because we live in dark mode.
+
+**Documentation:**
+- [SETUP.md](./SETUP.md) — one-time setup checklist (API key, env vars, Sheet schema, Apps Script)
+- [BLUEPRINT.md](./BLUEPRINT.md) — full architecture, patterns, lessons, reusable recipes for future builds
+- [CHANGELOG.md](./CHANGELOG.md) — release history
 
 ## Stack
 
