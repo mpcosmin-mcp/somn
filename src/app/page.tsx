@@ -13,6 +13,8 @@ import { LogEntry } from '@/components/dashboard/log-entry';
 import { Hero } from '@/components/dashboard/hero';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { DailyRoast, WeeklyStory, PatternCard } from '@/components/dashboard/ai-blocks';
+import { AlertsBar } from '@/components/dashboard/alerts-bar';
+import { toggleChat } from '@/lib/chat-toggle';
 
 export default function Home() {
   const { user, setUser, hydrated } = useUser();
@@ -60,9 +62,12 @@ export default function Home() {
             <Button size="sm" variant={todayLogged ? 'secondary' : 'primary'} onClick={() => setShowLog(s => !s)}>
               {showLog ? 'închide' : todayLogged ? 'log' : '+ log azi'}
             </Button>
-            <Link href="/chat" className="hidden sm:inline-flex">
-              <Button size="sm" variant="ghost">chat</Button>
-            </Link>
+            <Button size="sm" variant="ghost" onClick={toggleChat} aria-label="Toggle chat" title="Chat (esc to close)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="hidden sm:inline">chat</span>
+            </Button>
             <Link href={`/detail?u=${encodeURIComponent(user)}`} className="hidden sm:inline-flex">
               <Button size="sm" variant="ghost">detalii</Button>
             </Link>
@@ -94,6 +99,9 @@ export default function Home() {
 
         {!loading && (
           <>
+            {/* Pattern alerts (auto-detected, dismissable) */}
+            <AlertsBar entries={entries} user={user} />
+
             {/* Today CTA banner — visible if today not logged yet */}
             {!todayLogged && !showLog && (
               <div className="dots rounded-2xl px-5 py-4 border border-[var(--color-accent)]/30 flex items-center gap-3">
@@ -133,12 +141,9 @@ export default function Home() {
 
             <PatternCard user={user} entries={entries} />
 
-            {/* Mobile-only quick links to chat/detail (header hides them on small screens) */}
-            <div className="sm:hidden flex gap-2">
-              <Link href="/chat" className="flex-1">
-                <Button variant="secondary" className="w-full">💬 chat cu ai</Button>
-              </Link>
-              <Link href={`/detail?u=${encodeURIComponent(user)}`} className="flex-1">
+            {/* Mobile-only quick link to detail (chat is in side panel) */}
+            <div className="sm:hidden">
+              <Link href={`/detail?u=${encodeURIComponent(user)}`}>
                 <Button variant="secondary" className="w-full">📊 detalii</Button>
               </Link>
             </div>

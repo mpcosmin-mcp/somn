@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NO_FLASH_SCRIPT } from '@/lib/theme';
+import { ChatPanel } from '@/components/dashboard/chat-panel';
 import './globals.css';
 
 const geistSans = Geist({
@@ -32,7 +33,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* Apply saved theme before hydration to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
       </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {children}
+        <ChatPanel />
+      </body>
     </html>
   );
 }

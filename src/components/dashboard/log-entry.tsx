@@ -23,6 +23,9 @@ export function LogEntry({
   const [journal, setJournal] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [savedEntry, setSavedEntry] = useState<SleepEntry | null>(null);
+  const [aiFeedback, setAiFeedback] = useState<{ text: string; mode: 'celebrate' | 'observe' | 'roast' | null } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const ssRef = useRef<HTMLInputElement>(null);
   const remRef = useRef<HTMLInputElement>(null);
@@ -70,7 +73,36 @@ export function LogEntry({
     const entry: SleepEntry = { date, name: user, ss, rhr, hrv, rem, journal: journalText || null };
     try {
       await submitEntry(entry);
+      // Notify parent (so it merges into state) BUT don't close yet — show instant feedback first
       onSaved(entry);
+      setSavedEntry(entry);
+      // Bust cached roast for this date so next dashboard view re-runs with new data
+      try { localStorage.removeItem(`somn_roast_${user}_${date}_j${(existing?.journal?.length ?? 0)}`); } catch { /* ignore */ }
+      // Fire AI feedback in background
+      setAiLoading(true);
+      const recentMine = entries
+        .filter(e => !(e.date === date && e.name === user))   // exclude old version
+        .concat(entry)                                          // include just-saved
+        .filter(e => e.name === user)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 7);
+      try {
+        const res = await fetch('/api/roast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: user, entries: recentMine }),
+        });
+        const data = await res.json() as { text?: string; mode?: 'celebrate' | 'observe' | 'roast' };
+        if (data.text) {
+          setAiFeedback({ text: data.text, mode: data.mode ?? null });
+          // Cache the fresh roast for the dashboard widget
+          try {
+            const cacheKey = `somn_roast_${user}_${date}_j${(entry.journal?.length ?? 0)}`;
+            localStorage.setItem(cacheKey, JSON.stringify({ text: data.text, mode: data.mode }));
+          } catch { /* ignore */ }
+        }
+      } catch { /* ignore */ }
+      setAiLoading(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Eroare la salvare');
     } finally {
@@ -80,6 +112,79 @@ export function LogEntry({
 
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];
 
+  // ── INSTANT FEEDBACK SCREEN ──
+  if (savedEntry) {
+    const mode = aiFeedback?.mode;
+    const meta = mode === 'celebrate'
+      ? { icon: '🎉', label: 'celebration', accent: '#a3e635' }
+      : mode === 'roast'
+      ? { icon: '🔥', label: 'roast', accent: '#f87171' }
+      : { icon: '👀', label: 'observation', accent: '#60a5fa' };
+    const tier = ssTier(savedEntry.ss);
+
+    return (
+      <Card className="p-5 max-w-md mx-auto w-full">
+        <div className="text-center mb-4">
+          <div className="text-2xl mb-1">✓</div>
+          <div className="font-bold text-lg">salvat</div>
+          <div className="text-[10px] text-[var(--color-fg-muted)] num">{fmtDate(savedEntry.date)}</div>
+        </div>
+
+        {/* Hero: REM giant */}
+        <div className="text-center mb-4 py-3 rounded-xl dots">
+          <div className="label mb-1">REM</div>
+          <div className="flex items-baseline justify-center gap-2">
+            <span
+              className="num font-bold leading-none text-6xl"
+              style={{ color: savedEntry.rem != null ? remColor(savedEntry.rem) : '#52525b' }}
+            >
+              {savedEntry.rem ?? '—'}
+            </span>
+            {savedEntry.rem != null && <span className="text-sm text-[var(--color-fg-muted)]">min</span>}
+          </div>
+        </div>
+
+        {/* SS / RHR / HRV grid */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <Stat label="SS"  value={savedEntry.ss}   unit="/100" color={ssColor(savedEntry.ss)} />
+          <Stat label="RHR" value={savedEntry.rhr}  unit="bpm"  color={rhrColor(savedEntry.rhr)} />
+          <Stat label="HRV" value={savedEntry.hrv}  unit="ms"   color={hrvColor(savedEntry.hrv)} />
+        </div>
+        <div className="text-center text-[10px] font-bold uppercase tracking-wider mb-4" style={{ color: tier.color }}>
+          {tier.label}
+        </div>
+
+        {/* AI feedback */}
+        <div
+          className="px-3 py-3 rounded-xl border mb-4"
+          style={{
+            background: `linear-gradient(135deg, ${meta.accent}10, transparent 70%)`,
+            borderColor: `${meta.accent}40`,
+          }}
+        >
+          <div className="flex items-start gap-2.5">
+            <span className="text-lg shrink-0">{meta.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="label mb-1" style={{ color: meta.accent }}>claude · {meta.label}</div>
+              {aiLoading && (
+                <div className="text-xs text-[var(--color-fg-muted)] italic">se generează feedback...</div>
+              )}
+              {!aiLoading && aiFeedback?.text && (
+                <p className="text-xs leading-relaxed">{aiFeedback.text}</p>
+              )}
+              {!aiLoading && !aiFeedback && (
+                <p className="text-xs text-[var(--color-fg-dim)] italic">AI offline — verifică ANTHROPIC_API_KEY</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <Button variant="primary" className="w-full" onClick={onClose}>ok, înapoi la dashboard</Button>
+      </Card>
+    );
+  }
+
+  // ── DEFAULT EDIT FORM ──
   return (
     <Card className="p-5 max-w-md mx-auto w-full">
       <div className="flex items-center justify-between mb-4">
@@ -177,6 +282,19 @@ const Field = forwardRef<HTMLInputElement, { label: string; hint: string; ph: st
   ),
 );
 Field.displayName = 'Field';
+
+/* Compact stat tile for the post-save feedback screen */
+function Stat({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-2 py-2 text-center">
+      <div className="label mb-0.5">{label}</div>
+      <div className="num font-bold text-lg leading-none" style={{ color: value == null ? '#52525b' : color }}>
+        {value ?? '—'}
+      </div>
+      <div className="text-[9px] text-[var(--color-fg-muted)] mt-0.5">{unit}</div>
+    </div>
+  );
+}
 
 /* Convenience: tier preview after save (used elsewhere) */
 export function SavedSummary({ entry }: { entry: SleepEntry }) {

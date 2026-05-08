@@ -8,6 +8,7 @@ import { fetchAllEntries } from '@/lib/client-api';
 import { Button } from '@/components/ui/button';
 import { Avi } from '@/components/ui/avi';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { toggleChat } from '@/lib/chat-toggle';
 import { DetailView } from '@/components/dashboard/detail-view';
 import { RemEducation } from '@/components/dashboard/rem-tips';
 
@@ -72,7 +73,12 @@ function DetailInner() {
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Link href="/"><Button size="sm" variant="ghost">← dashboard</Button></Link>
-            <Link href="/chat" className="hidden sm:inline-flex"><Button size="sm" variant="ghost">chat</Button></Link>
+            <Button size="sm" variant="ghost" onClick={toggleChat} aria-label="Toggle chat" title="Chat">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="hidden sm:inline">chat</span>
+            </Button>
             <ThemeToggle />
             <Avi name={user} size="sm" />
           </div>
