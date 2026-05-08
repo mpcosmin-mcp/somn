@@ -246,8 +246,8 @@ export function LogEntry({
       </div>
 
       {existing && (
-        <div className="mb-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300">
-          Date deja logate pentru {fmtDate(date)} — salvarea va suprascrie.
+        <div className="mb-3 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-300">
+          📝 actualizezi datele pentru {fmtDate(date)} (un singur log/zi · upsert)
         </div>
       )}
 

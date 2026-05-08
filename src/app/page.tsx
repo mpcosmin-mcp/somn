@@ -14,6 +14,7 @@ import { Hero } from '@/components/dashboard/hero';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { DailyRoast, WeeklyStory, PatternCard } from '@/components/dashboard/ai-blocks';
 import { AlertsBar } from '@/components/dashboard/alerts-bar';
+import { AINudge } from '@/components/dashboard/ai-nudge';
 import { toggleChat } from '@/lib/chat-toggle';
 
 export default function Home() {
@@ -132,6 +133,8 @@ export default function Home() {
             )}
 
             <Hero entries={entries} user={user} />
+
+            <AINudge user={user} entries={entries} />
 
             <Leaderboard entries={entries} currentUser={user} />
 

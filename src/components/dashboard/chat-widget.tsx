@@ -18,8 +18,24 @@ const SUGGESTIONS = [
 /**
  * The reusable chat UI. Used inside the side panel (and the legacy /chat page).
  * Manages its own messages state via localStorage per-user.
+ *
+ * Optional `pendingPrompt` — when this prop changes to a non-empty string, the
+ * widget auto-sends it as a user message and calls `onPromptConsumed` to clear
+ * the parent state. Used by AINudge cards to launch a chat with a pre-filled Q.
  */
-export function ChatWidget({ user, onClose, autofetch = true }: { user: string; onClose?: () => void; autofetch?: boolean }) {
+export function ChatWidget({
+  user,
+  onClose,
+  autofetch = true,
+  pendingPrompt,
+  onPromptConsumed,
+}: {
+  user: string;
+  onClose?: () => void;
+  autofetch?: boolean;
+  pendingPrompt?: string | null;
+  onPromptConsumed?: () => void;
+}) {
   const [entries, setEntries] = useState<SleepEntry[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -67,6 +83,17 @@ export function ChatWidget({ user, onClose, autofetch = true }: { user: string; 
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [messages, user, entries, sending]);
+
+  // Auto-send incoming pendingPrompt (from AINudge cards, etc.)
+  useEffect(() => {
+    if (pendingPrompt && pendingPrompt.trim() && !sending) {
+      send(pendingPrompt);
+      onPromptConsumed?.();
+    }
+    // We intentionally only depend on pendingPrompt here — `send` changes on
+    // every render and would cause loops; the closure captures current state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt]);
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {

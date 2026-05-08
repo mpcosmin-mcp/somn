@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { type SleepEntry, NAMES } from '@/lib/sleep';
 import { useUser } from '@/lib/user';
-import { fetchAllEntries } from '@/lib/client-api';
+import { fetchAllEntries, cleanupDuplicates } from '@/lib/client-api';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { toggleChat } from '@/lib/chat-toggle';
@@ -22,6 +23,8 @@ function DetailInner() {
   const { user, hydrated } = useUser();
   const [entries, setEntries] = useState<SleepEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cleanupStatus, setCleanupStatus] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
 
   // Resolve target user from query param, falling back to logged-in user
   const queryU = searchParams.get('u');
@@ -94,6 +97,41 @@ function DetailInner() {
           <>
             <DetailView entries={entries} user={targetUser} onUserChange={setTargetUser} />
             <RemEducation />
+
+            {/* Admin: cleanup duplicates from Sheet */}
+            <Card className="px-4 py-3 flex items-center gap-3 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="label">admin</div>
+                <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
+                  curăță rândurile duplicate din Sheet (același date+nume).
+                </div>
+              </div>
+              {cleanupStatus && (
+                <span className="text-[10px] num text-[var(--color-fg-muted)]">{cleanupStatus}</span>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={cleaning}
+                onClick={async () => {
+                  setCleaning(true);
+                  setCleanupStatus(null);
+                  try {
+                    const res = await cleanupDuplicates();
+                    if (res.ok) {
+                      setCleanupStatus(`gata · ${res.removed} șterse`);
+                      await load();
+                    } else {
+                      setCleanupStatus('eroare');
+                    }
+                  } finally {
+                    setCleaning(false);
+                  }
+                }}
+              >
+                {cleaning ? 'curăț...' : 'curăță duplicate'}
+              </Button>
+            </Card>
           </>
         )}
       </div>

@@ -14,42 +14,40 @@ The AI roasts and weekly stories use Claude Haiku 4.5 (cheap, ~$0.50/month for 3
 
 ---
 
-## 2. Google Sheet — fix the headers
+## 2. Google Sheet — clean schema (7 columns, no `score`)
 
-**Final header row (8 columns, exactly):**
+**Final header row:**
 
-| A | B | C | D | E | F | G | H |
-|---|---|---|---|---|---|---|---|
-| `date` | `name` | `sleep_score` | `rhr` | `hrv` | `score` | `rem` | `journal` |
+| A | B | C | D | E | F | G |
+|---|---|---|---|---|---|---|
+| `date` | `name` | `sleep_score` | `rhr` | `hrv` | `rem` | `journal` |
 
-### If you've already started using v2 — fix headers in place
+The legacy `score` column was never used by anything — drop it.
 
-Inspecting the live Sheet, the current headers look like this:
+### If you've already started using v2 — fix the Sheet
 
-| F | G | H |
-|---|---|---|
-| `score: rem` ← merged into one cell | `journal` ← actually contains REM values | (empty) ← actually contains journal text |
-
-The data in the columns is fine — only the **labels in row 1** are wrong. Fix:
+The current Sheet has confused headers (`score: rem`, shifted columns). Fix:
 
 1. Open the Sheet
-2. In row 1, rename:
-   - **F1**: change `score: rem` → `score`
-   - **G1**: change `journal` → `rem`
-   - **H1**: type `journal`
-3. Save (Ctrl+S inside the Sheet does nothing; just navigate away)
+2. **Right-click on column F header → Delete column** (this removes the empty `score: rem`)
+3. Now columns shift: what was G is now F, what was H is now G
+4. Rename the headers in row 1:
+   - **F1** → `rem`
+   - **G1** → `journal`
+5. Done. Data lives in correct columns now.
 
-After this, REM values that were stored under "journal" become correctly labeled as REM, and the journal text in the unnamed column becomes the proper `journal` column. **No data is moved or lost — only labels change.**
+Verify by checking row 1 reads exactly: `date | name | sleep_score | rhr | hrv | rem | journal`.
 
 ### If starting fresh
 
-Just create the 8 headers in row 1 in the order shown above. Old rows leave new columns empty — UI shows `—` for missing REM, no journal section if empty.
+Create those 7 headers in row 1, in that order.
 
-### Update the Apps Script — REPLACE the entire `doGet` function
+### Update the Apps Script — REPLACE the entire file
 
-Open `Extensions → Apps Script` and **replace the whole file** with this. It adds:
-- `rem` and `journal` parameter handling on writes
-- **Upsert** logic (find existing row by date+name, update in place; otherwise append) — fixes the duplicate-row bug from the old `appendRow`-only version
+Open `Extensions → Apps Script` and **replace the whole file** with this. Features:
+- 7-column schema (no `score`)
+- **Upsert** writes — find existing row by (date, name), update in place; otherwise append
+- **Cleanup action** — `?action=cleanup` removes duplicate rows, keeping the most-complete one
 - JSONP callback support (kept for backwards compatibility with v1)
 
 ```javascript
@@ -64,31 +62,33 @@ function doGet(e) {
       .setMimeType(callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
   };
 
+  // ─── WRITE (upsert by date+name) ──────────────────────
   if (e.parameter.action === 'write') {
     const date = String(e.parameter.date || '');
     const name = String(e.parameter.name || '');
     const sleepScore = parseFloat(e.parameter.sleep_score) || 0;
     const rhr = parseFloat(e.parameter.rhr) || 0;
     const hrv = e.parameter.hrv ? parseFloat(e.parameter.hrv) : '';
-    const score = e.parameter.score ? parseFloat(e.parameter.score) : '';   // legacy column
-    const rem = e.parameter.rem ? parseFloat(e.parameter.rem) : '';         // NEW
-    const journal = String(e.parameter.journal || '');                       // NEW
+    const rem = e.parameter.rem ? parseFloat(e.parameter.rem) : '';
+    const journal = String(e.parameter.journal || '');
 
     const data = sheet.getDataRange().getValues();
     const headers = data[0] || [];
     const dateIdx = headers.indexOf('date');
     const nameIdx = headers.indexOf('name');
 
-    // Find existing row by (date, name) for upsert
+    // Find existing row (date+name match)
     let foundRow = -1;
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][dateIdx]) === date && String(data[i][nameIdx]) === name) {
+      const rowDate = String(data[i][dateIdx] || '');
+      const cleanDate = rowDate.length > 10 ? rowDate.slice(0, 10) : rowDate;
+      if ((cleanDate === date || rowDate === date) && String(data[i][nameIdx]) === name) {
         foundRow = i + 1;
         break;
       }
     }
 
-    const rowValues = [date, name, sleepScore, rhr, hrv, score, rem, journal];
+    const rowValues = [date, name, sleepScore, rhr, hrv, rem, journal];
     if (foundRow > 0) {
       sheet.getRange(foundRow, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
@@ -98,7 +98,53 @@ function doGet(e) {
     return respond({ status: 'ok', upsert: foundRow > 0 ? 'update' : 'append' });
   }
 
-  // Read all rows
+  // ─── CLEANUP (remove duplicate rows by date+name) ─────
+  if (e.parameter.action === 'cleanup') {
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return respond({ status: 'ok', removed: 0 });
+    const headers = data[0];
+    const dateIdx = headers.indexOf('date');
+    const nameIdx = headers.indexOf('name');
+
+    // Group all rows by (date, name) → keep array of (sheet-row-index)
+    const groups = {};
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = String(data[i][dateIdx] || '').slice(0, 10);
+      const rowName = String(data[i][nameIdx] || '');
+      if (!rowDate || !rowName) continue;
+      const key = rowDate + '::' + rowName;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(i + 1);  // sheet row number (1-indexed)
+    }
+
+    // For each group with > 1 row, score and delete the worse ones
+    const toDelete = [];
+    Object.keys(groups).forEach(function(key) {
+      const indices = groups[key];
+      if (indices.length <= 1) return;
+      let bestIdx = indices[0];
+      let bestScore = -1;
+      indices.forEach(function(idx) {
+        const row = data[idx - 1];
+        let score = 0;
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] !== '' && row[c] !== null) score++;
+        }
+        if (score > bestScore) { bestScore = score; bestIdx = idx; }
+      });
+      indices.forEach(function(idx) {
+        if (idx !== bestIdx) toDelete.push(idx);
+      });
+    });
+
+    // Delete bottom-up so indices stay valid
+    toDelete.sort(function(a, b) { return b - a; });
+    toDelete.forEach(function(idx) { sheet.deleteRow(idx); });
+
+    return respond({ status: 'ok', removed: toDelete.length });
+  }
+
+  // ─── READ ──────────────────────────────────────────────
   const rows = sheet.getDataRange().getValues();
   const data = rows.length < 2 ? [] : (() => {
     const headers = rows[0];
@@ -117,6 +163,13 @@ After pasting:
 1. **Save** (`Ctrl+S`)
 2. **Deploy → Manage deployments → Edit (pencil) → New version → Deploy**
 3. Keep the **same web app URL** — that's what's hardcoded in `src/lib/config.ts`. Don't change "Who has access" or "Execute as" — keep them as before.
+
+### One-time cleanup of existing duplicates
+
+After deploying the Apps Script, on the somn site:
+- Open `/detail` page → scroll to the bottom → click **curăță duplicate**
+- Toast shows how many duplicate rows were removed
+- Future writes use upsert, so this won't happen again
 
 ---
 

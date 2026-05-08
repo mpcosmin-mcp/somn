@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useUser } from '@/lib/user';
-import { CHAT_EVENT } from '@/lib/chat-toggle';
+import { CHAT_EVENT, type ChatToggleDetail } from '@/lib/chat-toggle';
 import { ChatWidget } from '@/components/dashboard/chat-widget';
 
 const OPEN_KEY = 'somn_chat_panel_open';
@@ -10,11 +10,15 @@ const OPEN_KEY = 'somn_chat_panel_open';
  * Right-side slide-out chat panel. Mounted in root layout so it persists
  * across page navigations. Toggleable from anywhere via toggleChat() helper
  * (custom event). On lg+ screens, body content shifts left when open.
+ *
+ * If a chat-toggle event carries a `prompt`, we forward it to the widget as
+ * `pendingPrompt`, which auto-sends it.
  */
 export function ChatPanel() {
   const { user, hydrated } = useUser();
   const [open, setOpen] = useState(false);
   const [panelHydrated, setPanelHydrated] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   // Read saved open state on mount
   useEffect(() => {
@@ -28,10 +32,13 @@ export function ChatPanel() {
   // Listen for global toggle events
   useEffect(() => {
     const handler = (ev: Event) => {
-      const detail = (ev as CustomEvent<{ force?: 'open' | 'close' }>).detail;
+      const detail = (ev as CustomEvent<ChatToggleDetail>).detail;
       if (detail?.force === 'open') setOpen(true);
       else if (detail?.force === 'close') setOpen(false);
       else setOpen(o => !o);
+      if (detail?.prompt) {
+        setPendingPrompt(detail.prompt);
+      }
     };
     window.addEventListener(CHAT_EVENT, handler);
     return () => window.removeEventListener(CHAT_EVENT, handler);
@@ -77,7 +84,12 @@ export function ChatPanel() {
         `}
         aria-hidden={!open}
       >
-        <ChatWidget user={user} onClose={() => setOpen(false)} />
+        <ChatWidget
+          user={user}
+          onClose={() => setOpen(false)}
+          pendingPrompt={pendingPrompt}
+          onPromptConsumed={() => setPendingPrompt(null)}
+        />
       </aside>
     </>
   );

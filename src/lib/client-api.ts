@@ -72,3 +72,10 @@ export async function fetchPatterns(user: string, entries: SleepEntry[]): Promis
   const json = (await res.json()) as Patterns;
   return { personal: json.personal ?? '', team: json.team ?? '' };
 }
+
+export async function cleanupDuplicates(): Promise<{ ok: boolean; removed: number }> {
+  const res = await fetch('/api/sheets/cleanup', { method: 'POST' });
+  if (!res.ok) return { ok: false, removed: 0 };
+  const json = (await res.json()) as { ok: boolean; removed: number };
+  return json;
+}
