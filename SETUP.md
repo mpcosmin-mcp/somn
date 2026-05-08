@@ -14,18 +14,36 @@ The AI roasts and weekly stories use Claude Haiku 4.5 (cheap, ~$0.50/month for 3
 
 ---
 
-## 2. Google Sheet — add `rem` and `journal` columns
+## 2. Google Sheet — fix the headers
 
-Current Sheet schema: `date | name | sleep_score | rhr | hrv | score`.
-We add 2 new columns at the end: `rem` (REM minutes) and `journal` (free-text daily note).
+**Final header row (8 columns, exactly):**
 
-1. Open the team's Sleep Tracker Google Sheet
-2. After the `score` column, add two new column headers:
-   - `rem`
-   - `journal`
-3. Old rows leave them empty — UI shows `—` for missing REM, no journal section if empty
+| A | B | C | D | E | F | G | H |
+|---|---|---|---|---|---|---|---|
+| `date` | `name` | `sleep_score` | `rhr` | `hrv` | `score` | `rem` | `journal` |
 
-Final header row: `date | name | sleep_score | rhr | hrv | score | rem | journal`
+### If you've already started using v2 — fix headers in place
+
+Inspecting the live Sheet, the current headers look like this:
+
+| F | G | H |
+|---|---|---|
+| `score: rem` ← merged into one cell | `journal` ← actually contains REM values | (empty) ← actually contains journal text |
+
+The data in the columns is fine — only the **labels in row 1** are wrong. Fix:
+
+1. Open the Sheet
+2. In row 1, rename:
+   - **F1**: change `score: rem` → `score`
+   - **G1**: change `journal` → `rem`
+   - **H1**: type `journal`
+3. Save (Ctrl+S inside the Sheet does nothing; just navigate away)
+
+After this, REM values that were stored under "journal" become correctly labeled as REM, and the journal text in the unnamed column becomes the proper `journal` column. **No data is moved or lost — only labels change.**
+
+### If starting fresh
+
+Just create the 8 headers in row 1 in the order shown above. Old rows leave new columns empty — UI shows `—` for missing REM, no journal section if empty.
 
 ### Update the Apps Script — REPLACE the entire `doGet` function
 

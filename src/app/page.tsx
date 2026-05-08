@@ -120,11 +120,12 @@ export default function Home() {
                 user={user}
                 entries={entries}
                 onSaved={(saved) => {
+                  // Update state — but DON'T close the modal. LogEntry will show
+                  // its instant-feedback screen and the user closes via "ok" button.
                   setEntries(prev => {
                     const filtered = prev.filter(e => !(e.date === saved.date && e.name === saved.name));
                     return [...filtered, saved];
                   });
-                  setShowLog(false);
                 }}
                 onClose={() => setShowLog(false)}
               />

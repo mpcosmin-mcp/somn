@@ -1,6 +1,6 @@
 'use client';
-import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, remTier, FIRST_NAME, lastNDays } from '@/lib/sleep';
-import { fmtDate } from '@/lib/utils';
+import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, ssTier, FIRST_NAME, lastNDays } from '@/lib/sleep';
+import { fmtDate, todayStr } from '@/lib/utils';
 import { Sparkline } from '@/components/ui/sparkline';
 
 export function Hero({ entries, user }: { entries: SleepEntry[]; user: string }) {
@@ -8,10 +8,10 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
   const last = mine[0] ?? null;
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];
 
-  // 7-day REM series for the sparkline (one per day, null if missing)
+  // 7-day SS series for the sparkline (one per day, null if missing)
   const last7 = lastNDays(entries.filter(e => e.name === user), 7);
   const dates = [...new Set(last7.map(e => e.date))].sort();
-  const remSeries = dates.map(d => last7.find(e => e.date === d)?.rem ?? null);
+  const ssSeries = dates.map(d => last7.find(e => e.date === d)?.ss ?? null);
 
   if (!last) {
     return (
@@ -23,47 +23,46 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
     );
   }
 
-  const remTxt = remTier(last.rem);
+  const ssT = ssTier(last.ss);
+  const isToday = last.date === todayStr();
 
   return (
     <section className="relative dots rounded-3xl px-5 md:px-8 py-8 md:py-10 overflow-hidden">
       <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
         <div>
-          <div className="label text-[var(--color-fg-muted)]">Aseară · {fn}</div>
+          <div className="label text-[var(--color-fg-muted)]">{isToday ? 'Aseară' : 'Ultima noapte'} · {fn}</div>
           <div className="text-xs text-[var(--color-fg-dim)] num mt-0.5">{fmtDate(last.date)}</div>
         </div>
         <div className="text-[10px] text-[var(--color-fg-muted)] num">
-          ultima · sincronizat
+          sincronizat
         </div>
       </div>
 
-      {/* REM is the headline */}
+      {/* SS is the headline */}
       <div className="flex items-end gap-6 mb-6 flex-wrap">
         <div>
-          <div className="label mb-1">REM</div>
+          <div className="label mb-1">Sleep Score</div>
           <div className="flex items-baseline gap-2">
             <span
               className="num font-bold leading-none text-7xl md:text-8xl"
-              style={{ color: last.rem != null ? remColor(last.rem) : '#52525b' }}
+              style={{ color: ssColor(last.ss) }}
             >
-              {last.rem ?? '—'}
+              {last.ss}
             </span>
-            {last.rem != null && (
-              <span className="text-lg text-[var(--color-fg-muted)] font-medium">min</span>
-            )}
+            <span className="text-lg text-[var(--color-fg-muted)] font-medium">/100</span>
           </div>
-          <div className="text-xs font-bold uppercase tracking-wider mt-2" style={{ color: remTxt.color }}>
-            {remTxt.label}
+          <div className="text-xs font-bold uppercase tracking-wider mt-2" style={{ color: ssT.color }}>
+            {ssT.label}
           </div>
         </div>
         <div className="flex-1 min-w-0 flex justify-end pb-2">
-          <Sparkline values={remSeries} width={180} height={48} color="#a78bfa" showDots />
+          <Sparkline values={ssSeries} width={180} height={48} color={ssColor(last.ss)} showDots />
         </div>
       </div>
 
-      {/* SS / RHR / HRV row — secondary */}
+      {/* REM / RHR / HRV — secondary stats */}
       <div className="grid grid-cols-3 gap-2 md:gap-4">
-        <Stat label="Sleep Score" value={last.ss} unit="/100" color={ssColor(last.ss)} />
+        <Stat label="REM" value={last.rem} unit="min" color={last.rem != null ? remColor(last.rem) : '#52525b'} />
         <Stat label="RHR" value={last.rhr} unit="bpm" color={rhrColor(last.rhr)} />
         <Stat label="HRV" value={last.hrv} unit="ms" color={hrvColor(last.hrv)} />
       </div>

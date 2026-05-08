@@ -130,28 +130,28 @@ export function LogEntry({
           <div className="text-[10px] text-[var(--color-fg-muted)] num">{fmtDate(savedEntry.date)}</div>
         </div>
 
-        {/* Hero: REM giant */}
-        <div className="text-center mb-4 py-3 rounded-xl dots">
-          <div className="label mb-1">REM</div>
+        {/* Hero: SS giant */}
+        <div className="text-center mb-4 py-4 rounded-xl dots">
+          <div className="label mb-1">Sleep Score</div>
           <div className="flex items-baseline justify-center gap-2">
             <span
               className="num font-bold leading-none text-6xl"
-              style={{ color: savedEntry.rem != null ? remColor(savedEntry.rem) : '#52525b' }}
+              style={{ color: ssColor(savedEntry.ss) }}
             >
-              {savedEntry.rem ?? '—'}
+              {savedEntry.ss}
             </span>
-            {savedEntry.rem != null && <span className="text-sm text-[var(--color-fg-muted)]">min</span>}
+            <span className="text-sm text-[var(--color-fg-muted)]">/100</span>
+          </div>
+          <div className="text-[10px] font-bold uppercase tracking-wider mt-2" style={{ color: tier.color }}>
+            {tier.label}
           </div>
         </div>
 
-        {/* SS / RHR / HRV grid */}
+        {/* REM / RHR / HRV grid */}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <Stat label="SS"  value={savedEntry.ss}   unit="/100" color={ssColor(savedEntry.ss)} />
+          <Stat label="REM" value={savedEntry.rem}  unit="min"  color={savedEntry.rem != null ? remColor(savedEntry.rem) : '#52525b'} />
           <Stat label="RHR" value={savedEntry.rhr}  unit="bpm"  color={rhrColor(savedEntry.rhr)} />
           <Stat label="HRV" value={savedEntry.hrv}  unit="ms"   color={hrvColor(savedEntry.hrv)} />
-        </div>
-        <div className="text-center text-[10px] font-bold uppercase tracking-wider mb-4" style={{ color: tier.color }}>
-          {tier.label}
         </div>
 
         {/* AI feedback */}

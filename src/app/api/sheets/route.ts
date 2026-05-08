@@ -12,26 +12,62 @@ import { type SleepEntry } from '@/lib/sleep';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+type Cell = string | number | null | undefined;
+
 interface RawSheetRow {
-  date?: string;
-  name?: string;
-  sleep_score?: string | number;
-  rhr?: string | number;
-  hrv?: string | number | null | '';
-  rem?: string | number | null | '';
-  journal?: string | null | '';
+  // Most fields are well-known. We use bracket access to also pull oddly-named
+  // columns ("score: rem", empty header) without TypeScript complaining.
+  date?: Cell;
+  name?: Cell;
+  sleep_score?: Cell;
+  rhr?: Cell;
+  hrv?: Cell;
+  rem?: Cell;
+  score?: Cell;
+  journal?: Cell;
+  [k: string]: Cell;
 }
 
-function parseNum(v: string | number | null | undefined): number | null {
+function parseNum(v: Cell): number | null {
   if (v === '' || v == null) return null;
   const n = parseFloat(String(v));
   return isNaN(n) ? null : n;
 }
 
-function parseStr(v: string | null | undefined): string | null {
+function parseStr(v: Cell): string | null {
   if (v == null) return null;
   const s = String(v).trim();
   return s ? s : null;
+}
+
+/**
+ * Normalize whatever Apps Script returns into a YYYY-MM-DD local date.
+ *
+ * Google Sheets often coerces YYYY-MM-DD strings into Date objects internally.
+ * When Apps Script JSON-stringifies them, you get ISO timestamps like
+ * "2026-05-07T21:00:00.000Z" — that's midnight Romania (UTC+3), serialized as
+ * the previous day in UTC. A naive .slice(0,10) would lose a calendar day.
+ *
+ * Fix: add 12h to the parsed timestamp so any timezone shift up to ±12h still
+ * lands on the original calendar day, then slice.
+ */
+function normalizeDate(raw: Cell): string {
+  const s = String(raw ?? '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;       // already a clean date
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s.slice(0, 10);     // unparseable, best effort
+  const adjusted = new Date(d.getTime() + 12 * 60 * 60 * 1000);
+  return adjusted.toISOString().slice(0, 10);
+}
+
+/** Pick first non-empty value from a list of possible column names */
+function pickFirst(row: RawSheetRow, keys: string[]): Cell {
+  for (const k of keys) {
+    const v = row[k];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return null;
 }
 
 export async function GET() {
@@ -42,23 +78,52 @@ export async function GET() {
     const json = (await res.json()) as { data?: RawSheetRow[] };
     const rows = json.data ?? [];
 
-    const entries: SleepEntry[] = rows
-      .filter(r => !String(r.name || '').startsWith(DUEL_ROW_MARKER))
+    // Map raw rows → SleepEntry. Tolerant of misnamed columns:
+    //   - rem      may be in `rem`, `score: rem`, or even `journal` if headers were shifted
+    //   - journal  may be in `journal` or in an empty-header column ('')
+    // We pick the first non-empty match for each.
+    const mapped: SleepEntry[] = rows
+      .filter(r => !String(r.name ?? '').startsWith(DUEL_ROW_MARKER))
       .map(r => {
-        // Date might come as ISO string from Apps Script — normalize to YYYY-MM-DD
-        let dateStr = String(r.date || '').trim();
-        if (dateStr.length > 10) dateStr = dateStr.slice(0, 10);
+        // REM: try rem → score: rem → journal (if it's numeric, REM was misplaced)
+        let rem: number | null = parseNum(pickFirst(r, ['rem', 'score: rem']));
+        const journalCandidate = pickFirst(r, ['journal']);
+        if (rem == null && journalCandidate != null && /^\d+(\.\d+)?$/.test(String(journalCandidate))) {
+          rem = parseNum(journalCandidate);
+        }
+        // Journal: try journal (only if not numeric) → '' → '_' → any string column past index 5
+        let journal: string | null = null;
+        const jVal = parseStr(r.journal);
+        if (jVal && !/^\d+(\.\d+)?$/.test(jVal)) journal = jVal;
+        if (!journal) journal = parseStr(pickFirst(r, ['', ' ']));
+
         return {
-          date: dateStr,
-          name: String(r.name || '').trim(),
+          date: normalizeDate(r.date),
+          name: String(r.name ?? '').trim(),
           ss: parseNum(r.sleep_score) ?? 0,
           rhr: parseNum(r.rhr) ?? 0,
           hrv: parseNum(r.hrv),
-          rem: parseNum(r.rem),
-          journal: parseStr(r.journal),
+          rem,
+          journal,
         };
       })
       .filter(r => r.date && r.name);
+
+    // Dedupe by (date, name): if the Apps Script was previously appending instead
+    // of upserting, there can be multiple rows for one (date, name). Keep the most
+    // "complete" one — prefer the row that has rem and/or journal filled in.
+    const dedupedMap = new Map<string, SleepEntry>();
+    for (const e of mapped) {
+      const key = `${e.date}::${e.name}`;
+      const existing = dedupedMap.get(key);
+      if (!existing) {
+        dedupedMap.set(key, e);
+      } else {
+        const score = (x: SleepEntry) => (x.rem != null ? 1 : 0) + (x.journal ? 1 : 0) + (x.hrv != null ? 0.5 : 0);
+        if (score(e) > score(existing)) dedupedMap.set(key, e);
+      }
+    }
+    const entries = [...dedupedMap.values()];
 
     return NextResponse.json({ entries });
   } catch (err) {
