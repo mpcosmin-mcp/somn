@@ -19,17 +19,18 @@ const METRIC_META: Record<Metric, { label: string; unit: string; target: number;
 };
 
 /**
- * Team Chart Pane — the multi-metric stacked chart with tabs.
+ * Team Chart Pane — multi-metric chart with tabs + per-person filter.
  *
- *   ─ Header: metric label · range tabs (7 / 30 / all)
- *   ─ Metric tabs: SS / REM / RHR / HRV (target indicator on the right)
- *   ─ Big chart with all 3 teammates overlaid, target line, smooth Bezier
- *
- * Lives on the main dashboard now (no more /detail page).
+ *   ─ Header: title · range tabs (7 / 30 / all)
+ *   ─ Metric tabs: SS / REM / RHR / HRV + target indicator
+ *   ─ Person filter chips: Toți · Clara · Petrica · Cornel (radio-style)
+ *   ─ Big chart — when filtered to one person, the Y-axis auto-zooms on
+ *     that person's range so personal variance is more legible.
  */
 export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
   const [range, setRange] = useState<Range>('30');
   const [metric, setMetric] = useState<Metric>('ss');
+  const [focusUser, setFocusUser] = useState<string | null>(null);
 
   const scoped = useMemo(() => {
     if (range === 'all') return entries;
@@ -42,7 +43,8 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
   );
 
   const series = useMemo(() => {
-    return NAMES.map(n => {
+    const usersToShow = focusUser ? [focusUser] : (NAMES as readonly string[]);
+    return usersToShow.map(n => {
       const personMap = new Map(scoped.filter(e => e.name === n).map(e => [e.date, e]));
       const values = allDates.map(d => {
         const v = personMap.get(d);
@@ -54,7 +56,7 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
         values,
       };
     });
-  }, [scoped, allDates, metric]);
+  }, [scoped, allDates, metric, focusUser]);
 
   const meta = METRIC_META[metric];
 
@@ -63,7 +65,11 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
       {/* Header — title + range tabs */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <div className="label">istoric echipă · toți pe același chart</div>
+          <div className="label">
+            {focusUser
+              ? `${FIRST_NAME[focusUser] ?? focusUser.split(' ')[0]} · doar acest user`
+              : 'istoric echipă · toți pe același chart'}
+          </div>
           <div className="text-base font-bold">{meta.label}</div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -103,6 +109,30 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
         </span>
       </div>
 
+      {/* Person filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="label mr-1">filtru:</span>
+        <PersonChip
+          label="Toți"
+          active={focusUser === null}
+          onClick={() => setFocusUser(null)}
+        />
+        {NAMES.map(n => {
+          const fn = FIRST_NAME[n] ?? n.split(' ')[0];
+          const c = personColor(n);
+          const active = focusUser === n;
+          return (
+            <PersonChip
+              key={n}
+              label={fn}
+              color={c}
+              active={active}
+              onClick={() => setFocusUser(active ? null : n)}
+            />
+          );
+        })}
+      </div>
+
       <TeamChart
         series={series}
         dates={allDates}
@@ -113,5 +143,40 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
         lowerBetter={meta.lowerBetter}
       />
     </Card>
+  );
+}
+
+/* ─── Person filter chip ──────────────────────────────────── */
+
+function PersonChip({
+  label, color, active, onClick,
+}: {
+  label: string;
+  color?: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  // Inactive: muted outline. Active: filled with that person's color (or accent for "Toți").
+  const accent = color ?? 'var(--color-accent)';
+  return (
+    <button
+      onClick={onClick}
+      className="text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors"
+      style={
+        active
+          ? {
+              background: `${accent}22`,
+              color: accent,
+              boxShadow: `inset 0 0 0 1px ${accent}80`,
+            }
+          : {
+              background: 'transparent',
+              color: 'var(--color-fg-muted)',
+              boxShadow: 'inset 0 0 0 1px var(--color-border)',
+            }
+      }
+    >
+      {label}
+    </button>
   );
 }
