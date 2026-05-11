@@ -1,5 +1,5 @@
 'use client';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Series {
@@ -48,8 +48,29 @@ export function TeamChart({
   lowerBetter = false,
 }: Props) {
   const uid = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  // ─── Track the actual rendered width so viewBox can match it 1:1.
+  // This is THE fix for the "inflated zoom" look — with a fixed viewBox
+  // and preserveAspectRatio="none", content stretches horizontally on
+  // wide containers. By making viewBox width = actual CSS width, content
+  // renders at native pixel sizes: text stays 10px, strokes stay 1px,
+  // shapes don't distort.
+  const [containerWidth, setContainerWidth] = useState(600);
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setContainerWidth(Math.round(w));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ─── Compute scales ────────────────────────────────────────
   const allValues = useMemo(
@@ -57,8 +78,8 @@ export function TeamChart({
     [series],
   );
 
-  // Plot area dimensions (internal SVG viewBox units)
-  const VW = 600;
+  // Plot area dimensions (internal SVG viewBox units — now matched to actual pixels)
+  const VW = Math.max(320, containerWidth);
   const VH = height;
   const ML = 36; // left margin (y-axis labels)
   const MR = 12; // right margin
@@ -143,14 +164,14 @@ export function TeamChart({
 
   // ─── Hover mapping ─────────────────────────────────────────
   // Convert client mouse x → SVG viewBox x → nearest date index.
-  // Use the SVG element's actual rendered rect so it works regardless
-  // of how the SVG is scaled (preserveAspectRatio="none" below makes
-  // this a clean linear map).
+  // Since viewBox width = CSS width (no scaling), the math is 1:1.
   const updateHoverFromClientX = (clientX: number) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const relX = clientX - rect.left;
-    // Map relX (0..rect.width) → SVG x (0..VW)
+    // Map relX (0..rect.width) → SVG x (0..VW). They're equal now, but
+    // keep the ratio in case the SVG element is briefly mis-sized during
+    // a resize observer cycle.
     const svgX = (relX / rect.width) * VW;
     // Map svgX → date index (snap to nearest)
     const t = (svgX - ML) / plotW;
@@ -181,17 +202,16 @@ export function TeamChart({
     hoverIdx !== null && hoverIdx >= 0 && hoverIdx < dates.length ? hoverIdx : null;
 
   // Tooltip placement % across the container width.
-  // With preserveAspectRatio="none" the SVG fills its CSS box exactly,
-  // so xFor(idx)/VW directly maps to a horizontal % of the chart.
+  // viewBox width == actual CSS width → xFor(idx)/VW maps to a real %.
   const hoverX = safeHoverIdx != null ? xFor(safeHoverIdx) : null;
   const hoverPct = hoverX != null ? (hoverX / VW) * 100 : null;
 
   return (
-    <div className={cn('relative w-full', className)}>
+    <div ref={containerRef} className={cn('relative w-full', className)}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VW} ${VH}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         className="w-full block select-none"
         style={{ height }}
         onMouseMove={onMouseMove}
