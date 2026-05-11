@@ -10,10 +10,9 @@ const OPEN_KEY = 'somn_chat_open';
 /**
  * Hipnos chat — floating bubble across ALL viewports.
  *
- *   Collapsed: pulsing capybara bubble bottom-right. Hover shows a
- *              tooltip 'Hipnos · live · vorbește cu mine'.
- *   Open:      floating focus panel — mobile: bottom popup; desktop:
- *              520-600px on the right with focus-mode dimming the page.
+ *   Collapsed: pulsing bubble bottom-right with a hover tooltip
+ *              'Hipnos · live · vorbește cu mine'.
+ *   Open:      bottom popup with backdrop blur. Tap outside or ESC to close.
  *
  * Trigger from anywhere via chatSend() / openChat() events.
  */
@@ -58,9 +57,9 @@ export function ChatPanel() {
 
   return (
     <>
-      {/* Collapsed bubble — <xl only. xl+ has chat in the right column. */}
+      {/* Collapsed bubble — visible on ALL viewports */}
       <div
-        className={`xl:hidden group fixed bottom-4 right-4 z-50 transition-all duration-200 ${
+        className={`group fixed bottom-4 right-4 z-50 transition-all duration-200 ${
           open ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'
         }`}
       >
@@ -84,18 +83,20 @@ export function ChatPanel() {
         </button>
       </div>
 
-      {/* Backdrop + popup — <xl only */}
+      {/* Backdrop + popup — all viewports */}
       <div
         onClick={() => setOpen(false)}
-        className={`xl:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ${
           open ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         aria-hidden
       />
 
       <div
-        className={`xl:hidden fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40 rounded-2xl
+        className={`fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40 rounded-2xl
           inset-x-3 bottom-3 max-h-[calc(100dvh-1rem)]
+          sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[420px] sm:max-w-[calc(100vw-2rem)]
+          lg:w-[480px] xl:w-[520px]
           transform-gpu transition-all duration-250 ease-out origin-bottom-right
           ${open
             ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'

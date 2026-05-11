@@ -6,7 +6,6 @@ import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { Sidebar } from '@/components/layout/sidebar';
-import { RightColumn } from '@/components/layout/right-column';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
 import { UserPicker } from '@/components/dashboard/user-picker';
 import { LoginLogStep } from '@/components/dashboard/login-log-step';
@@ -20,6 +19,9 @@ const STEP_SKIPPED_KEY = (user: string, date: string) => `somn_step_skipped_${us
  *   1. UserPicker      (no user)
  *   2. LoginLogStep    (user picked, today not logged, not skipped today)
  *   3. Dashboard       (after logging or skipping)
+ *
+ * Logging is restricted to LoginLogStep + chat (via Hipnos save_sleep tool).
+ * No mid-session manual log button — keeps the UI clean.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, hydrated, setUser } = useUser();
@@ -27,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [skippedToday, setSkippedToday] = useState(false);
 
-  // Re-check skip state when user changes (e.g. after switching profile)
+  // Re-check skip state when user changes
   useEffect(() => {
     if (!user) { setSkippedToday(false); return; }
     try {
@@ -48,7 +50,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <UserPicker onPick={(n) => { setUser(n); setSkippedToday(false); }} />;
   }
 
-  // Decide if the login-log step should be shown
   const todayLogged = entries.some(e => e.date === todayStr() && e.name === user);
   const showLoginStep = !todayLogged && !skippedToday;
 
@@ -64,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         entries={entries}
         onSaved={(entry) => {
           upsertLocal(entry);
-          handleSkip();  // saved → also dismiss step
+          handleSkip();
         }}
         onSkip={handleSkip}
       />
@@ -114,16 +115,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Sidebar onCloseDrawer={() => setDrawerOpen(false)} />
         </aside>
 
-        {/* MAIN CONTENT — feed stays centered, doesn't shift when chat opens */}
-        <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 xl:pb-6 pb-safe">
+        {/* MAIN CONTENT — feed centered, single column */}
+        <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 pb-safe">
           {children}
         </main>
-
-        {/* RIGHT COLUMN — chat + AI insights (xl+ only) */}
-        <RightColumn />
       </div>
 
-      {/* Floating chat bubble — only on <xl since xl+ has chat embedded in right column */}
+      {/* Floating chat bubble — visible on ALL viewports */}
       <ChatPanel />
     </>
   );

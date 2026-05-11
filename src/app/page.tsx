@@ -1,24 +1,31 @@
 'use client';
+import Link from 'next/link';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
-import { FIRST_NAME } from '@/lib/sleep';
 import { Hero } from '@/components/dashboard/hero';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { AlertsBar } from '@/components/dashboard/alerts-bar';
-import { AINudge } from '@/components/dashboard/ai-nudge';
 import { PageVibe } from '@/components/dashboard/page-vibe';
-import { ChatLogHint } from '@/components/dashboard/chat-log-hint';
-import { BubbleRow } from '@/components/dashboard/bubble-row';
+import { MyChartsGrid } from '@/components/dashboard/my-charts-grid';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
-import Link from 'next/link';
 
+/**
+ * Main dashboard — minimalist, big numbers, straight to the data.
+ *
+ *   1. Hipnos greeting (max 3 sentences)
+ *   2. Pattern alerts (if any)
+ *   3. Hero — last night's numbers
+ *   4. 4 detailed charts of MY data (SS / REM / RHR / HRV)
+ *   5. Team leaderboard
+ *   6. Quiet link → /detail (team istoric)
+ *
+ * Chat with Hipnos: floating bubble bottom-right (works from anywhere).
+ */
 export default function Home() {
   const { user } = useUser();
   const { entries, loading, error, refetch } = useEntries();
 
   if (!user) return null;
-
-  const fn = FIRST_NAME[user] ?? user.split(' ')[0];
 
   return (
     <div className="max-w-3xl mx-auto space-y-3 lg:space-y-4">
@@ -32,48 +39,38 @@ export default function Home() {
 
       {!loading && (
         <>
-          {/* Bubble row: Hipnos + Pattern + Topics — top of dashboard, social-app vibe */}
+          {/* Hipnos greeting — sharp, max 3 sentences */}
           <div className="fade-in-up delay-0">
-            <BubbleRow />
-          </div>
-
-          {/* Optional one-time chat-log hint */}
-          <div className="fade-in-up delay-0">
-            <ChatLogHint />
-          </div>
-
-          {/* AI greeting */}
-          <div className="fade-in-up delay-1">
             <PageVibe user={user} entries={entries} />
           </div>
 
-          {/* Pattern alerts (warnings) */}
+          {/* Pattern alerts (warnings only when something's off) */}
           <div className="fade-in-up delay-1">
             <AlertsBar entries={entries} user={user} />
           </div>
 
-          {/* My hero — last night SS + REM/RHR/HRV */}
-          <div className="fade-in-up delay-2">
+          {/* Last night — big numbers */}
+          <div className="fade-in-up delay-1">
             <Hero entries={entries} user={user} />
           </div>
 
-          {/* AI nudge — Hipnos suggestion */}
+          {/* 4 detailed charts of MY data */}
           <div className="fade-in-up delay-2">
-            <AINudge user={user} entries={entries} />
+            <MyChartsGrid entries={entries} user={user} />
           </div>
 
-          {/* Team leaderboard — back on the dashboard, properly displayed */}
+          {/* Team leaderboard */}
           <div className="fade-in-up delay-3">
             <Leaderboard entries={entries} currentUser={user} />
           </div>
 
-          {/* Quiet link to detailed team history */}
-          <div className="fade-in-up delay-4 text-center pt-2">
+          {/* Quiet link to team history */}
+          <div className="fade-in-up delay-4 text-center pt-2 pb-1">
             <Link
-              href="/detail#istoric"
+              href="/detail"
               className="inline-flex items-center gap-2 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
             >
-              <span>👥 deep dive în istoric echipă — {fn}</span>
+              <span>👥 istoric echipă</span>
               <span>→</span>
             </Link>
           </div>

@@ -23,10 +23,9 @@ const METRIC_META: Record<Metric, { label: string; unit: string; target: number;
 /**
  * Team history view — the "social" page where you see everyone.
  *
- * Layout (top → bottom):
- *   1. Team Leaderboard (champion banner + rows with medals + fun badges)
- *   2. Stacked Team Chart (one big chart with metric tabs, all 3 users overlaid)
- *   3. Per-user recent activity breakdown (last 14 days, side-by-side mini tables)
+ *   1. Team Leaderboard (medals + champion banner + fun badges + period tabs)
+ *   2. Big TeamChart with metric tabs — all 3 users overlaid, target line
+ *   3. Per-user 14-day activity blocks side-by-side
  */
 export function TeamHistory({ entries, currentUser }: { entries: SleepEntry[]; currentUser: string }) {
   const [range, setRange] = useState<Range>('30');
@@ -61,12 +60,10 @@ export function TeamHistory({ entries, currentUser }: { entries: SleepEntry[]; c
 
   return (
     <div className="space-y-3 lg:space-y-4">
-      {/* 1. LEADERBOARD — medals + champion banner + fun badges */}
-      <div id="istoric">
-        <Leaderboard entries={entries} currentUser={currentUser} />
-      </div>
+      {/* 1. LEADERBOARD */}
+      <Leaderboard entries={entries} currentUser={currentUser} />
 
-      {/* 2. STACKED CHART — all 3 users on one big chart */}
+      {/* 2. BIG STACKED CHART */}
       <Card className="p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -90,7 +87,6 @@ export function TeamHistory({ entries, currentUser }: { entries: SleepEntry[]; c
           </div>
         </div>
 
-        {/* Metric tabs */}
         <div className="flex items-center gap-1.5 border-b border-[var(--color-border)] pb-3 flex-wrap">
           {(Object.keys(METRIC_META) as Metric[]).map(m => (
             <button
@@ -121,9 +117,9 @@ export function TeamHistory({ entries, currentUser }: { entries: SleepEntry[]; c
         />
       </Card>
 
-      {/* 3. PER-USER RECENT ACTIVITY (last 14 days, all 3 columns side by side) */}
+      {/* 3. PER-USER 14-DAY BREAKDOWN */}
       <Card className="p-4 sm:p-5">
-        <div className="label mb-3">ultimele 14 zile · pe rând per persoană</div>
+        <div className="label mb-3">ultimele 14 zile · pe persoană</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {NAMES.map(n => (
             <UserRecentBlock key={n} name={n} entries={entries} />

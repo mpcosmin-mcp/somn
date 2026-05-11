@@ -44,54 +44,47 @@ export function personColor(name: string): string {
 
 /* ── Color scales ──
  *
- * Semantic: GREEN = bun, AMBER = mediu, RED = rău. Top tier is a deeper
- * emerald so "above target" reads as "really green". This is the user-facing
- * "is my number ok or not" signal — instant gut check.
+ * BINARY semantic: above target → GREEN, below target → RED.
  *
- * Five tiers per metric:
- *   ELITE  → emerald-500    #10b981   (above target, top X%)
- *   GOOD   → green-400      #4ade80   (in target)
- *   OK     → amber-400      #fbbf24   (borderline)
- *   POOR   → orange-400     #fb923c   (below target)
- *   BAD    → red-400        #f87171   (way off)
+ * Four tiers per metric (no in-between amber):
+ *   ELITE  → emerald-500    #10b981   (well above target)
+ *   GOOD   → green-400      #4ade80   (above/at target)
+ *   UNDER  → orange-500     #f97316   (below target — orange-red)
+ *   BAD    → red-500        #ef4444   (way below target — pure red)
  *
- * Targets are calibrated to the team's typical values.
+ * "Sub target = roșu" — instant gut check.
  */
 
 const C = {
-  elite: '#10b981',   // emerald-500
-  good:  '#4ade80',   // green-400
-  ok:    '#fbbf24',   // amber-400
-  poor:  '#fb923c',   // orange-400
-  bad:   '#f87171',   // red-400
-  dim:   '#52525b',   // zinc-600 (missing data)
+  elite: '#10b981',
+  good:  '#4ade80',
+  under: '#f97316',
+  bad:   '#ef4444',
+  dim:   '#52525b',
 } as const;
 
 /** Sleep Score (higher is better). Target ≥75. */
 export function ssColor(ss: number): string {
-  if (ss >= 90) return C.elite;
+  if (ss >= 85) return C.elite;
   if (ss >= 75) return C.good;
-  if (ss >= 65) return C.ok;
-  if (ss >= 50) return C.poor;
+  if (ss >= 60) return C.under;
   return C.bad;
 }
 
 /** RHR (LOWER is better). Target <60. */
 export function rhrColor(rhr: number): string {
   if (rhr < 55) return C.elite;
-  if (rhr < 62) return C.good;
-  if (rhr < 68) return C.ok;
-  if (rhr < 74) return C.poor;
+  if (rhr < 60) return C.good;
+  if (rhr < 70) return C.under;
   return C.bad;
 }
 
-/** HRV (higher is better). Target >45. */
+/** HRV (higher is better). Target ≥45. */
 export function hrvColor(hrv: number | null): string {
   if (hrv == null) return C.dim;
   if (hrv >= 60) return C.elite;
   if (hrv >= 45) return C.good;
-  if (hrv >= 32) return C.ok;
-  if (hrv >= 22) return C.poor;
+  if (hrv >= 30) return C.under;
   return C.bad;
 }
 
@@ -100,45 +93,40 @@ export function remColor(rem: number | null): string {
   if (rem == null) return C.dim;
   if (rem >= 110) return C.elite;
   if (rem >= 90) return C.good;
-  if (rem >= 70) return C.ok;
-  if (rem >= 50) return C.poor;
+  if (rem >= 70) return C.under;
   return C.bad;
 }
 
 /* ── Tier labels (for the bottom-of-metric chip) ── */
 
 export function ssTier(ss: number): { label: string; color: string } {
-  if (ss >= 90) return { label: 'Excelent', color: C.elite };
+  if (ss >= 85) return { label: 'Excelent', color: C.elite };
   if (ss >= 75) return { label: 'Bun', color: C.good };
-  if (ss >= 65) return { label: 'OK', color: C.ok };
-  if (ss >= 50) return { label: 'Slab', color: C.poor };
-  return { label: 'Foarte slab', color: C.bad };
+  if (ss >= 60) return { label: 'Sub target', color: C.under };
+  return { label: 'Slab', color: C.bad };
 }
 
 export function rhrTier(rhr: number): { label: string; color: string } {
   if (rhr < 55) return { label: 'Excelent', color: C.elite };
-  if (rhr < 62) return { label: 'Bun', color: C.good };
-  if (rhr < 68) return { label: 'OK', color: C.ok };
-  if (rhr < 74) return { label: 'Slab', color: C.poor };
-  return { label: 'Foarte slab', color: C.bad };
+  if (rhr < 60) return { label: 'Bun', color: C.good };
+  if (rhr < 70) return { label: 'Peste target', color: C.under };
+  return { label: 'Slab', color: C.bad };
 }
 
 export function hrvTier(hrv: number | null): { label: string; color: string } {
   if (hrv == null) return { label: '—', color: C.dim };
   if (hrv >= 60) return { label: 'Excelent', color: C.elite };
   if (hrv >= 45) return { label: 'Bun', color: C.good };
-  if (hrv >= 32) return { label: 'OK', color: C.ok };
-  if (hrv >= 22) return { label: 'Slab', color: C.poor };
-  return { label: 'Foarte slab', color: C.bad };
+  if (hrv >= 30) return { label: 'Sub target', color: C.under };
+  return { label: 'Slab', color: C.bad };
 }
 
 export function remTier(rem: number | null): { label: string; color: string } {
   if (rem == null) return { label: '—', color: C.dim };
   if (rem >= 110) return { label: 'Excelent', color: C.elite };
   if (rem >= 90) return { label: 'Bun', color: C.good };
-  if (rem >= 70) return { label: 'OK', color: C.ok };
-  if (rem >= 50) return { label: 'Slab', color: C.poor };
-  return { label: 'Foarte slab', color: C.bad };
+  if (rem >= 70) return { label: 'Sub target', color: C.under };
+  return { label: 'Slab', color: C.bad };
 }
 
 /* ── Target indicators for at-a-glance status ── */
