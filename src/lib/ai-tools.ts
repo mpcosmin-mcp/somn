@@ -11,6 +11,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { type SleepEntry, NAMES, FIRST_NAME, lastNDays } from '@/lib/sleep';
 import { SHEETS_API } from '@/lib/config';
+import { invalidateEntriesCache } from '@/lib/sheets-cache';
 
 export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
@@ -142,6 +143,7 @@ export async function executeTool({
       });
       const res = await fetch(`${SHEETS_API}?${params}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+      invalidateEntriesCache();
 
       // Build human-readable confirmation chip
       const changedFields: string[] = [];
@@ -219,6 +221,7 @@ export async function executeTool({
       });
       const res = await fetch(`${SHEETS_API}?${params}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+      invalidateEntriesCache();
 
       return {
         toolUseId,

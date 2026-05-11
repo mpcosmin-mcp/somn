@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SHEETS_API, DUEL_ROW_MARKER } from '@/lib/config';
 import { type SleepEntry } from '@/lib/sleep';
+import { getCachedEntries, setCachedEntries, invalidateEntriesCache } from '@/lib/sheets-cache';
 
 /**
  * GET /api/sheets — fetches all entries from the Google Sheet
  *
  * Response shape: { entries: SleepEntry[] }
- * Filters out special "__DUEL__" rows (legacy v1 feature).
- * REM column is optional — old rows return null.
+ *
+ * 60s in-memory cache (see lib/sheets-cache.ts). The Apps Script call
+ * routinely takes 4–10s, and the data only changes when someone POSTs
+ * here or the AI tools write. Both invalidate the cache.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -72,6 +75,12 @@ function pickFirst(row: RawSheetRow, keys: string[]): Cell {
 
 export async function GET() {
   try {
+    // Fast path: serve from cache if still fresh (60s TTL).
+    const cached = getCachedEntries();
+    if (cached) {
+      return NextResponse.json({ entries: cached });
+    }
+
     const url = `${SHEETS_API}?v=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
@@ -125,6 +134,7 @@ export async function GET() {
     }
     const entries = [...dedupedMap.values()];
 
+    setCachedEntries(entries);
     return NextResponse.json({ entries });
   } catch (err) {
     console.error('[/api/sheets GET]', err);
@@ -161,6 +171,7 @@ export async function POST(req: NextRequest) {
     const url = `${SHEETS_API}?${params}`;
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+    invalidateEntriesCache();
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[/api/sheets POST]', err);
@@ -189,6 +200,7 @@ export async function DELETE(req: NextRequest) {
     });
     const res = await fetch(`${SHEETS_API}?${params}`, { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+    invalidateEntriesCache();
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[/api/sheets DELETE]', err);

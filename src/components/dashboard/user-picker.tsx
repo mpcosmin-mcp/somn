@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { type SleepEntry, NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
-import { fetchAllEntries, submitEntry } from '@/lib/client-api';
+import { submitEntry } from '@/lib/client-api';
+import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 
@@ -30,15 +31,18 @@ const QUICK_FIELDS: Array<{
  * All on one page. Aurora background, glassmorphism card.
  */
 export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
-  const [entries, setEntries] = useState<SleepEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Read the shared entries from context — no duplicate fetch. When the
+  // background refetch in EntriesProvider returns fresh data, this picker
+  // automatically re-renders with up-to-date XP/level/streak.
+  const { entries } = useEntries();
   const [picked, setPicked] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAllEntries().then(setEntries).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  const sortedNames = [...NAMES].sort((a, b) => calcXP(entries, b) - calcXP(entries, a));
+  // If we have at least one entry, sort users by XP descending (leader first).
+  // Otherwise keep NAMES order so the picker renders immediately on the very
+  // first visit (no entries yet, no cache to seed from).
+  const sortedNames = entries.length > 0
+    ? [...NAMES].sort((a, b) => calcXP(entries, b) - calcXP(entries, a))
+    : [...NAMES];
   const todayAlreadyLogged = picked
     ? entries.some(e => e.name === picked && e.date === todayStr())
     : false;
@@ -58,7 +62,6 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
           <PickerStep
             sortedNames={sortedNames}
             entries={entries}
-            loading={loading}
             onPick={setPicked}
           />
         )}
@@ -84,11 +87,10 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
 
 /* ─── STEP 1: pick a user ──────────────────────────────── */
 function PickerStep({
-  sortedNames, entries, loading, onPick,
+  sortedNames, entries, onPick,
 }: {
   sortedNames: string[];
   entries: SleepEntry[];
-  loading: boolean;
   onPick: (n: string) => void;
 }) {
   return (
@@ -111,8 +113,7 @@ function PickerStep({
             <button
               key={n}
               onClick={() => onPick(n)}
-              disabled={loading}
-              className="group text-left transition-all hover:translate-x-1 active:scale-[0.99] disabled:opacity-50"
+              className="group text-left transition-all hover:translate-x-1 active:scale-[0.99]"
             >
               <div
                 className="flex items-center gap-3 px-4 py-3.5 rounded-2xl relative overflow-hidden border transition-all"
