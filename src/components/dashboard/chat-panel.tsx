@@ -8,21 +8,14 @@ import { Lobster } from '@/components/ui/lobster';
 const OPEN_KEY = 'somn_chat_open';
 
 /**
- * Chat surface — FOCUS MODE design.
+ * Hipnos chat — floating bubble across ALL viewports.
  *
- *   • Closed:
- *       <xl  → floating capybara bubble bottom-right (only place to open)
- *       xl+  → bubble is HIDDEN; chat is opened from the "vorbește cu mine"
- *               card at the top of the AI insights column instead
+ *   Collapsed: pulsing capybara bubble bottom-right. Hover shows a
+ *              tooltip 'Hipnos · live · vorbește cu mine'.
+ *   Open:      floating focus panel — mobile: bottom popup; desktop:
+ *              520-600px on the right with focus-mode dimming the page.
  *
- *   • Open:
- *       <xl  → full-screen-ish popup (current behavior)
- *       xl+  → a LARGE focus panel (560px wide, full height with margin) on
- *               the right. The rest of the page shrinks + dims via the CSS
- *               class on <body data-chat-open="true"> so the chat becomes
- *               the main focus.
- *
- *   • Close: page returns to normal layout instantly.
+ * Trigger from anywhere via chatSend() / openChat() events.
  */
 export function ChatPanel() {
   const { user, hydrated } = useUser();
@@ -53,7 +46,6 @@ export function ChatPanel() {
   useEffect(() => {
     if (!panelHydrated) return;
     try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* ignore */ }
-    // Set body attribute so global CSS can shrink + dim the page when open
     document.body.dataset.chatOpen = open ? 'true' : 'false';
     return () => { document.body.dataset.chatOpen = 'false'; };
   }, [open, panelHydrated]);
@@ -68,19 +60,33 @@ export function ChatPanel() {
 
   return (
     <>
-      {/* Collapsed bubble — only on <xl (mobile/tablet). Hidden on xl+ since
-          the insights column has the chat trigger. */}
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Deschide chat cu somn ai"
-        title="Vorbește cu somn ai"
-        className={`xl:hidden fixed bottom-4 right-4 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-bg)] border border-[var(--color-border)] shadow-2xl shadow-black/40 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center
-          ${open ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'}`}
+      {/* Collapsed bubble — all viewports */}
+      <div
+        className={`group fixed bottom-4 right-4 z-50 transition-all duration-200 ${
+          open ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'
+        }`}
       >
-        <Lobster size={40} talking />
-      </button>
+        {/* Hover tooltip — "live · vorbește cu mine" */}
+        <div className="absolute bottom-full right-0 mb-2 px-3 py-2 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] shadow-xl whitespace-nowrap opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-150 pointer-events-none">
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+            <span>Hipnos · <span className="text-[var(--color-accent)]">live</span></span>
+          </div>
+          <div className="text-[10px] text-[var(--color-fg-muted)]">vorbește cu mine</div>
+        </div>
 
-      {/* Backdrop on <xl (mobile dimming) */}
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Deschide chat cu Hipnos"
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-bg)] border-2 border-[var(--color-accent)]/40 shadow-2xl shadow-black/40 hover:border-[var(--color-accent)] hover:scale-110 active:scale-95 transition-all flex items-center justify-center relative"
+        >
+          <Lobster size={40} talking />
+          {/* Pulse ring to signal it's alive */}
+          <span className="absolute inset-0 rounded-full border-2 border-[var(--color-accent)]/40 animate-ping opacity-50" />
+        </button>
+      </div>
+
+      {/* Backdrop on mobile/tablet */}
       <div
         onClick={() => setOpen(false)}
         className={`xl:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ${
@@ -89,12 +95,10 @@ export function ChatPanel() {
         aria-hidden
       />
 
-      {/* Chat surface — popup on <xl, focus panel on xl+ */}
+      {/* Chat surface */}
       <div
         className={`fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40 rounded-2xl
-          /* mobile/tablet: bottom popup */
           inset-x-3 bottom-3 max-h-[calc(100dvh-1rem)]
-          /* desktop xl+: focus panel — right side, taller, wider */
           xl:inset-auto xl:top-4 xl:right-4 xl:bottom-4
           xl:w-[520px] 2xl:w-[600px]
           xl:max-h-none
@@ -105,7 +109,7 @@ export function ChatPanel() {
         `}
         aria-hidden={!open}
         role="dialog"
-        aria-label="Chat cu somn ai"
+        aria-label="Chat cu Hipnos"
       >
         <ChatWidget
           user={user}

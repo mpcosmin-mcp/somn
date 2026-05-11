@@ -154,8 +154,16 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
           })}
         </div>
 
-        <div className="mt-8 text-[10px] text-[var(--color-fg-dim)] num">
-          built with next.js · powered by claude haiku · open source on github
+        <div className="mt-8 space-y-1.5">
+          <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5">
+            <span className="text-sm">🦞</span>
+            <span>
+              <strong className="text-[var(--color-fg)]">Hipnos</strong> · zeul grec al somnului · AI-ul tău
+            </span>
+          </div>
+          <div className="text-[10px] text-[var(--color-fg-dim)] num">
+            built with next.js · powered by claude haiku · open source on github
+          </div>
         </div>
       </div>
     </main>

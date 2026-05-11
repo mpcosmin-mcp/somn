@@ -58,7 +58,7 @@ export function PageVibe({ user, entries }: { user: string; entries: SleepEntry[
           <Lobster size={48} talking={loading} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="label mb-1">Morfeu · zice ceva</div>
+          <div className="label mb-1">Hipnos · zice ceva</div>
           {loading && <div className="text-xs text-[var(--color-fg-muted)] italic">se gândește...</div>}
           {!loading && text && (
             <p className="text-sm leading-relaxed">{text}</p>

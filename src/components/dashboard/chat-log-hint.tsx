@@ -41,7 +41,7 @@ export function ChatLogHint() {
         <div className="flex-1 min-w-0">
           <div className="label mb-0.5">NOU · loghează prin chat</div>
           <div className="text-sm leading-tight mb-2">
-            Spune-i lui Morfeu cum ai dormit. <span className="text-[var(--color-fg-muted)]">Ex: &ldquo;salut, am dormit cu 75 scor și 41 hrv&rdquo;</span>
+            Spune-i lui Hipnos cum ai dormit. <span className="text-[var(--color-fg-muted)]">Ex: &ldquo;salut, am dormit cu 75 scor și 41 hrv&rdquo;</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button

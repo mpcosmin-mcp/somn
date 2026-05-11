@@ -10,6 +10,7 @@ import { Avi } from '@/components/ui/avi';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { LogEntry } from '@/components/dashboard/log-entry';
+import { DailyRoast } from '@/components/dashboard/ai-blocks';
 
 /**
  * Twitter-style left sidebar.
@@ -105,6 +106,11 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
             onClick={onCloseDrawer}
           />
         </nav>
+
+        {/* Daily roast — Hipnos commentary about you, lives in the sidebar */}
+        <div className="border-t border-[var(--color-border)] pt-3">
+          <DailyRoast user={user} entries={entries} />
+        </div>
 
         {/* Spacer */}
         <div className="flex-1" />

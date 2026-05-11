@@ -126,7 +126,7 @@ export function ChatWidget({
           <Lobster size={28} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm leading-tight">Morfeu</div>
+          <div className="font-semibold text-sm leading-tight">Hipnos</div>
           <div className="text-[10px] text-[var(--color-fg-muted)] num truncate">somn ai · poate să logheze</div>
         </div>
         {messages.length > 0 && (

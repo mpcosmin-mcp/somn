@@ -67,7 +67,7 @@ export function AINudge({ user, entries }: { user: string; entries: SleepEntry[]
           {current.emoji}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="label mb-0.5">Morfeu · întreabă</div>
+          <div className="label mb-0.5">Hipnos · întreabă</div>
           <button
             onClick={handleAsk}
             className="text-sm font-semibold text-left hover:text-[var(--color-accent)] transition-colors w-full text-left leading-tight"
