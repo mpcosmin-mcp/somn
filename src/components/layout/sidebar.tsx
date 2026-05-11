@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { FIRST_NAME, personColor } from '@/lib/sleep';
+import { NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor } from '@/lib/gamify';
@@ -23,6 +23,7 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
   const { entries, upsertLocal } = useEntries();
   const pathname = usePathname();
   const [showLog, setShowLog] = useState(false);
+  const [showSwitcher, setShowSwitcher] = useState(false);
 
   if (!user) return null;
 
@@ -111,13 +112,46 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
 
         {/* Footer actions */}
         <div className="border-t border-[var(--color-border)] pt-3 flex flex-col gap-2">
-          <button
-            onClick={() => { setUser(null); onCloseDrawer?.(); }}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors text-left"
-          >
-            <span>↩</span>
-            <span>Schimbă utilizator</span>
-          </button>
+          {/* Inline user switcher — no full logout needed */}
+          {showSwitcher ? (
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 space-y-1">
+              <div className="label px-2 py-1">schimbă în:</div>
+              {NAMES.filter(n => n !== user).map(n => {
+                const otherC = personColor(n);
+                return (
+                  <button
+                    key={n}
+                    onClick={() => {
+                      setUser(n);
+                      setShowSwitcher(false);
+                      onCloseDrawer?.();
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold hover:bg-[var(--color-card)] transition-colors text-left"
+                    style={{ color: otherC }}
+                  >
+                    <Avi name={n} size="xs" />
+                    <span>{FIRST_NAME[n]}</span>
+                    <span className="ml-auto text-[var(--color-fg-dim)] text-[10px]">→</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setShowSwitcher(false)}
+                className="w-full text-center text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] py-1 transition-colors"
+              >
+                anulează
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSwitcher(true)}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors text-left"
+            >
+              <span>↩</span>
+              <span>Schimbă utilizator</span>
+            </button>
+          )}
+
           <div className="flex items-center justify-between px-2">
             <span className="text-[10px] text-[var(--color-fg-dim)] num">theme</span>
             <ThemeToggle />

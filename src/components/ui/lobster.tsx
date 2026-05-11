@@ -1,17 +1,18 @@
-/* somn's AI mascot. A small friendly lobster — IT people love absurd thematic
-   mascots, and red on dark mode looks great. Uses currentColor for accents so
-   we can recolor via parent CSS. */
+/* somn's AI mascot — a sleepy capybara. Friendly, vibey, dev-loved meme
+   energy. The closed crescent eyes + floating Z's nail the sleep theme.
+   Component name stays `Lobster` for backward compat with imports; export
+   is also as `Mascot` for new code. */
 
 interface Props {
   size?: number;
   className?: string;
-  /** Override the lobster body color (default: tomato red) */
+  /** Capy body color (default warm tan) */
   color?: string;
-  /** Show a tiny chat dot in the corner (busy / talking state) */
+  /** Show floating Z's animating (busy/talking state) */
   talking?: boolean;
 }
 
-export function Lobster({ size = 40, className, color = '#ef4444', talking }: Props) {
+export function Lobster({ size = 40, className, color = '#b88a5a', talking }: Props) {
   return (
     <svg
       width={size}
@@ -22,90 +23,74 @@ export function Lobster({ size = 40, className, color = '#ef4444', talking }: Pr
       aria-label="somn AI mascot"
       role="img"
     >
-      {/* Antennae */}
-      <path
-        d="M22 16 L16 6 M42 16 L48 6"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="16" cy="6" r="1.5" fill={color} />
-      <circle cx="48" cy="6" r="1.5" fill={color} />
+      {/* Subtle dark ground beneath for depth */}
+      <ellipse cx="32" cy="58" rx="20" ry="2" fill="#000" opacity="0.15" />
 
-      {/* Left claw */}
-      <ellipse cx="11" cy="26" rx="7" ry="5" fill={color} />
-      <ellipse cx="11" cy="26" rx="3.5" ry="2.5" fill="#7f1d1d" opacity="0.4" />
-      <path
-        d="M6 24 L4 22 M6 28 L4 30"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      {/* Ears (left + right), behind the head */}
+      <ellipse cx="18" cy="20" rx="5" ry="5.5" fill={color} />
+      <ellipse cx="46" cy="20" rx="5" ry="5.5" fill={color} />
+      {/* Inner ear shadow */}
+      <ellipse cx="18" cy="21" rx="2.5" ry="3" fill="#5d4523" opacity="0.55" />
+      <ellipse cx="46" cy="21" rx="2.5" ry="3" fill="#5d4523" opacity="0.55" />
 
-      {/* Right claw */}
-      <ellipse cx="53" cy="26" rx="7" ry="5" fill={color} />
-      <ellipse cx="53" cy="26" rx="3.5" ry="2.5" fill="#7f1d1d" opacity="0.4" />
-      <path
-        d="M58 24 L60 22 M58 28 L60 30"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      {/* Head — rounded square (capybara signature) */}
+      <rect x="11" y="20" width="42" height="34" rx="18" fill={color} />
 
-      {/* Body */}
-      <ellipse cx="32" cy="32" rx="14" ry="13" fill={color} />
+      {/* Cheek tufts (slightly darker, optional polish) */}
+      <ellipse cx="14" cy="36" rx="3" ry="5" fill="#8e6a40" opacity="0.4" />
+      <ellipse cx="50" cy="36" rx="3" ry="5" fill="#8e6a40" opacity="0.4" />
 
-      {/* Body segments */}
+      {/* Sleepy crescent eyes — closed and content */}
       <path
-        d="M19 32 Q32 36 45 32"
-        stroke="#7f1d1d"
-        strokeWidth="1"
-        opacity="0.4"
-        fill="none"
-      />
-      <path
-        d="M21 38 Q32 42 43 38"
-        stroke="#7f1d1d"
-        strokeWidth="1"
-        opacity="0.4"
-        fill="none"
-      />
-
-      {/* Tail fan */}
-      <path
-        d="M22 45 Q32 56 42 45 Q42 50 38 53 Q32 56 26 53 Q22 50 22 45 Z"
-        fill={color}
-      />
-
-      {/* Eyes — friendly */}
-      <circle cx="26" cy="28" r="3" fill="white" />
-      <circle cx="38" cy="28" r="3" fill="white" />
-      <circle cx="26.5" cy="28.5" r="1.4" fill="#1f1f1f" />
-      <circle cx="38.5" cy="28.5" r="1.4" fill="#1f1f1f" />
-      {/* Eye highlights */}
-      <circle cx="27" cy="27.5" r="0.6" fill="white" />
-      <circle cx="39" cy="27.5" r="0.6" fill="white" />
-
-      {/* Mouth — slight smile */}
-      <path
-        d="M28 34 Q32 36 36 34"
+        d="M22 32 Q26 35 30 32"
         stroke="#1f1f1f"
-        strokeWidth="1.2"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M34 32 Q38 35 42 32"
+        stroke="#1f1f1f"
+        strokeWidth="2.2"
         strokeLinecap="round"
         fill="none"
       />
 
-      {/* Optional talking dot */}
-      {talking && (
-        <circle cx="56" cy="10" r="4" fill="#a3e635">
-          <animate
-            attributeName="opacity"
-            values="1;0.3;1"
-            dur="1s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      )}
+      {/* Nose snout — small rounded rectangle */}
+      <rect x="27" y="40" width="10" height="6" rx="3" fill="#3d2f1f" opacity="0.85" />
+
+      {/* Subtle smile under the nose */}
+      <path
+        d="M28 48 Q32 51 36 48"
+        stroke="#3d2f1f"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Floating Z's — sleep signal (animated when talking) */}
+      <g className={talking ? 'animate-pulse' : undefined}>
+        <text
+          x="50"
+          y="14"
+          fill="#a3e635"
+          fontSize="11"
+          fontWeight="800"
+          fontFamily="system-ui, sans-serif"
+        >z</text>
+        <text
+          x="56"
+          y="7"
+          fill="#a3e635"
+          fontSize="7"
+          fontWeight="800"
+          fontFamily="system-ui, sans-serif"
+          opacity="0.7"
+        >z</text>
+      </g>
     </svg>
   );
 }
+
+/* Cleaner alias for new imports */
+export { Lobster as Mascot };
