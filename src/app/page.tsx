@@ -5,18 +5,18 @@ import { todayStr } from '@/lib/utils';
 import { FIRST_NAME } from '@/lib/sleep';
 import { Hero } from '@/components/dashboard/hero';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
-import { DailyRoast, WeeklyStory, PatternCard } from '@/components/dashboard/ai-blocks';
+import { DailyRoast } from '@/components/dashboard/ai-blocks';
 import { AlertsBar } from '@/components/dashboard/alerts-bar';
 import { AINudge } from '@/components/dashboard/ai-nudge';
 import { PageVibe } from '@/components/dashboard/page-vibe';
 import { ChatLogHint } from '@/components/dashboard/chat-log-hint';
+import { TopicBanners } from '@/components/dashboard/topic-banners';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
   const { user } = useUser();
   const { entries, loading, error, refetch } = useEntries();
 
-  // AppShell handles the case where user is null. If we're here, user exists.
   if (!user) return null;
 
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];
@@ -34,17 +34,20 @@ export default function Home() {
 
       {!loading && (
         <>
-          {/* Chat-as-log discovery hint (dismissible, one-time per device) */}
           <div className="fade-in-up delay-0">
             <ChatLogHint />
           </div>
 
-          {/* AI vibe — sets the tone for the whole page */}
           <div className="fade-in-up delay-0">
             <PageVibe user={user} entries={entries} />
           </div>
 
-          {/* Pattern alerts — duplicated in insights column on xl+, so hide here */}
+          {/* Topic banners — Instagram-story style circles for education */}
+          <div className="fade-in-up delay-1">
+            <TopicBanners />
+          </div>
+
+          {/* Pattern alerts — also in insights column on xl+ */}
           <div className="fade-in-up delay-1 xl:hidden">
             <AlertsBar entries={entries} user={user} />
           </div>
@@ -72,14 +75,9 @@ export default function Home() {
             <Leaderboard entries={entries} currentUser={user} />
           </div>
 
-          {/* These AI cards are in the insights column on xl+ — hide here to avoid dup */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 fade-in-up delay-4 xl:hidden">
+          {/* Daily roast — visible on <xl (insights column has it on xl+) */}
+          <div className="fade-in-up delay-4 xl:hidden">
             <DailyRoast user={user} entries={entries} />
-            <WeeklyStory entries={entries} />
-          </div>
-
-          <div className="fade-in-up delay-5 xl:hidden">
-            <PatternCard user={user} entries={entries} />
           </div>
         </>
       )}
