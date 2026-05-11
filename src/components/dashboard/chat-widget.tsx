@@ -5,6 +5,7 @@ import { fetchAllEntries, chatTurn, type ChatMessage } from '@/lib/client-api';
 import { Avi } from '@/components/ui/avi';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Lobster } from '@/components/ui/lobster';
 
 const HISTORY_KEY = (user: string) => `somn_chat_${user}`;
 
@@ -114,12 +115,12 @@ export function ChatWidget({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-[var(--color-border)] px-3 py-2.5 flex items-center gap-2 shrink-0 pt-safe">
-        <div className="w-9 h-9 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-[11px] num font-bold shrink-0">
-          ai
+        <div className="w-9 h-9 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center shrink-0 overflow-hidden">
+          <Lobster size={28} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm leading-tight">claude</div>
-          <div className="text-[10px] text-[var(--color-fg-muted)] num truncate">haiku · ultimele 30 zile + jurnale</div>
+          <div className="font-semibold text-sm leading-tight">somn ai</div>
+          <div className="text-[10px] text-[var(--color-fg-muted)] num truncate">claude haiku · vede tot</div>
         </div>
         {messages.length > 0 && (
           <button
@@ -151,7 +152,7 @@ export function ChatWidget({
       <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
         {messages.length === 0 && (
           <div className="py-6 text-center">
-            <div className="text-2xl mb-1">💬</div>
+            <Lobster size={64} className="mx-auto mb-2" />
             <div className="text-sm font-bold mb-1">salut, {fn}</div>
             <div className="text-xs text-[var(--color-fg-muted)] mb-4 leading-relaxed">
               întreabă-mă orice despre somn, REM, echipă. Îți am datele la îndemână.
@@ -173,8 +174,8 @@ export function ChatWidget({
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
             {m.role === 'assistant' ? (
-              <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-[10px] num font-bold shrink-0">
-                ai
+              <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center shrink-0 overflow-hidden">
+                <Lobster size={22} />
               </div>
             ) : (
               <Avi name={user} size="sm" />
