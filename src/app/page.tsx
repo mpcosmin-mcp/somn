@@ -2,24 +2,23 @@
 import Link from 'next/link';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
-import { Hero } from '@/components/dashboard/hero';
-import { Leaderboard } from '@/components/dashboard/leaderboard';
-import { AlertsBar } from '@/components/dashboard/alerts-bar';
-import { PageVibe } from '@/components/dashboard/page-vibe';
-import { MyChartsGrid } from '@/components/dashboard/my-charts-grid';
+import { KpiCards } from '@/components/dashboard/kpi-cards';
+import { SquadBar } from '@/components/dashboard/squad-bar';
+import { PersonalHistory } from '@/components/dashboard/personal-history';
+import { SquadInsights } from '@/components/dashboard/squad-insights';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
- * Main dashboard — minimalist, big numbers, straight to the data.
+ * Main dashboard — SleepSquad masterpiece edition.
  *
- *   1. Hipnos greeting (max 3 sentences)
- *   2. Pattern alerts (if any)
- *   3. Hero — last night's numbers
- *   4. 4 detailed charts of MY data (SS / REM / RHR / HRV)
- *   5. Team leaderboard
- *   6. Quiet link → /detail (team istoric)
+ *   No scroll on desktop. Everything fits in one viewport.
  *
- * Chat with Hipnos: floating bubble bottom-right (works from anywhere).
+ *   Layout (lg+):
+ *     Row 1 — 3 KPI cards (my Sleep Score, REM, HRV)
+ *     Row 2 — Squad Bar (3-up comparison) · current user highlighted
+ *     Row 3 — 2 cols: Personal History (left) · Squad Insights + AI (right)
+ *
+ *   Mobile: stacks naturally, scrolls within main area.
  */
 export default function Home() {
   const { user } = useUser();
@@ -27,55 +26,45 @@ export default function Home() {
 
   if (!user) return null;
 
+  if (loading) return <DashboardSkeleton />;
+
+  if (error) {
+    return (
+      <div className="px-4 py-3 rounded-xl bg-[var(--color-bad)]/10 border border-[var(--color-bad)]/30 text-[var(--color-bad)] text-sm">
+        {error} <button onClick={refetch} className="underline">retry</button>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-3xl mx-auto space-y-3 lg:space-y-4">
-      {loading && <DashboardSkeleton />}
+    <div className="flex flex-col gap-3 lg:gap-4 lg:h-full">
+      {/* Row 1: KPI cards — personal data, the headline */}
+      <div className="fade-in-up delay-0 lg:shrink-0">
+        <KpiCards entries={entries} user={user} />
+      </div>
 
-      {error && (
-        <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
-          {error} <button onClick={refetch} className="underline">retry</button>
-        </div>
-      )}
+      {/* Row 2: Squad competition */}
+      <div className="fade-in-up delay-1 lg:shrink-0">
+        <SquadBar entries={entries} currentUser={user} />
+      </div>
 
-      {!loading && (
-        <>
-          {/* Hipnos greeting — sharp, max 3 sentences */}
-          <div className="fade-in-up delay-0">
-            <PageVibe user={user} entries={entries} />
-          </div>
+      {/* Row 3: 2 cols — personal history left, squad insights right.
+         The history scrolls *inside* its own card on lg+, the page itself stays static. */}
+      <div className="fade-in-up delay-2 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 lg:flex-1 lg:min-h-0">
+        <PersonalHistory entries={entries} user={user} limit={6} />
+        <SquadInsights entries={entries} user={user} />
+      </div>
 
-          {/* Pattern alerts (warnings only when something's off) */}
-          <div className="fade-in-up delay-1">
-            <AlertsBar entries={entries} user={user} />
-          </div>
-
-          {/* Last night — big numbers */}
-          <div className="fade-in-up delay-1">
-            <Hero entries={entries} user={user} />
-          </div>
-
-          {/* 4 detailed charts of MY data */}
-          <div className="fade-in-up delay-2">
-            <MyChartsGrid entries={entries} user={user} />
-          </div>
-
-          {/* Team leaderboard */}
-          <div className="fade-in-up delay-3">
-            <Leaderboard entries={entries} currentUser={user} />
-          </div>
-
-          {/* Quiet link to team history */}
-          <div className="fade-in-up delay-4 text-center pt-2 pb-1">
-            <Link
-              href="/detail"
-              className="inline-flex items-center gap-2 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
-            >
-              <span>👥 istoric echipă</span>
-              <span>→</span>
-            </Link>
-          </div>
-        </>
-      )}
+      {/* Footer: tiny link to full team istoric */}
+      <div className="fade-in-up delay-3 lg:shrink-0 text-center pt-1 pb-2">
+        <Link
+          href="/detail"
+          className="inline-flex items-center gap-1.5 text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors uppercase tracking-wider font-semibold"
+        >
+          <span>vezi istoric echipă completă</span>
+          <span>→</span>
+        </Link>
+      </div>
     </div>
   );
 }

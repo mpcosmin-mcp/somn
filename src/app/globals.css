@@ -7,33 +7,36 @@
    ───────────────────────────────────────────────────────── */
 
 @theme inline {
-  /* Surfaces (DARK is default — overridden by .light below) */
-  --color-bg: #09090b;          /* zinc-950 */
-  --color-surface: #0f0f12;     /* slightly lifted */
-  --color-card: #18181b;        /* zinc-900 */
-  --color-border: #27272a;      /* zinc-800 */
-  --color-border-subtle: #1c1c1f;
+  /* ─── SleepSquad Masterpiece tokens ───
+     Dark-first, Slate 950 base (NOT pure black — premium feel,
+     easier on tired eyes). Indigo accent for the brand color. */
+
+  /* Surfaces (dark default) */
+  --color-bg: #020617;          /* slate-950 */
+  --color-surface: #0b1120;     /* lifted slate */
+  --color-card: #0f172a;        /* slate-900 */
+  --color-border: #1e293b;      /* slate-800 */
+  --color-border-subtle: #131c2e;
 
   /* Text */
-  --color-fg: #fafafa;          /* zinc-50 */
-  --color-fg-muted: #a1a1aa;    /* zinc-400 */
-  --color-fg-dim: #52525b;      /* zinc-600 */
+  --color-fg: #f1f5f9;          /* slate-100 */
+  --color-fg-muted: #94a3b8;    /* slate-400 */
+  --color-fg-dim: #475569;      /* slate-600 */
 
-  /* Accent */
-  --color-accent: #65a30d;      /* lime-600 — works on both themes */
-  --color-accent-soft: #84cc16; /* lime-500 */
-  --color-accent-glow: rgba(132, 204, 22, 0.18);
+  /* Accent — Indigo */
+  --color-accent: #818cf8;      /* indigo-400 */
+  --color-accent-soft: #6366f1; /* indigo-500 */
+  --color-accent-deep: #4f46e5; /* indigo-600 */
+  --color-accent-glow: rgba(129, 140, 248, 0.22);
 
-  /* Sleep score gradient stops (blue → green → amber → red) */
-  --color-ss-top: #60a5fa;      /* blue-400 */
-  --color-ss-good: #4ade80;     /* green-400 */
-  --color-ss-ok: #fbbf24;       /* amber-400 */
-  --color-ss-poor: #fb923c;     /* orange-400 */
-  --color-ss-bad: #f87171;      /* red-400 */
+  /* Status palette (binary: above target = green, below = red) */
+  --color-good: #34d399;        /* emerald-400 */
+  --color-warn: #fbbf24;        /* amber-400 */
+  --color-bad:  #f87171;        /* red-400 */
 
   /* Per-person */
   --color-clara: #f472b6;       /* pink-400 */
-  --color-petrica: #60a5fa;     /* blue-400 */
+  --color-petrica: #818cf8;     /* indigo-400 (current user accent) */
   --color-cornel: #34d399;      /* emerald-400 */
 
   /* Fonts (set via next/font in layout) */
@@ -41,21 +44,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Light mode — overrides applied when <html class="light"> */
+/* Light mode — Slate-tinted */
 html.light {
-  --color-bg: #fafafa;          /* zinc-50 */
-  --color-surface: #f4f4f5;     /* zinc-100 */
+  --color-bg: #f8fafc;          /* slate-50 */
+  --color-surface: #f1f5f9;     /* slate-100 */
   --color-card: #ffffff;
-  --color-border: #e4e4e7;      /* zinc-200 */
-  --color-border-subtle: #f4f4f5;
+  --color-border: #e2e8f0;      /* slate-200 */
+  --color-border-subtle: #f1f5f9;
 
-  --color-fg: #09090b;          /* zinc-950 */
-  --color-fg-muted: #52525b;    /* zinc-600 */
-  --color-fg-dim: #a1a1aa;      /* zinc-400 */
+  --color-fg: #0f172a;          /* slate-900 */
+  --color-fg-muted: #64748b;    /* slate-500 */
+  --color-fg-dim: #94a3b8;      /* slate-400 */
 
-  --color-accent: #65a30d;
-  --color-accent-soft: #84cc16;
-  --color-accent-glow: rgba(101, 163, 13, 0.15);
+  --color-accent: #6366f1;      /* indigo-500 */
+  --color-accent-soft: #818cf8; /* indigo-400 */
+  --color-accent-deep: #4338ca; /* indigo-700 */
+  --color-accent-glow: rgba(99, 102, 241, 0.18);
 }
 
 /* Smooth transition between themes */
@@ -110,6 +114,91 @@ html, body {
 html.light .dots {
   background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px);
 }
+
+/* ── Aurora background — soft indigo glow blobs (login + heroes) ── */
+.aurora {
+  position: relative;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.aurora::before {
+  background:
+    radial-gradient(60% 50% at 15% 25%, rgba(99, 102, 241, 0.22), transparent 60%),
+    radial-gradient(50% 40% at 85% 75%, rgba(129, 140, 248, 0.18), transparent 65%);
+  filter: blur(40px);
+}
+.aurora::after {
+  background:
+    radial-gradient(40% 30% at 75% 20%, rgba(168, 85, 247, 0.15), transparent 60%),
+    radial-gradient(35% 30% at 20% 85%, rgba(56, 189, 248, 0.12), transparent 60%);
+  filter: blur(60px);
+}
+.aurora > * { position: relative; z-index: 1; }
+
+html.light .aurora::before {
+  background:
+    radial-gradient(60% 50% at 15% 25%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(50% 40% at 85% 75%, rgba(129, 140, 248, 0.12), transparent 65%);
+}
+html.light .aurora::after {
+  background:
+    radial-gradient(40% 30% at 75% 20%, rgba(168, 85, 247, 0.10), transparent 60%),
+    radial-gradient(35% 30% at 20% 85%, rgba(56, 189, 248, 0.08), transparent 60%);
+}
+
+/* Glassmorphism — semitransparent surface with blur */
+.glass {
+  background: rgba(15, 23, 42, 0.55);       /* slate-900/55 */
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+html.light .glass {
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* KPI card — colored bottom-border accent (PDF brief, page 4) */
+.kpi {
+  position: relative;
+  overflow: hidden;
+}
+.kpi::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--kpi-accent, var(--color-accent));
+  box-shadow: 0 0 24px var(--kpi-accent, var(--color-accent));
+  opacity: 0.9;
+}
+
+/* Status pill — OPTIM / AVERAGE / POOR (PDF page 7) */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.pill.optim { color: var(--color-good); background: color-mix(in srgb, var(--color-good) 12%, transparent); }
+.pill.average { color: var(--color-warn); background: color-mix(in srgb, var(--color-warn) 14%, transparent); }
+.pill.poor { color: var(--color-bad); background: color-mix(in srgb, var(--color-bad) 14%, transparent); }
 
 /* Reduce motion respectfully */
 @media (prefers-reduced-motion: reduce) {

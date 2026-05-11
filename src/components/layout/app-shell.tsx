@@ -1,42 +1,24 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
-import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
 import { UserPicker } from '@/components/dashboard/user-picker';
-import { LoginLogStep } from '@/components/dashboard/login-log-step';
-
-const STEP_SKIPPED_KEY = (user: string, date: string) => `somn_step_skipped_${user}_${date}`;
 
 /**
- * App shell — 2-column layout (sidebar + main) + floating chat bubble.
+ * App shell — 2-column layout (sidebar + main).
  *
- * Login flow:
- *   1. UserPicker      (no user)
- *   2. LoginLogStep    (user picked, today not logged, not skipped today)
- *   3. Dashboard       (after logging or skipping)
- *
- * Logging is restricted to LoginLogStep + chat (via Hipnos save_sleep tool).
- * No mid-session manual log button — keeps the UI clean.
+ * Login: combined picker + quick log on a single page (UserPicker).
+ * Chat: launched from the LEFT sidebar (no floating bubble), slides in
+ * from the left next to the sidebar.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, hydrated, setUser } = useUser();
-  const { entries, upsertLocal } = useEntries();
+  const { upsertLocal, refetch } = useEntries();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [skippedToday, setSkippedToday] = useState(false);
-
-  // Re-check skip state when user changes
-  useEffect(() => {
-    if (!user) { setSkippedToday(false); return; }
-    try {
-      const v = localStorage.getItem(STEP_SKIPPED_KEY(user, todayStr()));
-      setSkippedToday(v === '1');
-    } catch { setSkippedToday(false); }
-  }, [user]);
 
   if (!hydrated) {
     return (
@@ -47,34 +29,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return <UserPicker onPick={(n) => { setUser(n); setSkippedToday(false); }} />;
-  }
-
-  const todayLogged = entries.some(e => e.date === todayStr() && e.name === user);
-  const showLoginStep = !todayLogged && !skippedToday;
-
-  const handleSkip = () => {
-    setSkippedToday(true);
-    try { localStorage.setItem(STEP_SKIPPED_KEY(user, todayStr()), '1'); } catch { /* ignore */ }
-  };
-
-  if (showLoginStep) {
     return (
-      <LoginLogStep
-        user={user}
-        entries={entries}
-        onSaved={(entry) => {
-          upsertLocal(entry);
-          handleSkip();
+      <UserPicker
+        onPick={(n) => {
+          setUser(n);
+          // after a fresh login (especially if a log was just saved),
+          // refetch entries so the dashboard reflects the new data.
+          refetch().catch(() => {});
+          // also no-op: upsertLocal is exported but data comes via refetch
+          void upsertLocal;
         }}
-        onSkip={handleSkip}
       />
     );
   }
 
   return (
     <>
-      <div className="min-h-dvh lg:h-dvh flex flex-col lg:flex-row" data-page-content>
+      <div className="min-h-dvh lg:h-dvh flex flex-col lg:flex-row lg:overflow-hidden" data-page-content>
         {/* MOBILE TOP BAR */}
         <header className="lg:hidden sticky top-0 z-30 bg-[var(--color-bg)]/90 backdrop-blur-md border-b border-[var(--color-border)] pt-safe">
           <div className="flex items-center gap-2 h-14 px-3">
@@ -115,13 +86,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Sidebar onCloseDrawer={() => setDrawerOpen(false)} />
         </aside>
 
-        {/* MAIN CONTENT — feed centered, single column */}
-        <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 pb-safe">
+        {/* MAIN CONTENT — fills remaining space, no body scroll on lg+ */}
+        <main className="flex-1 min-w-0 lg:overflow-hidden lg:flex lg:flex-col px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe">
           {children}
         </main>
       </div>
 
-      {/* Floating chat bubble — visible on ALL viewports */}
+      {/* Chat panel — slides in from LEFT, triggered from the sidebar */}
       <ChatPanel />
     </>
   );

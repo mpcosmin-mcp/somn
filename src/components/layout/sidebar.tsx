@@ -5,15 +5,16 @@ import { FIRST_NAME, personColor } from '@/lib/sleep';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor } from '@/lib/gamify';
+import { openChat } from '@/lib/chat-toggle';
 import { Avi } from '@/components/ui/avi';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 /**
- * Twitter-style left sidebar.
- * Brand · user profile card · nav links · footer (theme + switch user).
+ * Left sidebar — brand, profile, nav, prominent Hipnos chat trigger, footer.
  *
- * Logging happens at LOGIN ONLY (LoginLogStep) or via chat — not from sidebar.
- * On lg+ it's a fixed column. On mobile it lives inside a drawer.
+ * Chat is the star of the sidebar (the floating bubble was hidden, so we
+ * promote it here as a big indigo CTA). Tapping it slides the chat panel
+ * in from the LEFT.
  */
 export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
   const { user, setUser } = useUser();
@@ -29,6 +30,11 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
   const streak = streakFor(entries, user);
   const progress = xpProgress(xp);
   const c = personColor(user);
+
+  const handleChat = () => {
+    openChat();
+    onCloseDrawer?.();
+  };
 
   return (
     <aside className="flex flex-col h-full px-3 py-4 gap-4 overflow-y-auto">
@@ -70,8 +76,11 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
         {/* XP bar */}
         <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[var(--color-accent)] transition-all duration-500"
-            style={{ width: `${(progress / XP_PER_LEVEL) * 100}%` }}
+            className="h-full transition-all duration-500"
+            style={{
+              width: `${(progress / XP_PER_LEVEL) * 100}%`,
+              background: 'linear-gradient(90deg, var(--color-accent-soft), var(--color-accent))',
+            }}
           />
         </div>
         <div className="flex justify-between text-[9px] num text-[var(--color-fg-muted)] mt-1">
@@ -79,6 +88,38 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
           <span>{progress}/{XP_PER_LEVEL}</span>
         </div>
       </div>
+
+      {/* Hipnos chat CTA — the star of the sidebar */}
+      <button
+        onClick={handleChat}
+        className="group relative w-full rounded-2xl px-4 py-3.5 text-left overflow-hidden transition-all hover:translate-y-[-1px] active:translate-y-0"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.20), rgba(168,85,247,0.14))',
+          border: '1px solid rgba(129,140,248,0.35)',
+          boxShadow: '0 10px 30px -12px var(--color-accent-glow)',
+        }}
+      >
+        {/* Pulsing ring */}
+        <span className="absolute top-2.5 right-2.5 flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-60"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-accent)]"></span>
+        </span>
+
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-lg"
+            style={{ background: 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' }}
+          >
+            💬
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-sm text-[var(--color-fg)]">Chat cu Hipnos</div>
+            <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">
+              zeul somnului · vorbește live
+            </div>
+          </div>
+        </div>
+      </button>
 
       {/* Nav links */}
       <nav className="flex flex-col gap-1">
