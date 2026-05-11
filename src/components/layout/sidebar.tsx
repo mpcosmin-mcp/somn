@@ -121,16 +121,9 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
         </div>
       </button>
 
-      {/* Nav links */}
+      {/* Nav links — single-page app now, only Dashboard */}
       <nav className="flex flex-col gap-1">
         <SidebarLink href="/" icon="📊" label="Dashboard" active={pathname === '/'} onClick={onCloseDrawer} />
-        <SidebarLink
-          href="/detail"
-          icon="👥"
-          label="Istoric"
-          active={pathname.startsWith('/detail')}
-          onClick={onCloseDrawer}
-        />
       </nav>
 
       {/* Spacer */}

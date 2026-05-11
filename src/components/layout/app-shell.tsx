@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="min-h-dvh lg:h-dvh flex flex-col lg:flex-row lg:overflow-hidden" data-page-content>
+      <div className="min-h-dvh flex flex-col lg:flex-row" data-page-content>
         {/* MOBILE TOP BAR */}
         <header className="lg:hidden sticky top-0 z-30 bg-[var(--color-bg)]/90 backdrop-blur-md border-b border-[var(--color-border)] pt-safe">
           <div className="flex items-center gap-2 h-14 px-3">
@@ -65,8 +65,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* DESKTOP SIDEBAR */}
-        <div className="hidden lg:flex w-[260px] xl:w-[280px] shrink-0 border-r border-[var(--color-border)]">
+        {/* DESKTOP SIDEBAR — sticky so it stays visible while the page scrolls */}
+        <div className="hidden lg:flex w-[260px] xl:w-[280px] shrink-0 border-r border-[var(--color-border)] lg:sticky lg:top-0 lg:self-start lg:h-dvh">
           <Sidebar />
         </div>
 
@@ -86,8 +86,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Sidebar onCloseDrawer={() => setDrawerOpen(false)} />
         </aside>
 
-        {/* MAIN CONTENT — fills remaining space, no body scroll on lg+ */}
-        <main className="flex-1 min-w-0 lg:overflow-hidden lg:flex lg:flex-col px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe">
+        {/* MAIN CONTENT — scrolls naturally. Sidebar stays sticky next to it. */}
+        <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe">
           {children}
         </main>
       </div>

@@ -34,14 +34,19 @@ export async function POST(req: NextRequest) {
       return `${fnN}: aseară SS ${last.ss}, ${remTxt}; săpt avg ${avg}`;
     }).join('\n');
 
-    const prompt = `Ești somn ai pentru o echipă IT din Sibiu (Clara, Petrica, Cornel). User: ${fn}.
+    const prompt = `Ești Hipnos, zeul somnului, AI pentru echipa IT din Sibiu (Clara, Petrica, Cornel). User curent: ${fn}.
 
 Date săptămâna asta:
 ${lines}
 
-Scrie UN salut de O SINGURĂ propoziție scurtă (max 20 cuvinte), în română, ton observativ-amuzant. Personalizat pentru ${fn} cu o cifră reală. Fără emoji.
+Scrie EXACT UN one-liner pentru top-of-page (MAX 14 cuvinte, română, ton observativ-tăios). O observație personală pentru ${fn} cu O cifră reală din date. Fără emoji, fără salut formal, direct la observație.
 
-Răspunde DOAR cu textul.`;
+Exemple bune (ca stil, nu copia):
+- "${fn}, săpt asta media ta e 78 — la 4 puncte de leader."
+- "${fn}, REM 105min aseară — peste target patru zile la rând, beast mode."
+- "${fn}, RHR scade constant — recovery on point."
+
+Răspunde DOAR cu textul, nimic altceva.`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const msg = await client.messages.create({

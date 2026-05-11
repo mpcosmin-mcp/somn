@@ -1,11 +1,12 @@
 'use client';
-import { type SleepEntry, ssColor, hrvColor, ssTier } from '@/lib/sleep';
+import { type SleepEntry, ssColor, hrvColor, ssTier, personalTrendNote } from '@/lib/sleep';
 
 /**
  * Personal History — compact tabular view of the last few logs.
  *
- * Columns: DATA · SCOR · REM · HRV · STATUS pill (Optim / Average / Poor).
- * Modeled after PDF page 7: "Istoric Detaliat".
+ * Columns: DATA · SCOR · REM · HRV · STATUS pill (Optim/Average/Poor).
+ * Footer: 🦞 Hipnos pattern note — computed locally from the data
+ *         (no AI call), so the user always sees what's trending.
  */
 export function PersonalHistory({ entries, user, limit = 6 }: {
   entries: SleepEntry[];
@@ -24,6 +25,8 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
     const d = new Date(iso + 'T12:00:00');
     return `${String(d.getDate()).padStart(2, '0')} ${monthShort[d.getMonth()]}, ${dayShort[d.getDay()]}`;
   };
+
+  const trend = personalTrendNote(entries, user);
 
   if (!mine.length) {
     return (
@@ -52,8 +55,8 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
         <span className="label text-right">Status</span>
       </div>
 
-      {/* Rows — scroll inside the card if needed, never bleed into the page */}
-      <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--color-border)]/60">
+      {/* Rows */}
+      <div className="divide-y divide-[var(--color-border)]/60">
         {mine.map(e => {
           const t = ssTier(e.ss);
           const pill = e.ss >= 75 ? 'optim' : e.ss >= 60 ? 'average' : 'poor';
@@ -75,6 +78,29 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
           );
         })}
       </div>
+
+      {/* 🦞 Hipnos pattern note — present at the bottom, always */}
+      {trend && (
+        <div className="mt-3 pt-3 border-t border-[var(--color-border)]/70 flex items-start gap-2.5">
+          <span className="text-base shrink-0 leading-tight" aria-hidden>🦞</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] uppercase tracking-[0.16em] font-bold text-[var(--color-accent)] mb-0.5">
+              Hipnos · pattern
+            </div>
+            <p
+              className="text-xs leading-relaxed"
+              style={{
+                color:
+                  trend.tone === 'good' ? 'var(--color-good)'
+                  : trend.tone === 'warn' ? 'var(--color-warn)'
+                  : 'var(--color-fg-muted)',
+              }}
+            >
+              {trend.text}
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

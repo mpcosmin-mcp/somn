@@ -1,24 +1,25 @@
 'use client';
-import Link from 'next/link';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
+import { HipnosLine } from '@/components/dashboard/hipnos-line';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { SquadBar } from '@/components/dashboard/squad-bar';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
-import { SquadInsights } from '@/components/dashboard/squad-insights';
+import { Leaderboard } from '@/components/dashboard/leaderboard';
+import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
- * Main dashboard — SleepSquad masterpiece edition.
+ * Main dashboard — everything on ONE page, in this order:
  *
- *   No scroll on desktop. Everything fits in one viewport.
+ *   1. Hipnos one-liner (single sentence, top of page)
+ *   2. KPI cards — personal data, 3 big numbers
+ *   3. Squad Competition — 3-up avg SS
+ *   4. Split row: Personal History (+ Hipnos pattern note) · Team Leaderboard
+ *   5. Team Chart — SS / REM / RHR / HRV multi-metric switcher
  *
- *   Layout (lg+):
- *     Row 1 — 3 KPI cards (my Sleep Score, REM, HRV)
- *     Row 2 — Squad Bar (3-up comparison) · current user highlighted
- *     Row 3 — 2 cols: Personal History (left) · Squad Insights + AI (right)
- *
- *   Mobile: stacks naturally, scrolls within main area.
+ * Page scrolls vertically — no fake "fit in viewport" constraint
+ * (that hid the team chart on the old /detail page).
  */
 export default function Home() {
   const { user } = useUser();
@@ -37,33 +38,31 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col gap-3 lg:gap-4 lg:h-full">
-      {/* Row 1: KPI cards — personal data, the headline */}
-      <div className="fade-in-up delay-0 lg:shrink-0">
+    <div className="flex flex-col gap-3 lg:gap-4 max-w-6xl mx-auto w-full">
+      {/* 🦞 Top one-liner */}
+      <div className="fade-in-up delay-0">
+        <HipnosLine entries={entries} user={user} />
+      </div>
+
+      {/* Personal KPIs */}
+      <div className="fade-in-up delay-1">
         <KpiCards entries={entries} user={user} />
       </div>
 
-      {/* Row 2: Squad competition */}
-      <div className="fade-in-up delay-1 lg:shrink-0">
+      {/* Squad competition (3-up averages) */}
+      <div className="fade-in-up delay-2">
         <SquadBar entries={entries} currentUser={user} />
       </div>
 
-      {/* Row 3: 2 cols — personal history left, squad insights right.
-         The history scrolls *inside* its own card on lg+, the page itself stays static. */}
-      <div className="fade-in-up delay-2 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 lg:flex-1 lg:min-h-0">
+      {/* Split: Personal History · Team Leaderboard */}
+      <div className="fade-in-up delay-3 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
         <PersonalHistory entries={entries} user={user} limit={6} />
-        <SquadInsights entries={entries} user={user} />
+        <Leaderboard entries={entries} currentUser={user} />
       </div>
 
-      {/* Footer: tiny link to full team istoric */}
-      <div className="fade-in-up delay-3 lg:shrink-0 text-center pt-1 pb-2">
-        <Link
-          href="/detail"
-          className="inline-flex items-center gap-1.5 text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors uppercase tracking-wider font-semibold"
-        >
-          <span>vezi istoric echipă completă</span>
-          <span>→</span>
-        </Link>
+      {/* Team chart — SS / REM / RHR / HRV switcher */}
+      <div className="fade-in-up delay-4">
+        <TeamChartPane entries={entries} />
       </div>
     </div>
   );
