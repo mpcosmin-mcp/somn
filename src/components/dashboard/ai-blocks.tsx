@@ -91,9 +91,9 @@ export function DailyRoast({ user, entries }: { user: string; entries: SleepEntr
 }
 
 /* Weekly Story — team-wide narrative, cached per ISO week */
-export function WeeklyStory({ entries }: { entries: SleepEntry[] }) {
+export function WeeklyStory({ entries, defaultOpen = false }: { entries: SleepEntry[]; defaultOpen?: boolean }) {
   const [text, setText] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
   const wk = weekKey();
 
@@ -143,9 +143,17 @@ export function WeeklyStory({ entries }: { entries: SleepEntry[] }) {
 }
 
 /* AI Pattern Finder — weekly per-user + team patterns. Cached per ISO week per user. */
-export function PatternCard({ user, entries }: { user: string; entries: SleepEntry[] }) {
+export function PatternCard({
+  user,
+  entries,
+  defaultOpen = false,
+}: {
+  user: string;
+  entries: SleepEntry[];
+  defaultOpen?: boolean;
+}) {
   const [data, setData] = useState<Patterns | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
   const wk = weekKey();
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];

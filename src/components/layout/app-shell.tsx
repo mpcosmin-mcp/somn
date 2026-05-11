@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { useUser } from '@/lib/user';
 import { Avi } from '@/components/ui/avi';
 import { Sidebar } from '@/components/layout/sidebar';
+import { InsightsColumn } from '@/components/layout/insights-column';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
 import { UserPicker } from '@/components/dashboard/user-picker';
 
@@ -61,9 +62,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       {/* ─── DESKTOP SIDEBAR (left column) ─────────────────────── */}
-      <div className="hidden lg:flex w-[240px] xl:w-[260px] shrink-0 border-r border-[var(--color-border)]">
+      <div className="hidden lg:flex w-[230px] xl:w-[240px] shrink-0 border-r border-[var(--color-border)]">
         <Sidebar />
       </div>
+
+      {/* ─── INSIGHTS COLUMN (xl+ only — portrait AI cards) ────── */}
+      <InsightsColumn />
 
       {/* ─── MOBILE SIDEBAR DRAWER ─────────────────────────────── */}
       <div

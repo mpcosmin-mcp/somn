@@ -38,8 +38,8 @@ export default function Home() {
             <PageVibe user={user} entries={entries} />
           </div>
 
-          {/* Pattern alerts (auto-detected, dismissable) */}
-          <div className="fade-in-up delay-1">
+          {/* Pattern alerts — duplicated in insights column on xl+, so hide here */}
+          <div className="fade-in-up delay-1 xl:hidden">
             <AlertsBar entries={entries} user={user} />
           </div>
 
@@ -66,12 +66,13 @@ export default function Home() {
             <Leaderboard entries={entries} currentUser={user} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 fade-in-up delay-4">
+          {/* These AI cards are in the insights column on xl+ — hide here to avoid dup */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 fade-in-up delay-4 xl:hidden">
             <DailyRoast user={user} entries={entries} />
             <WeeklyStory entries={entries} />
           </div>
 
-          <div className="fade-in-up delay-5">
+          <div className="fade-in-up delay-5 xl:hidden">
             <PatternCard user={user} entries={entries} />
           </div>
         </>
