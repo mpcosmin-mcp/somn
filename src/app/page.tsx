@@ -9,6 +9,7 @@ import { DailyRoast, WeeklyStory, PatternCard } from '@/components/dashboard/ai-
 import { AlertsBar } from '@/components/dashboard/alerts-bar';
 import { AINudge } from '@/components/dashboard/ai-nudge';
 import { PageVibe } from '@/components/dashboard/page-vibe';
+import { ChatLogHint } from '@/components/dashboard/chat-log-hint';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
@@ -33,7 +34,12 @@ export default function Home() {
 
       {!loading && (
         <>
-          {/* AI vibe at the top — sets the tone for the whole page */}
+          {/* Chat-as-log discovery hint (dismissible, one-time per device) */}
+          <div className="fade-in-up delay-0">
+            <ChatLogHint />
+          </div>
+
+          {/* AI vibe — sets the tone for the whole page */}
           <div className="fade-in-up delay-0">
             <PageVibe user={user} entries={entries} />
           </div>

@@ -6,102 +6,106 @@ import { ChatWidget } from '@/components/dashboard/chat-widget';
 import { Lobster } from '@/components/ui/lobster';
 
 /**
- * Chat surface — different metaphor per breakpoint:
+ * Floating chat bubble — a SINGLE metaphor across all viewports (Intercom-style).
  *
- *   • lg+:  ALWAYS VISIBLE as the right column of the app shell.
- *           No toggle, no slide-in. It's just there.
+ *   Collapsed → 60px lobster bubble pinned to bottom-right, always visible.
+ *   Expanded  → 380×600 floating window in the same corner (full-width on
+ *                very small phones).
  *
- *   • <lg:  Hidden by default. Floating lobster button at bottom-right
- *           opens it as a popup card with backdrop blur.
+ * Persists open/closed state per user in localStorage. Esc closes. Tap
+ * lobster while collapsed → expand. Tap × → collapse.
  *
- * Auto-sends a prompt forwarded via the global chat-toggle event.
+ * The mascot has a soft pulse animation when AI is mid-reply (handled
+ * inside ChatWidget via the `sending` state).
  */
+
+const OPEN_KEY = 'somn_chat_open';
+
 export function ChatPanel() {
   const { user, hydrated } = useUser();
-  const [openMobile, setOpenMobile] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [panelHydrated, setPanelHydrated] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
-  // Listen for global chatSend() / openChat() calls — for mobile popup
+  // Restore last open state
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(OPEN_KEY);
+      if (saved === '1') setOpen(true);
+    } catch { /* ignore */ }
+    setPanelHydrated(true);
+  }, []);
+
+  // Listen for global chat-toggle events (chatSend, openChat, etc.)
   useEffect(() => {
     const handler = (ev: Event) => {
       const detail = (ev as CustomEvent<ChatToggleDetail>).detail;
-      if (detail?.force === 'open') setOpenMobile(true);
-      else if (detail?.force === 'close') setOpenMobile(false);
-      else setOpenMobile(o => !o);
+      if (detail?.force === 'open') setOpen(true);
+      else if (detail?.force === 'close') setOpen(false);
+      else setOpen(o => !o);
       if (detail?.prompt) setPendingPrompt(detail.prompt);
     };
     window.addEventListener(CHAT_EVENT, handler);
     return () => window.removeEventListener(CHAT_EVENT, handler);
   }, []);
 
-  // Esc closes mobile popup
+  // Persist open state
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && openMobile) setOpenMobile(false); };
+    if (!panelHydrated) return;
+    try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* ignore */ }
+  }, [open, panelHydrated]);
+
+  // Esc to collapse
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && open) setOpen(false); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [openMobile]);
+  }, [open]);
 
   if (!hydrated || !user) return null;
 
   return (
     <>
-      {/* ─── DESKTOP: always-on right column ───────────────────── */}
-      <aside
-        className="hidden lg:flex flex-col h-full bg-[var(--color-bg)] border-l border-[var(--color-border)]"
-        aria-label="Chat cu somn AI"
-      >
-        <ChatWidget
-          user={user}
-          pendingPrompt={pendingPrompt}
-          onPromptConsumed={() => setPendingPrompt(null)}
-        />
-      </aside>
-
-      {/* ─── MOBILE: floating lobster button + popup ──────────── */}
+      {/* Collapsed bubble — always visible, even when expanded the bubble fades */}
       <button
-        onClick={() => setOpenMobile(o => !o)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full bg-[var(--color-bg)] border border-[var(--color-border)] shadow-2xl shadow-black/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
-        aria-label={openMobile ? 'Închide chat' : 'Deschide chat'}
-        title="Vorbește cu somn AI"
+        onClick={() => setOpen(true)}
+        aria-label="Deschide chat cu somn ai"
+        title="Vorbește cu somn ai"
+        className={`fixed bottom-4 right-4 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-bg)] border border-[var(--color-border)] shadow-2xl shadow-black/40 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center
+          ${open ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'}`}
       >
-        {openMobile ? (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        ) : (
-          <Lobster size={36} talking />
-        )}
+        <Lobster size={40} talking />
+        {/* Tiny prompt label that hovers */}
+        <span className="absolute right-full mr-2 px-2 py-1 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-[10px] num text-[var(--color-fg-muted)] whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+          chat
+        </span>
       </button>
 
-      {/* Mobile backdrop */}
+      {/* Expanded floating window */}
       <div
-        onClick={() => setOpenMobile(false)}
-        className={`lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ${
-          openMobile ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        aria-hidden
-      />
-
-      {/* Mobile popup */}
-      <aside
-        className={`lg:hidden fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden rounded-2xl shadow-2xl shadow-black/40
-          inset-x-3 bottom-3 max-h-[calc(100dvh-1rem)]
+        className={`fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40
+          /* small screens: nearly full-screen popup */
+          inset-x-3 bottom-3
+          /* desktop+: floating window in bottom-right corner */
+          sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[380px] sm:h-[600px]
+          max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)]
+          rounded-2xl
           transform-gpu transition-all duration-200 ease-out origin-bottom-right
-          ${openMobile
-            ? 'opacity-100 scale-100 translate-y-0'
+          ${open
+            ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}
         `}
-        aria-hidden={!openMobile}
+        aria-hidden={!open}
         role="dialog"
-        aria-label="Chat cu somn AI"
+        aria-label="Chat cu somn ai"
       >
         <ChatWidget
           user={user}
-          onClose={() => setOpenMobile(false)}
+          onClose={() => setOpen(false)}
           pendingPrompt={pendingPrompt}
           onPromptConsumed={() => setPendingPrompt(null)}
         />
-      </aside>
+      </div>
     </>
   );
 }

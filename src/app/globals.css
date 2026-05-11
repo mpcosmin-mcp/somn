@@ -141,17 +141,7 @@ html.light .dots {
 /* Selection */
 ::selection { background: var(--color-accent); color: var(--color-bg); }
 
-/* When the side chat panel is open on desktop, shift main content left */
-@media (min-width: 1024px) {
-  body[data-chat-panel="open"] main {
-    margin-right: 360px;
-    transition: margin-right 200ms ease-out;
-  }
-  body[data-chat-panel="closed"] main {
-    margin-right: 0;
-    transition: margin-right 200ms ease-out;
-  }
-}
+/* Chat is now a floating bubble (no margin shift needed) */
 
 /* ── Mobile polish ────────────────────────────────────────
    Safe-area padding for iOS notches/home indicator + comfortable

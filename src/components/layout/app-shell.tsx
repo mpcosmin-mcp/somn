@@ -85,15 +85,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar onCloseDrawer={() => setDrawerOpen(false)} />
       </aside>
 
-      {/* ─── MAIN CONTENT (middle column) ──────────────────────── */}
-      <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 lg:pb-5 pb-safe">
+      {/* ─── MAIN CONTENT ──────────────────────────────────────── */}
+      <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 lg:pb-24 pb-safe">
         {children}
       </main>
 
-      {/* ─── CHAT (right column on lg+, floating popup on <lg) ── */}
-      <div className="contents lg:flex lg:w-[340px] xl:w-[360px] lg:shrink-0">
-        <ChatPanel />
-      </div>
+      {/* ─── CHAT FLOATING BUBBLE (overlays everything, all viewports) ── */}
+      <ChatPanel />
     </div>
   );
 }

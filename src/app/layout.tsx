@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NO_FLASH_SCRIPT } from '@/lib/theme';
+import { UserProvider } from '@/lib/user';
 import { EntriesProvider } from '@/lib/entries-provider';
 import { AppShell } from '@/components/layout/app-shell';
 import './globals.css';
@@ -66,9 +67,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
       </head>
       <body className="antialiased">
-        <EntriesProvider>
-          <AppShell>{children}</AppShell>
-        </EntriesProvider>
+        <UserProvider>
+          <EntriesProvider>
+            <AppShell>{children}</AppShell>
+          </EntriesProvider>
+        </UserProvider>
       </body>
     </html>
   );

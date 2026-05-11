@@ -9,12 +9,13 @@ import { Lobster } from '@/components/ui/lobster';
 
 const HISTORY_KEY = (user: string) => `somn_chat_${user}`;
 
+/** Empty-state suggestions — first two demo chat-as-log */
 const SUGGESTIONS = [
-  'cum a fost săptămâna mea?',
-  'logează că am dormit 78 azi, REM 95, RHR 60',
-  'cine doarme cel mai bine?',
-  'adaugă o notă la logul de azi: am băut 2 beri',
-  'cum îmi cresc REM-ul?',
+  '✏️ logează că am dormit 78 azi, REM 95, RHR 60',
+  '📝 adaugă o notă: m-am culcat la 23:00, fără ecran',
+  '🏆 cine doarme cel mai bine săptămâna asta?',
+  '🌙 cum îmi cresc REM-ul?',
+  '🔍 ce pattern stupid văd în datele mele?',
 ];
 
 /** Each turn may carry action chips when the AI used tools */
@@ -157,17 +158,28 @@ export function ChatWidget({
       {/* Messages */}
       <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
         {messages.length === 0 && (
-          <div className="py-6 text-center">
-            <Lobster size={64} className="mx-auto mb-2" />
-            <div className="text-sm font-bold mb-1">salut, {fn}</div>
-            <div className="text-xs text-[var(--color-fg-muted)] mb-4 leading-relaxed">
-              întreabă-mă orice. pot și să loghez/șterg date direct, doar zi-mi.
+          <div className="py-4 text-center">
+            <Lobster size={56} className="mx-auto mb-2" />
+            <div className="text-sm font-bold mb-1">salut, {fn} 👋</div>
+            <div className="text-xs text-[var(--color-fg-muted)] mb-4 leading-relaxed px-2">
+              poți să loghezi somnul prin chat. doar scrie cum ai dormit.
             </div>
+            {/* Demo log-via-dialog */}
+            <div className="px-2 mb-3">
+              <button
+                onClick={() => send('salut, am dormit cu 75 scor și 41 hrv')}
+                className="w-full text-left text-xs px-3 py-2.5 rounded-xl border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/8 hover:bg-[var(--color-accent)]/15 transition-colors text-[var(--color-fg)] leading-relaxed"
+              >
+                <span className="text-[var(--color-accent)] num font-semibold">~ ex:</span> &ldquo;salut, am dormit cu 75 scor și 41 hrv&rdquo;
+                <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">→ click ca să încerci</div>
+              </button>
+            </div>
+            <div className="label mb-1.5">sau întreabă</div>
             <div className="flex flex-col gap-1.5">
               {SUGGESTIONS.map(s => (
                 <button
                   key={s}
-                  onClick={() => send(s)}
+                  onClick={() => send(s.replace(/^[^\s]+ /, ''))}
                   className="text-xs px-3 py-2 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors text-[var(--color-fg-muted)] text-left"
                 >
                   {s}

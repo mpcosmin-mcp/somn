@@ -45,17 +45,15 @@ export async function POST(req: NextRequest) {
       return `${fn} (${theirs.length} zile, SS mediu ${avg}):\n${lines.join('\n')}`;
     }).join('\n\n');
 
-    const prompt = `Ești naratorul amuzant al unui dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Programatori care iubesc sportul, mâncarea sănătoasă, AI-ul.
+    const prompt = `Ești naratorul unui dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel.
 
-═══════════ Săptămâna ${cutStr} → ${lastDate} ═══════════
+Săptămâna ${cutStr} → ${lastDate}:
 
 ${sections}
 
-═══════════════════════════════════════════════════════
+Scrie un mini-recap de **2 propoziții scurte** în română. O propoziție per linie. Menționează-i pe toți 3, dar fără să te lungi. Folosește cifre reale, nu generic. Câmp pentru o glumiță scurtă dacă găsești.
 
-Scrie un mini-recap de 3-4 propoziții în română, narativ. Menționează-i pe toți 3. Folosește cifre/zile/jurnale specifice (nu generic). Dacă cineva a dormit excelent, laudă-l; dacă slab, fă mișto cu drag — pe baza datelor reale. Bonus dacă strecori observații despre REM (90+ bun, sub 70 slab) sau HRV / pattern-uri vizibile (ex: zi proastă + jurnal cu alcool).
-
-Fără emoji, fără bullet points. Răspunde DOAR cu textul.`;
+Fără emoji, fără bullet points. Direct la subiect. Răspunde DOAR cu textul.`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const msg = await client.messages.create({

@@ -67,38 +67,30 @@ export async function POST(req: NextRequest) {
       return `  ${fnN} (${theirs.length} loguri):\n${lines.join('\n')}`;
     }).join('\n');
 
-    const prompt = `Ești un analist de date de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Caută pattern-uri concrete în date și notițe.
+    const prompt = `Ești un analist de date de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Caută pattern-uri concrete.
 
-DATE PERSONALE — ${fn} (ultimele 30 zile, cronologic):
+DATE PERSONALE — ${fn} (ultimele 30 zile):
 ${personalLines}
 
-DATE TEAM (agregat 30 zile + tendință 7 zile vs 30):
+DATE TEAM (ultimele 30 zile, zilnice):
 ${teamLines}
 
-Returnează UN OBIECT JSON cu DOUĂ chei:
+Returnează JSON cu DOUĂ chei:
 
 {
   "personal": "...",
   "team": "..."
 }
 
-PERSONAL (despre ${fn}, max 3 propoziții): găsește 1-3 pattern-uri concrete:
-- ziua/zilele săptămânii cu cel mai bun/prost somn
-- corelații observabile între SS/REM și alte metrici (ex: "RHR sub 56 → REM cu 15% peste medie")
-- pattern-uri din notițe ("când scrie sport → SS în jos cu 8")
-- tendințe (ex: "REM-ul a crescut cu 12% în ultimele 2 săptămâni")
-Folosește cifre reale. Niciun pattern generic ("dormi mai mult"). Concret sau nimic.
+PERSONAL (max 2 propoziții scurte despre ${fn}): UN singur pattern concret + cifră. Ex: "Joia ai SS mediu 62, sub media de 73 a săptămânii." sau "REM a crescut 12% în ultimele 2 săptămâni."
 
-TEAM (despre toți 3, max 2 propoziții): găsește 1-2 chestii misto despre echipă:
-- cine improvează, cine slăbește
-- contraste interesante (ex: "Clara dormi mai bine în weekend, Petrica mai bine în weekday")
-- nimic generic
+TEAM (max 1 propoziție scurtă): O observație despre echipă. Ex: "Cornel e singurul cu trend ascendent (+8 SS)."
 
 Reguli:
-- Română, ton prieten-tehnic, observativ-amuzant
+- Română, ton scurt și ascuțit, ca un dev care zice ce vede
 - Fără emoji, fără bullet points
-- Răspunde DOAR cu JSON, nimic altceva
-- Dacă nu găsești nimic concret într-o secțiune, scrie "Insuficiente date pentru un pattern clar."`;
+- Răspunde DOAR cu JSON
+- Dacă nu găsești nimic concret: "Insuficiente date."`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const msg = await client.messages.create({
