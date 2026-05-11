@@ -98,7 +98,7 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
         <nav className="flex flex-col gap-1">
           <SidebarLink href="/" icon="📊" label="Dashboard" active={pathname === '/'} onClick={onCloseDrawer} />
           <SidebarLink
-            href={`/detail?u=${encodeURIComponent(user)}`}
+            href="/detail"
             icon="📈"
             label="Detalii"
             active={pathname.startsWith('/detail')}

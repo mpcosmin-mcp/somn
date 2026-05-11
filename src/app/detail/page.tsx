@@ -2,7 +2,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { NAMES, FIRST_NAME } from '@/lib/sleep';
+import { NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,14 @@ function DetailInner() {
   const { entries, loading } = useEntries();
   const [tab, setTab] = useState<Tab>('me');
 
+  // URL ?u= lets you view another teammate's detail (from leaderboard clicks).
+  // Without it, ALWAYS default to the logged-in user.
   const queryU = searchParams.get('u');
-  const targetUser = isValidName(queryU) ? queryU : user;
+  const requestedUser = isValidName(queryU) ? queryU : null;
+  const targetUser = requestedUser ?? user;
+  const isViewingTeammate = !!requestedUser && requestedUser !== user;
 
+  const goBackToMyself = () => router.replace('/detail');
   const setTargetUser = (n: string) => router.replace(`/detail?u=${encodeURIComponent(n)}`);
 
   if (!user) {
@@ -39,13 +44,15 @@ function DetailInner() {
   }
   if (!targetUser) return null;
 
+  const targetC = personColor(targetUser);
+
   return (
     <div className="max-w-3xl mx-auto space-y-3 lg:space-y-4">
       {loading && <DetailSkeleton />}
 
       {!loading && (
         <>
-          {/* TAB SWITCHER — Individual vs Compare */}
+          {/* TAB SWITCHER */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setTab('me')}
@@ -55,7 +62,7 @@ function DetailInner() {
                   : 'border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
               }`}
             >
-              👤 individual · {FIRST_NAME[targetUser]}
+              👤 individual
             </button>
             <button
               onClick={() => setTab('compare')}
@@ -67,29 +74,42 @@ function DetailInner() {
             >
               👥 comparare echipă
             </button>
-
-            {/* Quick user switcher (only shown on individual tab) */}
-            {tab === 'me' && (
-              <div className="flex items-center gap-1 ml-auto">
-                {NAMES.filter(n => n !== targetUser).map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setTargetUser(n)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] border border-[var(--color-border)] hover:border-[var(--color-fg-dim)] transition-colors"
-                    title={`Vezi ${FIRST_NAME[n]}`}
-                  >
-                    <Avi name={n} size="xs" />
-                    <span className="hidden sm:inline">{FIRST_NAME[n]}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {tab === 'me' && (
-            <div className="fade-in-up delay-0">
-              <DetailView entries={entries} user={targetUser} onUserChange={setTargetUser} />
-            </div>
+            <>
+              {/* Big banner showing whose data is on screen */}
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl relative overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${targetC}1a, transparent 60%)`,
+                  border: `1px solid ${targetC}30`,
+                }}
+              >
+                <Avi name={targetUser} size="md" />
+                <div className="flex-1 min-w-0">
+                  <div className="label">vezi datele lui</div>
+                  <div className="font-bold text-base flex items-center gap-2" style={{ color: targetC }}>
+                    {FIRST_NAME[targetUser]}
+                    {!isViewingTeammate && (
+                      <span className="text-[9px] uppercase tracking-wider text-[var(--color-accent)] font-bold">tu</span>
+                    )}
+                  </div>
+                </div>
+                {isViewingTeammate && (
+                  <button
+                    onClick={goBackToMyself}
+                    className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-[var(--color-accent)]/40 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors shrink-0"
+                  >
+                    ← al meu
+                  </button>
+                )}
+              </div>
+
+              <div className="fade-in-up delay-0">
+                <DetailView entries={entries} user={targetUser} onUserChange={setTargetUser} />
+              </div>
+            </>
           )}
 
           {tab === 'compare' && (

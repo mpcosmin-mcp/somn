@@ -2,34 +2,46 @@
 import { useMemo, useState } from 'react';
 import { type SleepEntry, NAMES, FIRST_NAME, personColor, lastNDays } from '@/lib/sleep';
 import { Card } from '@/components/ui/card';
-import { MultiLineChart } from '@/components/ui/multi-line-chart';
+import { TeamChart } from '@/components/ui/team-chart';
 
 type Range = '7' | '30' | 'all';
+type Metric = 'ss' | 'rem' | 'rhr' | 'hrv';
+
+const METRIC_META: Record<Metric, { label: string; unit: string; target: number; lowerBetter?: boolean }> = {
+  ss:  { label: 'Sleep Score', unit: '',    target: 75 },
+  rem: { label: 'REM',         unit: 'min', target: 90 },
+  rhr: { label: 'RHR',         unit: 'bpm', target: 60, lowerBetter: true },
+  hrv: { label: 'HRV',         unit: 'ms',  target: 45 },
+};
 
 /**
- * Stacked comparison: all 3 users on the same chart for each metric.
- * Helps spot who improves, who slumps, who's consistent.
+ * Side-by-side team comparison.
+ *
+ * ONE big polished chart with metric tabs above. Fits in a single screen
+ * without scroll. Tabs switch between SS / REM / RHR / HRV.
  */
 export function StackedCompare({ entries }: { entries: SleepEntry[] }) {
   const [range, setRange] = useState<Range>('30');
+  const [metric, setMetric] = useState<Metric>('ss');
 
   const scoped = useMemo(() => {
     if (range === 'all') return entries;
     return lastNDays(entries, parseInt(range));
   }, [entries, range]);
 
-  // Build a date axis across all dates that appear, then one value array per user
+  // Build the date axis across all dates that appear
   const allDates = useMemo(
     () => [...new Set(scoped.map(e => e.date))].sort(),
     [scoped],
   );
 
-  const seriesFor = (field: 'ss' | 'rhr' | 'hrv' | 'rem'): Array<{ name: string; color: string; values: (number | null)[] }> => {
+  // Per-metric series — aligned to allDates
+  const series = useMemo(() => {
     return NAMES.map(n => {
       const personMap = new Map(scoped.filter(e => e.name === n).map(e => [e.date, e]));
       const values = allDates.map(d => {
         const v = personMap.get(d);
-        return v ? (v[field] as number | null) ?? null : null;
+        return v ? (v[metric] as number | null) ?? null : null;
       });
       return {
         name: FIRST_NAME[n] ?? n.split(' ')[0],
@@ -37,9 +49,9 @@ export function StackedCompare({ entries }: { entries: SleepEntry[] }) {
         values,
       };
     });
-  };
+  }, [scoped, allDates, metric]);
 
-  // Per-metric stats per person for compact comparison row
+  // Per-user stats summary (always all 4 metrics)
   const stats = useMemo(() => {
     const out: Record<string, { ss: number; rhr: number; rem: number | null; hrv: number | null; entries: number }> = {};
     for (const n of NAMES) {
@@ -60,19 +72,22 @@ export function StackedCompare({ entries }: { entries: SleepEntry[] }) {
     return out;
   }, [scoped]);
 
+  const meta = METRIC_META[metric];
+
   return (
-    <Card className="p-5 space-y-4">
+    <Card className="p-4 sm:p-5 space-y-4">
+      {/* Header + range tabs */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="label">comparare echipă</div>
-          <div className="text-base font-bold">toți 3, suprapuși</div>
+          <div className="text-base font-bold">toți 3 pe același chart</div>
         </div>
         <div className="flex items-center gap-1.5">
           {(['7', '30', 'all'] as const).map(r => (
             <button
               key={r}
               onClick={() => setRange(r)}
-              className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-colors ${
                 range === r
                   ? 'bg-[var(--color-accent)] text-[var(--color-bg)]'
                   : 'border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
@@ -84,7 +99,7 @@ export function StackedCompare({ entries }: { entries: SleepEntry[] }) {
         </div>
       </div>
 
-      {/* Compact stats table — averages per person */}
+      {/* Per-user stats summary — compact grid */}
       <div className="grid grid-cols-4 gap-2 text-[10px]">
         <div className="text-[var(--color-fg-muted)] num font-semibold">metric</div>
         {NAMES.map(n => (
@@ -93,54 +108,58 @@ export function StackedCompare({ entries }: { entries: SleepEntry[] }) {
           </div>
         ))}
 
-        <Row label="SS"  values={NAMES.map(n => stats[n].ss   || '—')} />
-        <Row label="RHR" values={NAMES.map(n => stats[n].rhr  || '—')} />
-        <Row label="REM" values={NAMES.map(n => stats[n].rem  ?? '—')} unit="min" />
-        <Row label="HRV" values={NAMES.map(n => stats[n].hrv  ?? '—')} unit="ms" />
-        <Row label="logs" values={NAMES.map(n => stats[n].entries)} />
+        <StatRow label="SS"   values={NAMES.map(n => stats[n].ss   || '—')} />
+        <StatRow label="RHR"  values={NAMES.map(n => stats[n].rhr  || '—')} />
+        <StatRow label="REM"  values={NAMES.map(n => stats[n].rem  ?? '—')} unit="min" />
+        <StatRow label="HRV"  values={NAMES.map(n => stats[n].hrv  ?? '—')} unit="ms" />
+        <StatRow label="logs" values={NAMES.map(n => stats[n].entries)} />
       </div>
 
-      {/* 4 stacked charts: SS, REM, RHR, HRV */}
-      <div className="space-y-4">
-        <ChartRow title="Sleep Score" series={seriesFor('ss')} target={75} targetLabel="target" />
-        <ChartRow title="REM (min)"   series={seriesFor('rem')} target={90} targetLabel="target" />
-        <ChartRow title="RHR (bpm)"   series={seriesFor('rhr')} target={60} targetLabel="target (sub)" />
-        <ChartRow title="HRV (ms)"    series={seriesFor('hrv')} target={45} targetLabel="target" />
+      {/* Metric tabs — pick which metric is on the chart */}
+      <div className="flex items-center gap-1.5 border-b border-[var(--color-border)] pb-3">
+        {(Object.keys(METRIC_META) as Metric[]).map(m => (
+          <button
+            key={m}
+            onClick={() => setMetric(m)}
+            className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+              metric === m
+                ? 'bg-[var(--color-accent)]/15 text-[var(--color-fg)] ring-1 ring-[var(--color-accent)]/40'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]'
+            }`}
+          >
+            {METRIC_META[m].label}
+          </button>
+        ))}
+        <span className="text-[10px] text-[var(--color-fg-muted)] ml-auto num">
+          target {meta.lowerBetter ? '< ' : ''}{meta.target}{meta.unit}
+        </span>
       </div>
+
+      {/* THE BIG CHART */}
+      <TeamChart
+        series={series}
+        dates={allDates}
+        height={300}
+        target={meta.target}
+        targetLabel="target"
+        unit={meta.unit}
+        lowerBetter={meta.lowerBetter}
+      />
     </Card>
   );
 }
 
-function Row({ label, values, unit }: { label: string; values: (number | string)[]; unit?: string }) {
+function StatRow({ label, values, unit }: { label: string; values: (number | string)[]; unit?: string }) {
   return (
     <>
       <div className="num text-[var(--color-fg-muted)]">{label}</div>
       {values.map((v, i) => (
         <div key={i} className="text-right num font-semibold text-[var(--color-fg)]">
-          {v}{unit && typeof v === 'number' && <span className="text-[var(--color-fg-muted)] font-normal text-[9px] ml-0.5">{unit}</span>}
+          {v}{unit && typeof v === 'number' && (
+            <span className="text-[var(--color-fg-muted)] font-normal text-[9px] ml-0.5">{unit}</span>
+          )}
         </div>
       ))}
     </>
-  );
-}
-
-function ChartRow({
-  title,
-  series,
-  target,
-  targetLabel,
-}: {
-  title: string;
-  series: { name: string; color: string; values: (number | null)[] }[];
-  target?: number;
-  targetLabel?: string;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="label">{title}</span>
-      </div>
-      <MultiLineChart series={series} target={target} targetLabel={targetLabel} showLegend={false} />
-    </div>
   );
 }
