@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } from '@/lib/config';
-import { type SleepEntry, NAMES, FIRST_NAME, lastNDays } from '@/lib/sleep';
+import { type SleepEntry } from '@/lib/sleep';
+import { TOOL_DEFINITIONS, executeTool, buildSystemPrompt } from '@/lib/ai-tools';
 
 /**
  * POST /api/chat
@@ -10,15 +11,22 @@ import { type SleepEntry, NAMES, FIRST_NAME, lastNDays } from '@/lib/sleep';
  *   messages: { role: 'user'|'assistant', content: string }[],
  *   entries: SleepEntry[],
  * }
- * Returns: { text: string }
+ * Returns: {
+ *   text: string,                    // final assistant message
+ *   mutated: boolean,                // true if any write tool was called
+ *   actions: { label: string }[],    // action chips for the chat UI
+ *   usage: { in, out },
+ * }
  *
- * The system prompt now contains DETAILED DAILY data for ALL THREE team members
- * (last 30 days), not just the current user. This lets Claude roast/compare
- * specific nights for anyone without saying "I only have aggregates".
+ * Agentic loop: AI may call save_sleep / delete_sleep tools to write data.
+ * After every tool execution, results are fed back to the model and it
+ * continues until it produces a final text turn.
+ *
+ * Safety: loop bounded at 6 iterations; tools are scoped to the current user.
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 interface ReqBody {
   user: string;
@@ -26,81 +34,105 @@ interface ReqBody {
   entries: SleepEntry[];
 }
 
-const dayShort = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
-
-/** Format a person's last-N-days entries as a compact text table */
-function formatPerson(name: string, entries: SleepEntry[], days: number): string {
-  const fn = FIRST_NAME[name] ?? name.split(' ')[0];
-  const mine = lastNDays(entries.filter(e => e.name === name), days)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (!mine.length) return `${fn}: zero loguri în ultimele ${days} zile`;
-  const lines = mine.map(e => {
-    const d = new Date(e.date + 'T12:00:00');
-    const dn = dayShort[d.getDay()];
-    const j = e.journal ? ` · "${e.journal.replace(/\s+/g, ' ').replace(/"/g, "'").slice(0, 100)}"` : '';
-    return `  ${e.date} ${dn}: SS ${e.ss}, RHR ${e.rhr}, HRV ${e.hrv ?? '—'}, REM ${e.rem ?? '—'}${j}`;
-  });
-  return `${fn} (${mine.length} loguri):\n${lines.join('\n')}`;
-}
+interface ChatAction { label: string }
 
 export async function POST(req: NextRequest) {
   try {
     const { user, messages, entries } = (await req.json()) as ReqBody;
 
     if (!ANTHROPIC_API_KEY) {
-      return NextResponse.json({ text: 'AI offline — adaugă ANTHROPIC_API_KEY în Vercel ca să pot răspunde.' });
+      return NextResponse.json({ text: 'AI offline — adaugă ANTHROPIC_API_KEY în Vercel.', mutated: false, actions: [] });
     }
     if (!user || !messages?.length) {
-      return NextResponse.json({ text: '' });
+      return NextResponse.json({ text: '', mutated: false, actions: [] });
     }
 
-    const fn = FIRST_NAME[user] ?? user.split(' ')[0];
-
-    // Build full team context: detailed last 30 days per user, with journals
-    const teamSections = NAMES.map(n => formatPerson(n, entries, 30)).join('\n\n');
-
-    const system = `Ești un asistent inteligent integrat într-un dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Toți programatori, le place sportul, mâncatul sănătos, AI-ul.
-
-Userul curent (cu care vorbești): **${fn}**.
-
-Ai DATE ZILNICE complete pentru TOȚI 3 din ultimele 30 zile — poți compara, roastui, felicita pe oricine, oriunde, oricând. Folosește cifrele și jurnalele lor REALE când răspunzi.
-
-═══════════ DATE ECHIPĂ (zilnic, ultimele 30 zile) ═══════════
-
-${teamSections}
-
-═══════════════════════════════════════════════════════════════
-
-Reguli:
-- Răspunde în română, ton prieten-tehnic, casual și roasty când e cazul
-- Maxim 4-5 propoziții decât dacă userul cere mai mult
-- Folosește numere REALE din date (SS, REM, RHR, HRV, jurnale) — niciodată inventat
-- Dacă userul cere comparație/roast/felicitare, FĂ-O cu nume specifice și cifre specifice — NU spune "n-am date detaliate" pentru că le ai
-- Dacă userul cere despre tine personal, focusează-te pe ${fn}
-- Fără bullet points decât la întrebări care chiar le cer
-- Nu poți modifica/loga date — doar discuți despre ele`;
-
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const trimmed = messages.slice(-20);
+    const system = buildSystemPrompt(user, entries);
 
-    const msg = await client.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 600,
-      system,
-      messages: trimmed.map(m => ({ role: m.role, content: m.content })),
+    // Agent conversation state (Anthropic format with tool_use/tool_result blocks)
+    const convo: Anthropic.MessageParam[] = messages
+      .slice(-20)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    let mutated = false;
+    const actions: ChatAction[] = [];
+    let totalIn = 0;
+    let totalOut = 0;
+
+    // Loop until the model stops calling tools (max 6 iterations as safety)
+    for (let iter = 0; iter < 6; iter++) {
+      const response = await client.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 700,
+        system,
+        tools: TOOL_DEFINITIONS,
+        messages: convo,
+      });
+
+      totalIn += response.usage.input_tokens;
+      totalOut += response.usage.output_tokens;
+
+      // Tool use → execute every tool block, then loop
+      if (response.stop_reason === 'tool_use') {
+        // Add assistant's tool_use turn to history
+        convo.push({ role: 'assistant', content: response.content });
+
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+        for (const block of response.content) {
+          if (block.type !== 'tool_use') continue;
+          const exec = await executeTool({
+            toolUseId: block.id,
+            toolName: block.name,
+            input: block.input as Record<string, unknown>,
+            user,
+            entries,
+          });
+          if (exec.mutated) mutated = true;
+          if (exec.actionLabel) actions.push({ label: exec.actionLabel });
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: exec.toolUseId,
+            content: exec.resultContent,
+            is_error: exec.isError,
+          });
+        }
+
+        // Feed tool results back as a "user" turn
+        convo.push({ role: 'user', content: toolResults });
+        continue;
+      }
+
+      // No more tools — final assistant message
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map(b => b.text)
+        .join('\n')
+        .trim();
+
+      return NextResponse.json({
+        text,
+        mutated,
+        actions,
+        usage: { in: totalIn, out: totalOut },
+      });
+    }
+
+    return NextResponse.json({
+      text: 'Am rămas blocat într-o buclă de tool-uri. Reîncearcă întrebarea mai simplu.',
+      mutated,
+      actions,
+      usage: { in: totalIn, out: totalOut },
     });
-
-    const text = msg.content
-      .filter(b => b.type === 'text')
-      .map(b => (b as { text: string }).text)
-      .join('')
-      .trim();
-
-    return NextResponse.json({ text, usage: { in: msg.usage.input_tokens, out: msg.usage.output_tokens } });
   } catch (err) {
     console.error('[/api/chat]', err);
     return NextResponse.json(
-      { text: 'Eroare la generare. Încearcă din nou.', error: err instanceof Error ? err.message : 'unknown' },
+      {
+        text: 'Eroare la generare. Încearcă din nou.',
+        mutated: false,
+        actions: [],
+        error: err instanceof Error ? err.message : 'unknown',
+      },
       { status: 200 },
     );
   }

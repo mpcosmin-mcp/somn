@@ -170,3 +170,31 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/sheets — removes a single entry by (date, name).
+ * Body: { date, name }
+ * Requires Apps Script to have action=delete handler.
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const { date, name } = await req.json() as { date?: string; name?: string };
+    if (!date || !name) {
+      return NextResponse.json({ error: 'Missing date or name' }, { status: 400 });
+    }
+    const params = new URLSearchParams({
+      action: 'delete',
+      date,
+      name,
+    });
+    const res = await fetch(`${SHEETS_API}?${params}`, { method: 'GET', cache: 'no-store' });
+    if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/sheets DELETE]', err);
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : 'unknown' },
+      { status: 500 },
+    );
+  }
+}

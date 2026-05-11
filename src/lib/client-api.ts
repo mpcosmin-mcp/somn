@@ -38,15 +38,25 @@ export interface ChatMessage {
   content: string;
 }
 
-export async function chatTurn(user: string, messages: ChatMessage[], entries: SleepEntry[]): Promise<string> {
+export interface ChatTurnResult {
+  text: string;
+  mutated: boolean;
+  actions: { label: string }[];
+}
+
+export async function chatTurn(user: string, messages: ChatMessage[], entries: SleepEntry[]): Promise<ChatTurnResult> {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user, messages, entries }),
   });
-  if (!res.ok) return 'Eroare la generare.';
-  const json = (await res.json()) as { text?: string };
-  return json.text ?? '';
+  if (!res.ok) return { text: 'Eroare la generare.', mutated: false, actions: [] };
+  const json = (await res.json()) as ChatTurnResult;
+  return {
+    text: json.text ?? '',
+    mutated: !!json.mutated,
+    actions: json.actions ?? [],
+  };
 }
 
 export interface Patterns {

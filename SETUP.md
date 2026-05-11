@@ -98,6 +98,28 @@ function doGet(e) {
     return respond({ status: 'ok', upsert: foundRow > 0 ? 'update' : 'append' });
   }
 
+  // ─── DELETE (remove a single row by date+name) ──────
+  if (e.parameter.action === 'delete') {
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return respond({ status: 'ok', removed: 0 });
+    const headers = data[0];
+    const dateIdx = headers.indexOf('date');
+    const nameIdx = headers.indexOf('name');
+    const targetDate = String(e.parameter.date || '');
+    const targetName = String(e.parameter.name || '');
+    let removed = 0;
+    // Bottom-up to keep indices valid
+    for (let i = data.length - 1; i >= 1; i--) {
+      const rowDate = String(data[i][dateIdx] || '').slice(0, 10);
+      const rowName = String(data[i][nameIdx] || '');
+      if (rowDate === targetDate && rowName === targetName) {
+        sheet.deleteRow(i + 1);
+        removed++;
+      }
+    }
+    return respond({ status: 'ok', removed });
+  }
+
   // ─── CLEANUP (remove duplicate rows by date+name) ─────
   if (e.parameter.action === 'cleanup') {
     const data = sheet.getDataRange().getValues();

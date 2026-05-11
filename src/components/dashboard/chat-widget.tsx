@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { type SleepEntry, FIRST_NAME } from '@/lib/sleep';
-import { fetchAllEntries, chatTurn, type ChatMessage } from '@/lib/client-api';
+import { FIRST_NAME } from '@/lib/sleep';
+import { chatTurn, type ChatMessage } from '@/lib/client-api';
+import { useEntries } from '@/lib/entries-provider';
 import { Avi } from '@/components/ui/avi';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Lobster } from '@/components/ui/lobster';
 
@@ -11,46 +11,42 @@ const HISTORY_KEY = (user: string) => `somn_chat_${user}`;
 
 const SUGGESTIONS = [
   'cum a fost săptămâna mea?',
+  'logează că am dormit 78 azi, REM 95, RHR 60',
+  'cine doarme cel mai bine?',
+  'adaugă o notă la logul de azi: am băut 2 beri',
   'cum îmi cresc REM-ul?',
-  'cine a dormit cel mai bine?',
-  'sportul de seară mi-a stricat somnul?',
 ];
 
+/** Each turn may carry action chips when the AI used tools */
+interface UIMessage extends ChatMessage {
+  actions?: { label: string }[];
+}
+
 /**
- * The reusable chat UI. Used inside the side panel (and the legacy /chat page).
- * Manages its own messages state via localStorage per-user.
+ * Reusable chat UI. Pulls entries from the shared EntriesProvider so writes
+ * triggered by the AI refresh the dashboard automatically (via refetch()).
  *
- * Optional `pendingPrompt` — when this prop changes to a non-empty string, the
- * widget auto-sends it as a user message and calls `onPromptConsumed` to clear
- * the parent state. Used by AINudge cards to launch a chat with a pre-filled Q.
+ * Auto-sends a `pendingPrompt` prop on change — used by AINudge cards.
  */
 export function ChatWidget({
   user,
   onClose,
-  autofetch = true,
   pendingPrompt,
   onPromptConsumed,
 }: {
   user: string;
   onClose?: () => void;
-  autofetch?: boolean;
   pendingPrompt?: string | null;
   onPromptConsumed?: () => void;
 }) {
-  const [entries, setEntries] = useState<SleepEntry[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { entries, refetch } = useEntries();
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load entries (skipped if parent already provides them and passes autofetch=false)
-  useEffect(() => {
-    if (!autofetch) return;
-    fetchAllEntries().then(setEntries).catch(() => {});
-  }, [autofetch]);
-
-  // Load chat history
+  // Load chat history (persisted per-user)
   useEffect(() => {
     if (!user) return;
     try {
@@ -59,40 +55,50 @@ export function ChatWidget({
     } catch { /* ignore */ }
   }, [user]);
 
-  // Persist
+  // Persist on every change
   useEffect(() => {
     if (!user) return;
     try { localStorage.setItem(HISTORY_KEY(user), JSON.stringify(messages)); } catch { /* ignore */ }
   }, [user, messages]);
 
-  // Auto-scroll
+  // Auto-scroll to bottom on new content
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, sending]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || !user || sending) return;
-    const next: ChatMessage[] = [...messages, { role: 'user', content: text.trim() }];
+    const next: UIMessage[] = [...messages, { role: 'user', content: text.trim() }];
     setMessages(next);
     setInput('');
     setSending(true);
     try {
-      const reply = await chatTurn(user, next, entries);
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      // Send only the bare ChatMessage shape — drop action chips from history
+      const turnPayload: ChatMessage[] = next.map(({ role, content }) => ({ role, content }));
+      const result = await chatTurn(user, turnPayload, entries);
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: result.text,
+        actions: result.actions.length > 0 ? result.actions : undefined,
+      }]);
+
+      // 🔑 If AI wrote to the DB, refresh the shared entries so the dashboard updates
+      if (result.mutated) {
+        await refetch();
+      }
     } finally {
       setSending(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [messages, user, entries, sending]);
+  }, [messages, user, entries, sending, refetch]);
 
-  // Auto-send incoming pendingPrompt (from AINudge cards, etc.)
+  // Auto-send pendingPrompt from AINudge etc.
   useEffect(() => {
     if (pendingPrompt && pendingPrompt.trim() && !sending) {
       send(pendingPrompt);
       onPromptConsumed?.();
     }
-    // We intentionally only depend on pendingPrompt here — `send` changes on
-    // every render and would cause loops; the closure captures current state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingPrompt]);
 
@@ -120,7 +126,7 @@ export function ChatWidget({
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-sm leading-tight">somn ai</div>
-          <div className="text-[10px] text-[var(--color-fg-muted)] num truncate">claude haiku · vede tot</div>
+          <div className="text-[10px] text-[var(--color-fg-muted)] num truncate">vede tot · poate să logheze/șteargă</div>
         </div>
         {messages.length > 0 && (
           <button
@@ -155,7 +161,7 @@ export function ChatWidget({
             <Lobster size={64} className="mx-auto mb-2" />
             <div className="text-sm font-bold mb-1">salut, {fn}</div>
             <div className="text-xs text-[var(--color-fg-muted)] mb-4 leading-relaxed">
-              întreabă-mă orice despre somn, REM, echipă. Îți am datele la îndemână.
+              întreabă-mă orice. pot și să loghez/șterg date direct, doar zi-mi.
             </div>
             <div className="flex flex-col gap-1.5">
               {SUGGESTIONS.map(s => (
@@ -180,7 +186,20 @@ export function ChatWidget({
             ) : (
               <Avi name={user} size="sm" />
             )}
-            <div className={`flex-1 min-w-0 ${m.role === 'user' ? 'flex justify-end' : ''}`}>
+            <div className={`flex-1 min-w-0 flex flex-col gap-1 ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {/* Action chips (only on assistant messages with tool calls) */}
+              {m.role === 'assistant' && m.actions && m.actions.length > 0 && (
+                <div className="flex flex-wrap gap-1 max-w-[90%]">
+                  {m.actions.map((a, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[10px] num px-2 py-0.5 rounded-md bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 text-[var(--color-accent)] font-semibold"
+                    >
+                      {a.label}
+                    </span>
+                  ))}
+                </div>
+              )}
               <Card
                 className={`px-3 py-2 max-w-[90%] ${
                   m.role === 'user' ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/30' : ''
@@ -194,8 +213,8 @@ export function ChatWidget({
 
         {sending && (
           <div className="flex gap-2">
-            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-[10px] num font-bold shrink-0">
-              ai
+            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 flex items-center justify-center shrink-0 overflow-hidden">
+              <Lobster size={22} talking />
             </div>
             <Card className="px-3 py-2 inline-flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-fg-muted)] animate-pulse" style={{ animationDelay: '0ms' }} />
@@ -214,7 +233,7 @@ export function ChatWidget({
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="întreabă..."
+            placeholder="întreabă sau cere AI-ului să logheze..."
             rows={1}
             className="flex-1 resize-none rounded-lg px-3 py-2.5 bg-[var(--color-card)] border border-[var(--color-border)] text-sm focus:outline-none focus:border-[var(--color-accent)] placeholder:text-[var(--color-fg-dim)] max-h-32"
             disabled={sending}
@@ -231,7 +250,7 @@ export function ChatWidget({
           </button>
         </div>
         <div className="text-[9px] num text-[var(--color-fg-dim)] mt-1 px-0.5 hidden sm:block">
-          enter = trimite · shift+enter = newline
+          enter = trimite · poate să logheze direct
         </div>
       </div>
     </div>
