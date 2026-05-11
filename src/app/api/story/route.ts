@@ -45,15 +45,15 @@ export async function POST(req: NextRequest) {
       return `${fn} (${theirs.length} zile, SS mediu ${avg}):\n${lines.join('\n')}`;
     }).join('\n\n');
 
-    const prompt = `Ești naratorul unui dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel.
+    const prompt = `Ești naratorul unui dashboard de somn pentru Clara, Petrica, Cornel.
 
 Săptămâna ${cutStr} → ${lastDate}:
 
 ${sections}
 
-Scrie un mini-recap de **2 propoziții scurte** în română. O propoziție per linie. Menționează-i pe toți 3, dar fără să te lungi. Folosește cifre reale, nu generic. Câmp pentru o glumiță scurtă dacă găsești.
+UN singur recap, O propoziție scurtă (max 25 cuvinte). Menționează cine a câștigat săptămâna + un detaliu concret. Direct, fără fluff.
 
-Fără emoji, fără bullet points. Direct la subiect. Răspunde DOAR cu textul.`;
+Fără emoji. Răspunde DOAR cu textul.`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const msg = await client.messages.create({

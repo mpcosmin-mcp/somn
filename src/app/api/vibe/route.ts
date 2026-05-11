@@ -34,16 +34,12 @@ export async function POST(req: NextRequest) {
       return `${fnN}: aseară SS ${last.ss}, ${remTxt}; săpt avg ${avg}`;
     }).join('\n');
 
-    const prompt = `Ești somn ai — un asistent prietenos cu un mascot lobster, pentru o echipă IT din Sibiu (Clara, Petrica, Cornel). User-ul curent: ${fn}.
+    const prompt = `Ești somn ai pentru o echipă IT din Sibiu (Clara, Petrica, Cornel). User: ${fn}.
 
 Date săptămâna asta:
 ${lines}
 
-Scrie UN singur mesaj de salut de **2 propoziții scurte**, în română, ton amuzant + observativ. Trebuie:
-- Să fie personalizat pentru ${fn} (referință la datele lui)
-- Să strecoare ceva despre echipă (cine zburdă, cine se chinuie)
-- Să fie cald, nu cinic
-- Fără emoji, fără bullet points
+Scrie UN salut de O SINGURĂ propoziție scurtă (max 20 cuvinte), în română, ton observativ-amuzant. Personalizat pentru ${fn} cu o cifră reală. Fără emoji.
 
 Răspunde DOAR cu textul.`;
 

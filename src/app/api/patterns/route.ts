@@ -67,30 +67,26 @@ export async function POST(req: NextRequest) {
       return `  ${fnN} (${theirs.length} loguri):\n${lines.join('\n')}`;
     }).join('\n');
 
-    const prompt = `Ești un analist de date de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Caută pattern-uri concrete.
+    const prompt = `Analist de somn pentru ${fn} și echipa (Clara, Petrica, Cornel).
 
-DATE PERSONALE — ${fn} (ultimele 30 zile):
+DATE ${fn} (ultimele 30 zile):
 ${personalLines}
 
-DATE TEAM (ultimele 30 zile, zilnice):
+DATE TEAM (ultimele 30 zile):
 ${teamLines}
 
-Returnează JSON cu DOUĂ chei:
+Returnează JSON:
 
 {
   "personal": "...",
   "team": "..."
 }
 
-PERSONAL (max 2 propoziții scurte despre ${fn}): UN singur pattern concret + cifră. Ex: "Joia ai SS mediu 62, sub media de 73 a săptămânii." sau "REM a crescut 12% în ultimele 2 săptămâni."
+PERSONAL: UNA singură propoziție max 15 cuvinte, cu UN pattern concret + cifră. Ex: "Joia ai SS 62, sub media 73."
 
-TEAM (max 1 propoziție scurtă): O observație despre echipă. Ex: "Cornel e singurul cu trend ascendent (+8 SS)."
+TEAM: UNA singură propoziție max 12 cuvinte. Ex: "Cornel singur cu trend +8 SS."
 
-Reguli:
-- Română, ton scurt și ascuțit, ca un dev care zice ce vede
-- Fără emoji, fără bullet points
-- Răspunde DOAR cu JSON
-- Dacă nu găsești nimic concret: "Insuficiente date."`;
+Fără emoji. Doar JSON. Dacă nimic concret: "Insuficiente date."`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const msg = await client.messages.create({

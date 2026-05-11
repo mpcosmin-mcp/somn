@@ -1,5 +1,10 @@
 'use client';
-import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, ssTier, FIRST_NAME, lastNDays } from '@/lib/sleep';
+import {
+  type SleepEntry,
+  ssColor, rhrColor, hrvColor, remColor,
+  ssTier, ssStatus, rhrStatus, hrvStatus, remStatus,
+  FIRST_NAME, lastNDays,
+} from '@/lib/sleep';
 import { fmtDate, todayStr } from '@/lib/utils';
 import { Sparkline } from '@/components/ui/sparkline';
 
@@ -64,25 +69,66 @@ export function Hero({ entries, user }: { entries: SleepEntry[]; user: string })
         </div>
       </div>
 
-      {/* REM / RHR / HRV — secondary stats */}
-      <div className="grid grid-cols-3 gap-2 md:gap-4">
-        <Stat label="REM" value={last.rem} unit="min" color={last.rem != null ? remColor(last.rem) : '#52525b'} />
-        <Stat label="RHR" value={last.rhr} unit="bpm" color={rhrColor(last.rhr)} />
-        <Stat label="HRV" value={last.hrv} unit="ms" color={hrvColor(last.hrv)} />
+      {/* REM / RHR / HRV — secondary stats with status indicators */}
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        <Stat
+          label="REM" value={last.rem} unit="min"
+          color={last.rem != null ? remColor(last.rem) : '#52525b'}
+          status={remStatus(last.rem)}
+        />
+        <Stat
+          label="RHR" value={last.rhr} unit="bpm"
+          color={rhrColor(last.rhr)}
+          status={rhrStatus(last.rhr)}
+        />
+        <Stat
+          label="HRV" value={last.hrv} unit="ms"
+          color={hrvColor(last.hrv)}
+          status={hrvStatus(last.hrv)}
+        />
       </div>
     </section>
   );
 }
 
-function Stat({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {
+import { type MetricStatus } from '@/lib/sleep';
+
+function Stat({
+  label, value, unit, color, status,
+}: {
+  label: string;
+  value: number | null;
+  unit: string;
+  color: string;
+  status: MetricStatus;
+}) {
+  const isMissing = value == null;
   return (
-    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl px-2.5 sm:px-3 py-2.5 sm:py-3">
-      <div className="label mb-1">{label}</div>
-      <div className="flex items-baseline gap-1">
-        <span className="num font-bold text-xl sm:text-2xl leading-none truncate" style={{ color: value == null ? '#52525b' : color }}>
-          {value ?? '—'}
-        </span>
-        <span className="text-[9px] sm:text-[10px] text-[var(--color-fg-muted)] shrink-0">{unit}</span>
+    <div
+      className="border rounded-xl px-2.5 sm:px-3 py-2.5 sm:py-3 relative overflow-hidden"
+      style={{
+        background: isMissing ? 'var(--color-card)' : `${color}10`,
+        borderColor: isMissing ? 'var(--color-border)' : `${color}40`,
+      }}
+    >
+      {/* Left edge accent in semantic color */}
+      <div className="absolute inset-y-0 left-0 w-1" style={{ background: isMissing ? 'transparent' : color }} />
+
+      <div className="pl-1">
+        <div className="flex items-center justify-between mb-1">
+          <div className="label">{label}</div>
+          {!isMissing && (
+            <span className="text-[10px] num font-bold" style={{ color }}>
+              {status.arrow}
+            </span>
+          )}
+        </div>
+        <div className="flex items-baseline gap-1">
+          <span className="num font-bold text-xl sm:text-2xl leading-none truncate" style={{ color: isMissing ? '#52525b' : color }}>
+            {value ?? '—'}
+          </span>
+          <span className="text-[9px] sm:text-[10px] text-[var(--color-fg-muted)] shrink-0">{unit}</span>
+        </div>
       </div>
     </div>
   );
