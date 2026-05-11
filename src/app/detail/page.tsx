@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Avi } from '@/components/ui/avi';
 import { DetailSkeleton } from '@/components/ui/skeleton';
 import { DetailView } from '@/components/dashboard/detail-view';
-import { StackedCompare } from '@/components/dashboard/stacked-compare';
+import { TeamHistory } from '@/components/dashboard/team-history';
 
-type Tab = 'me' | 'compare';
+type Tab = 'me' | 'istoric';
 
 function isValidName(n: string | null): n is (typeof NAMES)[number] {
   return !!n && (NAMES as readonly string[]).includes(n);
@@ -65,14 +65,14 @@ function DetailInner() {
               👤 individual
             </button>
             <button
-              onClick={() => setTab('compare')}
+              onClick={() => setTab('istoric')}
               className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-colors ${
-                tab === 'compare'
+                tab === 'istoric'
                   ? 'bg-[var(--color-accent)] text-[var(--color-bg)]'
                   : 'border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
               }`}
             >
-              👥 comparare echipă
+              👥 istoric echipă
             </button>
           </div>
 
@@ -112,9 +112,9 @@ function DetailInner() {
             </>
           )}
 
-          {tab === 'compare' && (
+          {tab === 'istoric' && (
             <div className="fade-in-up delay-0">
-              <StackedCompare entries={entries} />
+              <TeamHistory entries={entries} currentUser={user} />
             </div>
           )}
         </>

@@ -1,18 +1,19 @@
 'use client';
 import { useMemo, useState } from 'react';
 import {
-  type SleepEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays,
+  type SleepEntry, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays,
 } from '@/lib/sleep';
 import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor } from '@/lib/gamify';
 import { fmtDateShort } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
-import { BgChart } from '@/components/ui/bg-chart';
-import { Metric } from '@/components/ui/metric';
+import { TeamChart } from '@/components/ui/team-chart';
 
 type Range = '7' | '30' | 'all';
 
-export function DetailView({ entries, user, onUserChange }: { entries: SleepEntry[]; user: string; onUserChange: (n: string) => void }) {
+// onUserChange kept for back-compat with the (now-unused) per-user switcher.
+// Logged-in user is locked in; cross-user nav lives at /detail's istoric tab.
+export function DetailView({ entries, user, onUserChange: _onUserChange }: { entries: SleepEntry[]; user: string; onUserChange: (n: string) => void }) {
   const [range, setRange] = useState<Range>('30');
 
   const mine = useMemo(() => entries.filter(e => e.name === user).sort((a, b) => a.date.localeCompare(b.date)), [entries, user]);
@@ -22,11 +23,9 @@ export function DetailView({ entries, user, onUserChange }: { entries: SleepEntr
     return lastNDays(mine, parseInt(range));
   }, [mine, range]);
 
-  // Build day-by-day series (filling gaps with null) for the selected range
-  const series = useMemo(() => {
-    const dates = [...new Set(filtered.map(e => e.date))].sort();
-    return dates.map(d => filtered.find(e => e.date === d) ?? null);
-  }, [filtered]);
+  // Aligned date axis for all metrics (so charts line up)
+  const dates = useMemo(() => [...new Set(filtered.map(e => e.date))].sort(), [filtered]);
+  const series = useMemo(() => dates.map(d => filtered.find(e => e.date === d) ?? null), [dates, filtered]);
 
   const ssVals = series.map(e => e?.ss ?? null);
   const remVals = series.map(e => e?.rem ?? null);
@@ -49,27 +48,10 @@ export function DetailView({ entries, user, onUserChange }: { entries: SleepEntr
   const streak = streakFor(entries, user);
   const progress = xpProgress(xp);
 
+  const personC = personColor(user);
+
   return (
     <div className="space-y-4">
-      {/* User switcher */}
-      <Card className="px-4 py-3 flex items-center gap-2 overflow-x-auto">
-        <span className="label shrink-0">vezi date pentru:</span>
-        {NAMES.map(n => (
-          <button
-            key={n}
-            onClick={() => onUserChange(n)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
-              n === user
-                ? 'bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/40 text-[var(--color-fg)]'
-                : 'border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-            }`}
-          >
-            <Avi name={n} size="xs" />
-            {FIRST_NAME[n]}
-          </button>
-        ))}
-      </Card>
-
       {/* User profile snapshot */}
       <Card className="p-5">
         <div className="flex items-center gap-3 mb-4">
@@ -124,12 +106,32 @@ export function DetailView({ entries, user, onUserChange }: { entries: SleepEntr
         </span>
       </div>
 
-      {/* Metric cards with sparkline + avg + best */}
+      {/* Metric cards with proper detailed chart (axes, dates, target, smooth curves) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <MetricCard title="REM" unit="min" series={remVals} avg={avg(remVals)} best={best(remVals)} color="#a78bfa" />
-        <MetricCard title="Sleep Score" unit="/100" series={ssVals} avg={avg(ssVals)} best={best(ssVals)} color={personColor(user)} />
-        <MetricCard title="RHR" unit="bpm" series={rhrVals} avg={avg(rhrVals)} best={best(rhrVals, false)} color="#fbbf24" lowerBetter />
-        <MetricCard title="HRV" unit="ms" series={hrvVals} avg={avg(hrvVals)} best={best(hrvVals)} color="#60a5fa" />
+        <MetricChartCard
+          title="Sleep Score" unit="/100" target={75}
+          values={ssVals} dates={dates}
+          avg={avg(ssVals)} best={best(ssVals)}
+          color={personC}
+        />
+        <MetricChartCard
+          title="REM" unit="min" target={90}
+          values={remVals} dates={dates}
+          avg={avg(remVals)} best={best(remVals)}
+          color="#a78bfa"
+        />
+        <MetricChartCard
+          title="RHR" unit="bpm" target={60} lowerBetter
+          values={rhrVals} dates={dates}
+          avg={avg(rhrVals)} best={best(rhrVals, false)}
+          color="#fbbf24"
+        />
+        <MetricChartCard
+          title="HRV" unit="ms" target={45}
+          values={hrvVals} dates={dates}
+          avg={avg(hrvVals)} best={best(hrvVals)}
+          color="#60a5fa"
+        />
       </div>
 
       {/* Recent log list — with journal entries inline */}
@@ -192,37 +194,69 @@ function HistoryRow({ entry }: { entry: SleepEntry }) {
   );
 }
 
-interface MetricCardProps {
+interface MetricChartCardProps {
   title: string;
   unit: string;
-  series: (number | null)[];
+  target: number;
+  values: (number | null)[];
+  dates: string[];
   avg: number | null;
   best: number | null;
   color: string;
   lowerBetter?: boolean;
 }
 
-function MetricCard({ title, unit, series, avg, best, color, lowerBetter }: MetricCardProps) {
-  const present = series.filter((v): v is number => v != null);
-  const enoughForChart = present.length >= 2;
+function MetricChartCard({
+  title, unit, target,
+  values, dates, avg, best,
+  color, lowerBetter,
+}: MetricChartCardProps) {
+  const present = values.filter((v): v is number => v != null);
+  const hasEnough = present.length >= 2;
   return (
-    <Card className="p-5 relative overflow-hidden min-h-[140px]">
-      {/* Background area chart — fills the entire card behind the text */}
-      {enoughForChart && <BgChart values={series} color={color} />}
-      {!enoughForChart && (
-        <span className="absolute top-4 right-5 text-[10px] italic text-[var(--color-fg-dim)] z-0">insuficient</span>
-      )}
-
-      {/* Content overlays the chart */}
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-3">
-          <div className="label">{title}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Metric label="medie" value={avg} unit={unit} color={color} size="md" />
-          <Metric label={lowerBetter ? 'minim' : 'maxim'} value={best} unit={unit} color={color} size="md" />
+    <Card className="p-4 sm:p-5 space-y-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="label">{title}</div>
+        <div className="text-[10px] num text-[var(--color-fg-dim)]">
+          target {lowerBetter ? '< ' : ''}{target}{unit}
         </div>
       </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="text-[9px] uppercase tracking-wider text-[var(--color-fg-muted)] mb-0.5">medie</div>
+          <div className="num font-bold text-2xl leading-none" style={{ color: avg == null ? '#52525b' : color }}>
+            {avg ?? '—'}
+            <span className="text-[10px] text-[var(--color-fg-muted)] font-normal ml-0.5">{unit}</span>
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-wider text-[var(--color-fg-muted)] mb-0.5">
+            {lowerBetter ? 'minim' : 'maxim'}
+          </div>
+          <div className="num font-bold text-2xl leading-none" style={{ color: best == null ? '#52525b' : color }}>
+            {best ?? '—'}
+            <span className="text-[10px] text-[var(--color-fg-muted)] font-normal ml-0.5">{unit}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed chart with axes + dates + target line + smooth curve */}
+      {hasEnough ? (
+        <TeamChart
+          series={[{ name: title, color, values }]}
+          dates={dates}
+          height={180}
+          target={target}
+          targetLabel="target"
+          unit={unit}
+          lowerBetter={lowerBetter}
+        />
+      ) : (
+        <div className="h-[180px] flex items-center justify-center text-xs italic text-[var(--color-fg-dim)]">
+          insuficiente date pentru chart
+        </div>
+      )}
     </Card>
   );
 }

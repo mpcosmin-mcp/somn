@@ -43,7 +43,7 @@ export function InsightsColumn() {
         </div>
         <div className="relative flex-1 min-w-0 text-left">
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-fg-muted)] font-semibold mb-0.5">
-            somn ai
+            Morfeu · somn ai
           </div>
           <div className="text-sm font-bold leading-tight">vorbește cu mine</div>
           <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">poate să logheze direct</div>

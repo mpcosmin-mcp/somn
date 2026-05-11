@@ -47,14 +47,19 @@ After calling: confirm by repeating what you saved in plain language.`,
   },
   {
     name: 'delete_sleep',
-    description: `Șterge complet rândul de log al userului curent pentru o anumită dată.
+    description: `Șterge complet rândul de log al userului curent pentru o anumită dată. DESTRUCTIV — folosește cu grijă.
 
-USE ONLY WHEN:
-- User cere EXPLICIT: "șterge logul de ieri", "elimină datele de pe 5 mai"
-- ÎNTOTDEAUNA cere confirmare în plain text ÎNAINTE să apelezi acest tool ("ești sigur?")
-- Dacă user-ul confirmă, atunci apelezi tool-ul
+PREFER save_sleep ÎN MAJORITATEA CAZURILOR:
+- Vrei să schimbi un câmp greșit? → folosește save_sleep cu valoarea corectă (upsert).
+- Vrei să scoți o notă? → folosește save_sleep cu journal: "".
+- Vrei să anulezi tot logul? → NUMAI ATUNCI folosește delete_sleep.
 
-After calling: confirm what you deleted.`,
+REGULI STRICTE:
+1. NU APELA fără ca user-ul să zică EXPLICIT "șterge" / "elimină" / "delete".
+2. ÎNAINTE de apel, CERE CONFIRMARE în plain text: "Sigur vrei să șterg logul de pe X? Vei pierde SS Y, REM Z. Confirmă cu DA."
+3. AȘTEAPTĂ răspunsul user-ului ("da"/"yes"/"confirm") în următorul mesaj.
+4. Server-side blocăm: loguri > 30 zile NU pot fi șterse; nu putem lăsa user-ul cu < 3 loguri în ultimele 30 zile.
+5. După apel reușit, confirmă scurt ce s-a șters.`,
     input_schema: {
       type: 'object',
       required: ['date'],
@@ -166,18 +171,47 @@ export async function executeTool({
       const date = String(input.date ?? '');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid date format');
 
+      // ── SAFETY GUARDS ──────────────────────────────────────────
+      // 1. Entry must exist AND belong to the current user
       const existing = entries.find(e => e.date === date && e.name === user);
       if (!existing) {
         return {
-          toolUseId,
-          toolName,
+          toolUseId, toolName, isError: false, mutated: false,
           resultContent: JSON.stringify({ ok: false, reason: 'no_such_entry' }),
-          isError: false,
-          mutated: false,
-          actionLabel: `nu există log pentru ${fn} pe ${date}`,
+          actionLabel: `⚠ nu există log pentru ${fn} pe ${date}`,
         };
       }
 
+      // 2. Don't delete entries older than 30 days (protect history)
+      const entryTs = new Date(date + 'T12:00:00').getTime();
+      const ageDays = (Date.now() - entryTs) / 86400000;
+      if (ageDays > 30) {
+        return {
+          toolUseId, toolName, isError: false, mutated: false,
+          resultContent: JSON.stringify({
+            ok: false,
+            reason: 'too_old',
+            message: 'Refuz să șterg loguri mai vechi de 30 zile — istoricul e protejat.',
+          }),
+          actionLabel: `⚠ refuz · log mai vechi de 30 zile`,
+        };
+      }
+
+      // 3. Don't delete if it would leave the user with < 3 logs in last 30 days
+      const userLast30 = lastNDays(entries.filter(e => e.name === user), 30);
+      if (userLast30.length <= 3) {
+        return {
+          toolUseId, toolName, isError: false, mutated: false,
+          resultContent: JSON.stringify({
+            ok: false,
+            reason: 'min_logs_protection',
+            message: 'Refuz să șterg — ai doar 3 sau mai puține loguri în ultimele 30 zile. Editează în loc de a șterge.',
+          }),
+          actionLabel: `⚠ refuz · prea puține loguri rămase`,
+        };
+      }
+
+      // ── Execute ────────────────────────────────────────────────
       const params = new URLSearchParams({
         action: 'delete',
         date,
@@ -242,18 +276,21 @@ ${teamSections}
 
 ═══════════════════════════════════════════════════════════════
 
+EȘTI **MORFEU** — somn ai cu personalitate de capybara prietenos.
+
 POȚI APELA TOOL-URI:
-- **save_sleep** — salvează/actualizează loguri pentru ${fn}. Upsert + merge: dacă rândul (date, ${fn}) există, câmpurile NESPECIFICATE se păstrează. NU specifica un câmp dacă user-ul nu a menționat o valoare pentru el.
-- **delete_sleep** — șterge un log al lui ${fn}. Înainte de a apela, CERE confirmare explicită în plain text și AȘTEAPTĂ răspunsul.
+- **save_sleep** — salvează/actualizează loguri pentru ${fn}. Upsert + merge. NU specifica un câmp dacă user-ul nu a menționat o valoare.
+- **delete_sleep** — DESTRUCTIV. Numai dacă user-ul cere EXPLICIT și a confirmat în plain text "da/yes". Pentru "corectează datele" / "schimbă X" → folosește save_sleep, NU delete.
 
 REGULI:
-- Răspunde în română, ton prieten-tehnic, casual + roasty când e cazul
+- Răspunde în română, ton prieten-tehnic, casual + roasty când e cazul. Te prezinți ca Morfeu dacă întreabă cine ești.
 - Folosește numerele REALE din date — niciodată inventate
 - Toolurile mutează DOAR datele lui ${fn} (nu poți schimba Clara sau Cornel)
-- După un tool succes, confirmă în plain text ce-ai făcut
+- DELETE: necesită confirmare EXPLICITĂ înainte. NU șterge la primul mesaj. NU șterge istoric (>30 zile vechi). Sugerează "edit" în loc de "delete" în 90% din cazuri.
+- După un tool succes, confirmă scurt ce-ai făcut (1-2 propoziții)
 - Dacă user-ul vrea ceva ambiguu ("logează un score bun"), CERE clarificare
-- Convertește limbaj natural în date concrete: "azi"=${today}, "ieri"=${new Date(Date.now() - 86400000).toISOString().slice(0, 10)}, etc
-- Pentru creare de log NOU, ai nevoie cel puțin de SS — dacă lipsește, întreabă
+- Convertește limbaj natural: "azi"=${today}, "ieri"=${new Date(Date.now() - 86400000).toISOString().slice(0, 10)}, "joi" = data cea mai recentă de joi
+- Pentru log NOU, ai nevoie cel puțin de SS — dacă lipsește, întreabă
 
 Răspuns concis, 1-4 propoziții decât dacă user-ul cere mai mult.`;
 }

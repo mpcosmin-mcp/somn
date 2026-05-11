@@ -4,7 +4,6 @@ import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { FIRST_NAME } from '@/lib/sleep';
 import { Hero } from '@/components/dashboard/hero';
-import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { DailyRoast } from '@/components/dashboard/ai-blocks';
 import { AlertsBar } from '@/components/dashboard/alerts-bar';
 import { AINudge } from '@/components/dashboard/ai-nudge';
@@ -12,6 +11,7 @@ import { PageVibe } from '@/components/dashboard/page-vibe';
 import { ChatLogHint } from '@/components/dashboard/chat-log-hint';
 import { TopicBanners } from '@/components/dashboard/topic-banners';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 export default function Home() {
   const { user } = useUser();
@@ -71,13 +71,20 @@ export default function Home() {
             <AINudge user={user} entries={entries} />
           </div>
 
-          <div className="fade-in-up delay-3">
-            <Leaderboard entries={entries} currentUser={user} />
+          {/* Daily roast — visible on <xl (insights column has it on xl+) */}
+          <div className="fade-in-up delay-3 xl:hidden">
+            <DailyRoast user={user} entries={entries} />
           </div>
 
-          {/* Daily roast — visible on <xl (insights column has it on xl+) */}
-          <div className="fade-in-up delay-4 xl:hidden">
-            <DailyRoast user={user} entries={entries} />
+          {/* Quiet link to team Istoric — leaderboard and comparison live there now */}
+          <div className="fade-in-up delay-4 text-center pt-2">
+            <Link
+              href="/detail#istoric"
+              className="inline-flex items-center gap-2 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
+            >
+              <span>👥 vezi echipa în istoric</span>
+              <span>→</span>
+            </Link>
           </div>
         </>
       )}

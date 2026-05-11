@@ -1,6 +1,5 @@
 'use client';
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
 } from '@/lib/sleep';
@@ -167,10 +166,9 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
   }, [entries, row.name]);
 
   return (
-    <Link
-      href={`/detail?u=${encodeURIComponent(row.name)}`}
-      className={`block group rounded-xl px-3 py-2.5 transition-all ${
-        isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : 'active:bg-[var(--color-surface)] sm:hover:bg-[var(--color-surface)]'
+    <div
+      className={`block rounded-xl px-3 py-2.5 ${
+        isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : ''
       }`}
     >
       <div className="flex items-center gap-3">
@@ -224,7 +222,7 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
         </div>
         <Sparkline values={series} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
       </div>
-    </Link>
+    </div>
   );
 }
 
