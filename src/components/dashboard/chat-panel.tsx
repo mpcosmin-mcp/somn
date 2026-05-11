@@ -46,8 +46,6 @@ export function ChatPanel() {
   useEffect(() => {
     if (!panelHydrated) return;
     try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* ignore */ }
-    document.body.dataset.chatOpen = open ? 'true' : 'false';
-    return () => { document.body.dataset.chatOpen = 'false'; };
   }, [open, panelHydrated]);
 
   useEffect(() => {
@@ -60,9 +58,9 @@ export function ChatPanel() {
 
   return (
     <>
-      {/* Collapsed bubble — all viewports */}
+      {/* Collapsed bubble — <xl only. xl+ has chat in the right column. */}
       <div
-        className={`group fixed bottom-4 right-4 z-50 transition-all duration-200 ${
+        className={`xl:hidden group fixed bottom-4 right-4 z-50 transition-all duration-200 ${
           open ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'
         }`}
       >
@@ -86,7 +84,7 @@ export function ChatPanel() {
         </button>
       </div>
 
-      {/* Backdrop on mobile/tablet */}
+      {/* Backdrop + popup — <xl only */}
       <div
         onClick={() => setOpen(false)}
         className={`xl:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ${
@@ -95,14 +93,10 @@ export function ChatPanel() {
         aria-hidden
       />
 
-      {/* Chat surface */}
       <div
-        className={`fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40 rounded-2xl
+        className={`xl:hidden fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40 rounded-2xl
           inset-x-3 bottom-3 max-h-[calc(100dvh-1rem)]
-          xl:inset-auto xl:top-4 xl:right-4 xl:bottom-4
-          xl:w-[520px] 2xl:w-[600px]
-          xl:max-h-none
-          transform-gpu transition-all duration-250 ease-out origin-bottom-right xl:origin-right
+          transform-gpu transition-all duration-250 ease-out origin-bottom-right
           ${open
             ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}

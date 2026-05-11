@@ -10,7 +10,7 @@ import { Avi } from '@/components/ui/avi';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { LogEntry } from '@/components/dashboard/log-entry';
-import { DailyRoast } from '@/components/dashboard/ai-blocks';
+import { DailyRoast } from '@/components/dashboard/ai-blocks';   // <xl only — moves to right column on xl+
 
 /**
  * Twitter-style left sidebar.
@@ -107,8 +107,8 @@ export function Sidebar({ onCloseDrawer }: { onCloseDrawer?: () => void }) {
           />
         </nav>
 
-        {/* Daily roast — Hipnos commentary about you, lives in the sidebar */}
-        <div className="border-t border-[var(--color-border)] pt-3">
+        {/* Daily roast — sidebar version is for <xl only (xl+ has it in the right column) */}
+        <div className="xl:hidden border-t border-[var(--color-border)] pt-3">
           <DailyRoast user={user} entries={entries} />
         </div>
 

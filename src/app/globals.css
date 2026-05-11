@@ -141,23 +141,8 @@ html.light .dots {
 /* Selection */
 ::selection { background: var(--color-accent); color: var(--color-bg); }
 
-/* Focus mode — when the chat is open on xl+ desktop, page content shrinks
-   and dims so the chat becomes the visual focus. Closing → returns to normal. */
-@media (min-width: 1280px) {
-  body[data-chat-open="true"] [data-page-content] {
-    transform: scale(0.97);
-    transform-origin: left center;
-    filter: brightness(0.78) saturate(0.85);
-    padding-right: 540px;       /* leaves room for the 520px chat panel + margin */
-    transition: transform 250ms ease-out, filter 250ms ease-out, padding-right 250ms ease-out;
-  }
-  body[data-chat-open="false"] [data-page-content] {
-    transform: scale(1);
-    filter: brightness(1) saturate(1);
-    padding-right: 0;
-    transition: transform 250ms ease-out, filter 250ms ease-out, padding-right 250ms ease-out;
-  }
-}
+/* Chat is now embedded in the right column on xl+ — no focus mode needed.
+   The feed stays centered and stable when chat is in use. */
 
 /* ── Mobile polish ────────────────────────────────────────
    Safe-area padding for iOS notches/home indicator + comfortable

@@ -6,6 +6,7 @@ import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { Sidebar } from '@/components/layout/sidebar';
+import { RightColumn } from '@/components/layout/right-column';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
 import { UserPicker } from '@/components/dashboard/user-picker';
 import { LoginLogStep } from '@/components/dashboard/login-log-step';
@@ -113,12 +114,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Sidebar onCloseDrawer={() => setDrawerOpen(false)} />
         </aside>
 
-        {/* MAIN CONTENT */}
-        <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 lg:pb-6 pb-safe">
+        {/* MAIN CONTENT — feed stays centered, doesn't shift when chat opens */}
+        <main className="flex-1 min-w-0 overflow-y-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-24 xl:pb-6 pb-safe">
           {children}
         </main>
+
+        {/* RIGHT COLUMN — chat + AI insights (xl+ only) */}
+        <RightColumn />
       </div>
 
+      {/* Floating chat bubble — only on <xl since xl+ has chat embedded in right column */}
       <ChatPanel />
     </>
   );

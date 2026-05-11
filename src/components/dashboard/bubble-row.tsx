@@ -101,11 +101,12 @@ export function BubbleRow() {
   return (
     <>
       <div className="flex items-end gap-2 sm:gap-3 overflow-x-auto overflow-y-visible pb-2 pt-12 -mx-1 px-1">
-        <HipnosBubble />
-        <PatternBubble />
-
-        {/* Divider between Hipnos+Pattern and topics */}
-        <div className="self-center w-px h-12 bg-[var(--color-border)] mx-1 shrink-0" />
+        {/* Hipnos + Pattern only on <xl — xl+ has them in the right column */}
+        <div className="xl:hidden contents">
+          <HipnosBubble />
+          <PatternBubble />
+          <div className="self-center w-px h-12 bg-[var(--color-border)] mx-1 shrink-0" />
+        </div>
 
         {TOPICS.map(t => (
           <TopicBubble key={t.id} topic={t} onOpen={() => setActiveTopic(t)} />
