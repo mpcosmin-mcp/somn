@@ -157,12 +157,15 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
   const tier = tierFor(row.level);
   const c = personColor(row.name);
 
-  // Tiny SS sparkline for last 7 days
-  const series = useMemo(() => {
+  // Tiny SS sparkline for last 7 days (with dates so hover shows the value+date)
+  const { sparkValues, sparkDates } = useMemo(() => {
     const personEntries = entries.filter(e => e.name === row.name);
     const last7 = lastNDays(personEntries, 7);
     const dates = [...new Set(last7.map(e => e.date))].sort();
-    return dates.map(d => last7.find(e => e.date === d)?.ss ?? null);
+    return {
+      sparkValues: dates.map(d => last7.find(e => e.date === d)?.ss ?? null),
+      sparkDates: dates,
+    };
   }, [entries, row.name]);
 
   return (
@@ -220,7 +223,7 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
             </div>
           )}
         </div>
-        <Sparkline values={series} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
+        <Sparkline values={sparkValues} dates={sparkDates} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
       </div>
     </div>
   );

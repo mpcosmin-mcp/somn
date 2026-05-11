@@ -56,11 +56,13 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         label="Sleep Score"
         value={last.ss}
         unit="/100"
+        sparkUnit=""
         delta={ssDelta}
         deltaUnit="pts"
         higherBetter
         target={75}
         series={ssSeries}
+        dates={dates}
         color={ssColor(last.ss)}
         accentVar="var(--color-accent)"
       />
@@ -68,11 +70,13 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         label="REM"
         value={last.rem}
         unit="min"
+        sparkUnit="m"
         delta={remDelta}
         deltaUnit="min"
         higherBetter
         target={90}
         series={remSeries}
+        dates={dates}
         color={last.rem != null ? remColor(last.rem) : 'var(--color-fg-dim)'}
         accentVar="#a78bfa"
       />
@@ -80,11 +84,13 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         label="HRV"
         value={last.hrv}
         unit="ms"
+        sparkUnit=""
         delta={hrvDelta}
         deltaUnit="ms"
         higherBetter
         target={45}
         series={hrvSeries}
+        dates={dates}
         color={hrvColor(last.hrv)}
         accentVar="#fbbf24"
       />
@@ -93,17 +99,19 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
 }
 
 function KpiCard({
-  label, value, unit, delta, deltaUnit,
-  higherBetter, target, series, color, accentVar,
+  label, value, unit, sparkUnit, delta, deltaUnit,
+  higherBetter, target, series, dates, color, accentVar,
 }: {
   label: string;
   value: number | null;
   unit: string;
+  sparkUnit: string;
   delta: number | null;
   deltaUnit: string;
   higherBetter: boolean;
   target: number;
   series: (number | null)[];
+  dates: string[];
   color: string;
   accentVar: string;
 }) {
@@ -149,7 +157,7 @@ function KpiCard({
             <span className="text-[var(--color-fg-dim)]">{onTarget ? 'în target' : 'sub target'}</span>
           )}
         </span>
-        <Sparkline values={series} width={70} height={22} color={color} />
+        <Sparkline values={series} dates={dates} unit={sparkUnit} width={70} height={22} color={color} />
       </div>
     </div>
   );

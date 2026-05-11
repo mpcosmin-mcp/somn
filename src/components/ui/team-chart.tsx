@@ -1,5 +1,5 @@
 'use client';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Series {
@@ -22,6 +22,9 @@ interface Props {
   lowerBetter?: boolean;
 }
 
+const MONTHS_SHORT = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
+const DAYS_SHORT = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
+
 /**
  * Polished team-comparison chart.
  *
@@ -31,9 +34,8 @@ interface Props {
  *   • Y-axis grid (3-4 ticks) with values
  *   • X-axis calendar date labels (5-7 evenly sampled)
  *   • Optional target horizontal dashed line
+ *   • Hover/touch: crosshair line + tooltip with per-series values
  *   • Big inline legend below with avg-value per person
- *
- * Container-responsive (100% width), fixed height. SVG keeps aspect ratio.
  */
 export function TeamChart({
   series,
@@ -46,6 +48,8 @@ export function TeamChart({
   lowerBetter = false,
 }: Props) {
   const uid = useId();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   // ─── Compute scales ────────────────────────────────────────
   const allValues = useMemo(
@@ -83,11 +87,9 @@ export function TeamChart({
   const yFor = (v: number) => MT + plotH - ((v - yMin) / yRange) * plotH;
 
   // ─── Smooth path using cubic Bezier midpoint smoothing ──
-  /** Build a smooth path through given (x, y) pts. Breaks at nulls. */
   function buildSmoothPath(pts: Array<{ x: number; y: number } | null>): { line: string; area: string } {
     let line = '';
     let area = '';
-    let prev: { x: number; y: number } | null = null;
 
     const segments: Array<Array<{ x: number; y: number }>> = [];
     let current: Array<{ x: number; y: number }> = [];
@@ -98,25 +100,18 @@ export function TeamChart({
     if (current.length) segments.push(current);
 
     for (const seg of segments) {
-      if (seg.length === 1) {
-        // Single point — just draw a dot, no path
-        continue;
-      }
+      if (seg.length === 1) continue;
       let segLine = `M ${seg[0].x.toFixed(1)} ${seg[0].y.toFixed(1)}`;
       for (let i = 1; i < seg.length; i++) {
         const p0 = seg[i - 1];
         const p1 = seg[i];
-        // Control points at the horizontal midpoint, vertically matching each end
         const mx = (p0.x + p1.x) / 2;
         segLine += ` C ${mx.toFixed(1)} ${p0.y.toFixed(1)}, ${mx.toFixed(1)} ${p1.y.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
       }
       line += (line ? ' ' : '') + segLine;
-      // Area: extend line down to baseline, back to start
       const baseline = MT + plotH;
       area += (area ? ' ' : '') + `${segLine} L ${seg[seg.length - 1].x.toFixed(1)} ${baseline} L ${seg[0].x.toFixed(1)} ${baseline} Z`;
-      prev = seg[seg.length - 1];
     }
-    void prev;
     return { line, area };
   }
 
@@ -132,9 +127,7 @@ export function TeamChart({
 
   // ─── Y-axis ticks (4 evenly spaced) ────────────────────────
   const yTicks: number[] = [];
-  for (let i = 0; i <= 3; i++) {
-    yTicks.push(yMin + (yRange * i) / 3);
-  }
+  for (let i = 0; i <= 3; i++) yTicks.push(yMin + (yRange * i) / 3);
 
   // ─── X-axis labels (5-7 sampled from dates) ────────────────
   const labelCount = Math.min(7, dates.length);
@@ -142,23 +135,71 @@ export function TeamChart({
   for (let i = 0; i < labelCount; i++) {
     const idx = Math.floor((i / Math.max(labelCount - 1, 1)) * (dates.length - 1));
     const d = new Date(dates[idx] + 'T12:00:00');
-    const months = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec'];
-    const label = `${d.getDate()} ${months[d.getMonth()]}`;
+    const label = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()].toLowerCase()}`;
     xLabels.push({ x: xFor(idx), label });
   }
 
   const targetY = target != null ? yFor(target) : null;
 
+  // ─── Hover mapping ─────────────────────────────────────────
+  // Convert client mouse x → SVG viewBox x → nearest date index.
+  // Use the SVG element's actual rendered rect so it works regardless
+  // of how the SVG is scaled (preserveAspectRatio="none" below makes
+  // this a clean linear map).
+  const updateHoverFromClientX = (clientX: number) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    // Map relX (0..rect.width) → SVG x (0..VW)
+    const svgX = (relX / rect.width) * VW;
+    // Map svgX → date index (snap to nearest)
+    const t = (svgX - ML) / plotW;
+    const idx = Math.round(t * (dates.length - 1));
+    if (idx < 0 || idx > dates.length - 1) { setHoverIdx(null); return; }
+    setHoverIdx(idx);
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => updateHoverFromClientX(e.clientX);
+  const onMouseLeave = () => setHoverIdx(null);
+  const onTouchMove = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (t) {
+      e.preventDefault();
+      updateHoverFromClientX(t.clientX);
+    }
+  };
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (t) updateHoverFromClientX(t.clientX);
+  };
+  // Keep the tooltip visible until next interaction on touch — don't auto-dismiss
+  // (mobile users want to read the value).
+
+  // Clamp hoverIdx in case the dates array shrunk under us
+  // (e.g. user switched range from "30" to "7" while hovering).
+  const safeHoverIdx =
+    hoverIdx !== null && hoverIdx >= 0 && hoverIdx < dates.length ? hoverIdx : null;
+
+  // Tooltip placement % across the container width.
+  // With preserveAspectRatio="none" the SVG fills its CSS box exactly,
+  // so xFor(idx)/VW directly maps to a horizontal % of the chart.
+  const hoverX = safeHoverIdx != null ? xFor(safeHoverIdx) : null;
+  const hoverPct = hoverX != null ? (hoverX / VW) * 100 : null;
+
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn('relative w-full', className)}>
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${VW} ${VH}`}
-        preserveAspectRatio="xMidYMid meet"
-        className="w-full"
+        preserveAspectRatio="none"
+        className="w-full block select-none"
         style={{ height }}
+        onMouseMove={onMouseMove}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
       >
         <defs>
-          {/* Drop-shadow filter for lines */}
           <filter id={`shadow-${uid}`} x="-10%" y="-10%" width="120%" height="120%">
             <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
             <feOffset dy="1.5" />
@@ -169,7 +210,6 @@ export function TeamChart({
             </feMerge>
           </filter>
 
-          {/* One gradient per series for area fill */}
           {seriesGeom.map((s, i) => (
             <linearGradient key={i} id={`grad-${uid}-${i}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={s.color} stopOpacity="0.30" />
@@ -231,16 +271,12 @@ export function TeamChart({
           </g>
         )}
 
-        {/* Area fills (under each line) */}
+        {/* Area fills */}
         {seriesGeom.map((s, i) => s.area && (
-          <path
-            key={`area-${i}`}
-            d={s.area}
-            fill={`url(#grad-${uid}-${i})`}
-          />
+          <path key={`area-${i}`} d={s.area} fill={`url(#grad-${uid}-${i})`} />
         ))}
 
-        {/* Lines with drop shadow */}
+        {/* Lines */}
         {seriesGeom.map((s, i) => s.line && (
           <path
             key={`line-${i}`}
@@ -283,7 +319,56 @@ export function TeamChart({
             {l.label}
           </text>
         ))}
+
+        {/* ─── HOVER LAYER ─── crosshair + highlighted dots */}
+        {safeHoverIdx !== null && hoverX !== null && (
+          <g pointerEvents="none">
+            {/* Vertical crosshair */}
+            <line
+              x1={hoverX} x2={hoverX}
+              y1={MT} y2={MT + plotH}
+              stroke="currentColor"
+              strokeWidth={1}
+              opacity={0.35}
+              strokeDasharray="3 3"
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* Halo + emphasized dot for each series at the hovered index */}
+            {seriesGeom.map((s, i) => {
+              const p = s.pts[safeHoverIdx];
+              if (!p) return null;
+              return (
+                <g key={`hover-${i}`}>
+                  <circle cx={p.x} cy={p.y} r={7} fill={s.color} opacity={0.18} />
+                  <circle
+                    cx={p.x} cy={p.y} r={4}
+                    fill={s.color}
+                    stroke="var(--color-bg)"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              );
+            })}
+          </g>
+        )}
       </svg>
+
+      {/* ─── TOOLTIP ─── HTML overlay so text doesn't stretch with preserveAspectRatio="none" */}
+      {safeHoverIdx !== null && hoverPct !== null && (
+        <Tooltip
+          xPct={hoverPct}
+          date={dates[safeHoverIdx]}
+          series={seriesGeom.map(s => ({
+            name: s.name,
+            color: s.color,
+            value: s.values[safeHoverIdx],
+          }))}
+          unit={unit}
+          target={target}
+          lowerBetter={lowerBetter}
+        />
+      )}
 
       {/* Legend below */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 px-1">
@@ -309,6 +394,73 @@ export function TeamChart({
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Tooltip ─────────────────────────────────────────────── */
+
+function Tooltip({
+  xPct, date, series, unit, target, lowerBetter,
+}: {
+  xPct: number;
+  date: string;
+  series: Array<{ name: string; color: string; value: number | null }>;
+  unit: string;
+  target?: number;
+  lowerBetter?: boolean;
+}) {
+  const d = new Date(date + 'T12:00:00');
+  const dateLabel = `${String(d.getDate()).padStart(2, '0')} ${MONTHS_SHORT[d.getMonth()]} · ${DAYS_SHORT[d.getDay()]}`;
+
+  // Anchor smart so the tooltip doesn't run off either edge.
+  // <15%  : pin to the left edge (no translate)
+  // >85%  : pin to the right edge (translate -100%)
+  // else  : center on the cursor x (translate -50%)
+  const nearLeft = xPct < 15;
+  const nearRight = xPct > 85;
+  const leftStyle = nearLeft ? '0%' : nearRight ? '100%' : `${xPct}%`;
+  const transformStyle =
+    nearLeft ? 'translateX(0)' :
+    nearRight ? 'translateX(-100%)' :
+    'translateX(-50%)';
+
+  return (
+    <div
+      className="absolute top-1.5 z-10 pointer-events-none px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/95 backdrop-blur-md shadow-2xl shadow-black/40 min-w-[140px]"
+      style={{ left: leftStyle, transform: transformStyle }}
+    >
+      <div className="text-[9px] uppercase tracking-[0.12em] text-[var(--color-fg-muted)] font-bold mb-1.5 num">
+        {dateLabel}
+      </div>
+      <div className="space-y-1">
+        {series.map((s, i) => {
+          const v = s.value;
+          const present = v != null;
+          // Mini delta indicator vs target
+          const showDelta = present && target != null;
+          const delta = present && target != null
+            ? (lowerBetter ? target - v : v - target)
+            : null;
+          return (
+            <div key={i} className="flex items-center gap-2 text-xs leading-tight">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} aria-hidden />
+              <span className="font-bold" style={{ color: s.color }}>{s.name}</span>
+              <span className="num font-bold ml-auto" style={{ color: present ? s.color : 'var(--color-fg-dim)' }}>
+                {present ? v : '—'}{present && unit ? unit : ''}
+              </span>
+              {showDelta && delta != null && Math.abs(delta) >= 1 && (
+                <span
+                  className="num text-[9px] font-bold"
+                  style={{ color: delta > 0 ? 'var(--color-good)' : 'var(--color-bad)' }}
+                >
+                  {delta > 0 ? '↑' : '↓'}{Math.abs(Math.round(delta))}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
