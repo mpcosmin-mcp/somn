@@ -6,10 +6,10 @@ import { ChatWidget } from '@/components/dashboard/chat-widget';
 import { Lobster } from '@/components/ui/lobster';
 
 /**
- * Hipnos floating chat bubble — bottom-right.
+ * Sforăilă floating chat bubble — bottom-right.
  *
  *   Collapsed:
- *     [Hipnos · vorbește live] (🦞)
+ *     [Sforăilă · vorbește live] (🦞)
  *      └ always-visible label    └ pulsing lobster bubble
  *
  *   The label is the fix for the previous "nobody saw the bubble" issue:
@@ -69,14 +69,14 @@ export function ChatPanel() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-60" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-accent)]" />
           </span>
-          <span className="text-xs font-bold text-[var(--color-fg)]">Hipnos</span>
+          <span className="text-xs font-bold text-[var(--color-fg)]">Sforăilă</span>
           <span className="text-[10px] text-[var(--color-fg-muted)] hidden md:inline">vorbește live</span>
         </button>
 
         {/* Lobster bubble — the actual trigger */}
         <button
           onClick={() => setOpen(true)}
-          aria-label="Deschide chat cu Hipnos"
+          aria-label="Deschide chat cu Sforăilă"
           className="relative w-14 h-14 rounded-full border-2 shadow-2xl shadow-black/50 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
           style={{
             background: 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))',
@@ -118,7 +118,7 @@ export function ChatPanel() {
         `}
         role="dialog"
         aria-modal="true"
-        aria-label="Chat cu Hipnos"
+        aria-label="Chat cu Sforăilă"
       >
         <ChatWidget
           user={user}

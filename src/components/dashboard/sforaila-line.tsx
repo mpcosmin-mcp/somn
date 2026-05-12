@@ -2,20 +2,20 @@
 import { useEffect, useState } from 'react';
 import { type SleepEntry } from '@/lib/sleep';
 
-// v2 — prompt changed to a strict one-liner. Old multi-sentence cached
-// values must not be reused.
-const KEY = (user: string, lastDate: string) => `somn_vibe_v2_${user}_${lastDate}`;
+// v3 — Hipnos retired, Sforăilă (grumpy bear / beast mode) prompt. Old
+// cached one-liners must not show up.
+const KEY = (user: string, lastDate: string) => `somn_vibe_v3_${user}_${lastDate}`;
 
 /**
- * Hipnos one-liner — sits at the very top of the dashboard.
+ * Sforăilă one-liner — sits at the very top of the dashboard.
  *
- *   🦞 HIPNOS · "una linie scurta, ascutita, despre ce a observat"
+ *   🦞 SFORĂILĂ · "una linie scurtă, după date — sau morocănos sau bestie"
  *
  * Single line. Fetched once per (user, latestLogDate), cached in
  * localStorage. Renders nothing if no AI text yet — silent, never empty
  * placeholder.
  */
-export function HipnosLine({ entries, user }: { entries: SleepEntry[]; user: string }) {
+export function SforailaLine({ entries, user }: { entries: SleepEntry[]; user: string }) {
   const [text, setText] = useState<string | null>(null);
   const lastDate = [...new Set(entries.map(e => e.date))].sort().slice(-1)[0] ?? '';
 
@@ -53,9 +53,9 @@ export function HipnosLine({ entries, user }: { entries: SleepEntry[]; user: str
         borderColor: 'rgba(129,140,248,0.18)',
       }}
     >
-      <span className="text-base shrink-0" aria-hidden>🦞</span>
+      <span className="text-base shrink-0" aria-hidden>🐻</span>
       <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--color-accent)] shrink-0">
-        Hipnos
+        Sforăilă
       </span>
       <span className="text-[var(--color-fg-dim)] shrink-0 hidden sm:inline">·</span>
       <p className="text-sm text-[var(--color-fg)] truncate flex-1 min-w-0">{text}</p>

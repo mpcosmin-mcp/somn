@@ -1,7 +1,7 @@
 'use client';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
-import { HipnosLine } from '@/components/dashboard/hipnos-line';
+import { SforailaLine } from '@/components/dashboard/sforaila-line';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { TeamFeed } from '@/components/dashboard/team-feed';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
@@ -12,11 +12,11 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
 /**
  * Main dashboard — everything on ONE page, in this order:
  *
- *   1. Hipnos one-liner (single sentence, top of page)
+ *   1. Sforăilă one-liner (single sentence, top of page)
  *   2. KPI cards — Sleep Score / REM / HRV / RHR, each with target-vs-actual pill
  *   3. Leaderboard — full team clasament (replaces the old SquadBar)
  *   4. TeamFeed — social conversation on today's journals (likes + comments)
- *   5. Personal History (+ Hipnos pattern note)
+ *   5. Personal History (+ Sforăilă pattern note)
  *   6. Team Chart — SS / REM / RHR / HRV multi-metric switcher
  */
 export default function Home() {
@@ -39,7 +39,7 @@ export default function Home() {
     <div className="flex flex-col gap-3 lg:gap-4 max-w-6xl mx-auto w-full">
       {/* 🦞 Top one-liner */}
       <div className="fade-in-up delay-0">
-        <HipnosLine entries={entries} user={user} />
+        <SforailaLine entries={entries} user={user} />
       </div>
 
       {/* Personal KPIs — Sleep Score / REM / HRV / RHR */}

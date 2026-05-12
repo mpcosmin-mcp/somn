@@ -10,7 +10,7 @@ import { ProfilePopover } from '@/components/layout/profile-popover';
  *   Left:  brand "somn" + small tagline (sm+)
  *   Right: theme toggle · profile chip (click → popover with profile + XP + switch user)
  *
- * The chat with Hipnos lives in a floating bubble at bottom-right (see ChatPanel).
+ * The chat with Sforăilă lives in a floating bubble at bottom-right (see ChatPanel).
  * No nav links — this app has a single page.
  */
 export function TopBar() {

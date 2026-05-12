@@ -5,7 +5,7 @@ import { type SleepEntry, ssColor, hrvColor, ssTier, personalTrendNote } from '@
  * Personal History — compact tabular view of the last few logs.
  *
  * Columns: DATA · SCOR · REM · HRV · STATUS pill (Optim/Average/Poor).
- * Footer: 🦞 Hipnos pattern note — computed locally from the data
+ * Footer: 🦞 Sforăilă pattern note — computed locally from the data
  *         (no AI call), so the user always sees what's trending.
  */
 export function PersonalHistory({ entries, user, limit = 6 }: {
@@ -79,13 +79,13 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
         })}
       </div>
 
-      {/* 🦞 Hipnos pattern note — present at the bottom, always */}
+      {/* 🦞 Sforăilă pattern note — present at the bottom, always */}
       {trend && (
         <div className="mt-3 pt-3 border-t border-[var(--color-border)]/70 flex items-start gap-2.5">
           <span className="text-base shrink-0 leading-tight" aria-hidden>🦞</span>
           <div className="flex-1 min-w-0">
             <div className="text-[9px] uppercase tracking-[0.16em] font-bold text-[var(--color-accent)] mb-0.5">
-              Hipnos · pattern
+              Sforăilă · pattern
             </div>
             <p
               className="text-xs leading-relaxed"

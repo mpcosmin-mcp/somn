@@ -277,7 +277,7 @@ function LogStep({
       </div>
 
       <div className="text-[10px] text-[var(--color-fg-dim)] text-center pt-1">
-        sau vorbește cu Hipnos pe dashboard ca să loghezi conversațional
+        sau vorbește cu Sforăilă pe dashboard ca să loghezi conversațional
       </div>
     </div>
   );
