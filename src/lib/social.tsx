@@ -6,6 +6,8 @@ import {
 import {
   fetchLikes, toggleLikeRemote,
   fetchComments, addCommentRemote, deleteCommentRemote,
+  replyToCommentRemote, toggleCommentLikeRemote, toggleReplyLikeRemote,
+  deleteReplyRemote,
   type ApiError,
 } from '@/lib/social-api';
 
@@ -32,24 +34,71 @@ import {
  */
 
 const LIKES_KEY    = 'somn_likes_v2';
-const COMMENTS_KEY = 'somn_comments_v2';
+// v3 — Comments grew `likes` + `replies` fields (Instagram-style threading).
+// Old cached v2 records lack those, would crash the new UI on .includes().
+const COMMENTS_KEY = 'somn_comments_v3';
 const REFETCH_INTERVAL_MS = 30_000;
+
+export interface Reply {
+  from: string;
+  ts: number;
+  text: string;
+  /** Users who liked this reply. */
+  likes: string[];
+}
 
 export interface Comment {
   from: string;
   ts: number;
   text: string;
+  /** Users who liked this comment. */
+  likes: string[];
+  /** 1-level threading — replies cannot themselves be replied to. */
+  replies: Reply[];
 }
 
 export type LikesMap    = Record<string, string[]>;
 export type CommentsMap = Record<string, Comment[]>;
 
+/** Pad legacy KV records (pre-threading) with default arrays so the new
+ *  UI never crashes on undefined `likes`/`replies` fields. */
+export function hydrateComment(raw: unknown): Comment {
+  const r = (raw ?? {}) as Partial<Comment>;
+  return {
+    from: r.from ?? '',
+    ts: typeof r.ts === 'number' ? r.ts : 0,
+    text: r.text ?? '',
+    likes: Array.isArray(r.likes) ? r.likes : [],
+    replies: Array.isArray(r.replies) ? r.replies.map(hydrateReply) : [],
+  };
+}
+
+export function hydrateReply(raw: unknown): Reply {
+  const r = (raw ?? {}) as Partial<Reply>;
+  return {
+    from: r.from ?? '',
+    ts: typeof r.ts === 'number' ? r.ts : 0,
+    text: r.text ?? '',
+    likes: Array.isArray(r.likes) ? r.likes : [],
+  };
+}
+
 interface SocialContextValue {
   likes: LikesMap;
   comments: CommentsMap;
   toggleLike: (entryKey: string, user: string) => void;
+  /** Add a top-level comment to an entry. */
   addComment: (entryKey: string, comment: Comment) => void;
+  /** Delete a top-level comment (by current user). */
   deleteComment: (entryKey: string, ts: number, by: string) => void;
+  /** Reply to a comment (parentTs identifies the parent in the thread). */
+  addReply: (entryKey: string, commentTs: number, reply: Reply) => void;
+  /** Delete a reply you wrote (by current user). */
+  deleteReply: (entryKey: string, commentTs: number, replyTs: number, by: string) => void;
+  /** Toggle like on a top-level comment. */
+  toggleCommentLike: (entryKey: string, commentTs: number, user: string) => void;
+  /** Toggle like on a reply. */
+  toggleReplyLike: (entryKey: string, commentTs: number, replyTs: number, user: string) => void;
   /** True while the very first KV fetch is in flight (cache still hydrating) */
   initialLoading: boolean;
   /** Last sync error, if any. Useful for surfacing offline state in the UI. */
@@ -83,9 +132,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [syncError, setSyncError] = useState<string | null>(null);
 
   // Hydrate from localStorage SYNCHRONOUSLY on mount, then refetch.
+  // Every comment goes through hydrateComment() so missing-field records
+  // (legacy or partial writes) get padded with empty arrays.
   useEffect(() => {
     setLikes(readCache<LikesMap>(LIKES_KEY));
-    setComments(readCache<CommentsMap>(COMMENTS_KEY));
+    const rawComments = readCache<Record<string, unknown[]>>(COMMENTS_KEY);
+    const hydrated: CommentsMap = {};
+    for (const [k, arr] of Object.entries(rawComments)) {
+      if (Array.isArray(arr)) hydrated[k] = arr.map(hydrateComment);
+    }
+    setComments(hydrated);
   }, []);
 
   // Background refetch — runs once on mount, on focus, every 30s.
@@ -237,9 +293,113 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
+  /* ── Thread mutations (Instagram-style 1-level threading) ── */
+
+  /** Helper: apply a transform to one entry's comments array, optimistically. */
+  const mutateEntryComments = (
+    entryKey: string,
+    transform: (arr: Comment[]) => Comment[],
+  ) => {
+    let snapshot: Comment[] = [];
+    setComments(prev => {
+      snapshot = prev[entryKey] ?? [];
+      const next = transform(snapshot);
+      const out: CommentsMap = { ...prev };
+      if (next.length === 0) delete out[entryKey];
+      else out[entryKey] = next;
+      writeCache(COMMENTS_KEY, out);
+      return out;
+    });
+    return snapshot;
+  };
+
+  /** Helper: server response wins. */
+  const reconcileEntryComments = (entryKey: string, serverArr: Comment[]) => {
+    setComments(curr => {
+      const next: CommentsMap = { ...curr };
+      if (serverArr.length === 0) delete next[entryKey];
+      else next[entryKey] = serverArr;
+      writeCache(COMMENTS_KEY, next);
+      return next;
+    });
+  };
+
+  /** Helper: smart rollback (4xx only). For 5xx/network/kv-unavail we keep
+   *  optimistic state and surface syncError. */
+  const handleMutationError = (
+    entryKey: string,
+    snapshot: Comment[],
+    err: ApiError,
+  ) => {
+    if (err?.status && err.status >= 400 && err.status < 500) {
+      setComments(curr => {
+        const reverted: CommentsMap = { ...curr };
+        if (snapshot.length === 0) delete reverted[entryKey];
+        else reverted[entryKey] = snapshot;
+        writeCache(COMMENTS_KEY, reverted);
+        return reverted;
+      });
+    } else {
+      setSyncError(err?.isKvUnavailable ? 'kv-unavailable' : (err?.message ?? 'sync error'));
+    }
+  };
+
+  const addReply = useCallback((entryKey: string, commentTs: number, reply: Reply) => {
+    const snapshot = mutateEntryComments(entryKey, arr =>
+      arr.map(c => c.ts === commentTs ? { ...c, replies: [...c.replies, reply] } : c),
+    );
+    replyToCommentRemote(entryKey, commentTs, reply)
+      .then(srv => { reconcileEntryComments(entryKey, srv); setSyncError(null); })
+      .catch((err: ApiError) => handleMutationError(entryKey, snapshot, err));
+  }, []);
+
+  const deleteReply = useCallback((entryKey: string, commentTs: number, replyTs: number, by: string) => {
+    const snapshot = mutateEntryComments(entryKey, arr =>
+      arr.map(c => c.ts !== commentTs ? c : {
+        ...c,
+        replies: c.replies.filter(r => !(r.ts === replyTs && r.from === by)),
+      }),
+    );
+    deleteReplyRemote(entryKey, commentTs, replyTs, by)
+      .then(srv => { reconcileEntryComments(entryKey, srv); setSyncError(null); })
+      .catch((err: ApiError) => handleMutationError(entryKey, snapshot, err));
+  }, []);
+
+  const toggleCommentLike = useCallback((entryKey: string, commentTs: number, user: string) => {
+    const snapshot = mutateEntryComments(entryKey, arr =>
+      arr.map(c => c.ts !== commentTs ? c : {
+        ...c,
+        likes: c.likes.includes(user)
+          ? c.likes.filter(u => u !== user)
+          : [...c.likes, user],
+      }),
+    );
+    toggleCommentLikeRemote(entryKey, commentTs, user)
+      .then(srv => { reconcileEntryComments(entryKey, srv); setSyncError(null); })
+      .catch((err: ApiError) => handleMutationError(entryKey, snapshot, err));
+  }, []);
+
+  const toggleReplyLike = useCallback((entryKey: string, commentTs: number, replyTs: number, user: string) => {
+    const snapshot = mutateEntryComments(entryKey, arr =>
+      arr.map(c => c.ts !== commentTs ? c : {
+        ...c,
+        replies: c.replies.map(r => r.ts !== replyTs ? r : {
+          ...r,
+          likes: r.likes.includes(user)
+            ? r.likes.filter(u => u !== user)
+            : [...r.likes, user],
+        }),
+      }),
+    );
+    toggleReplyLikeRemote(entryKey, commentTs, replyTs, user)
+      .then(srv => { reconcileEntryComments(entryKey, srv); setSyncError(null); })
+      .catch((err: ApiError) => handleMutationError(entryKey, snapshot, err));
+  }, []);
+
   return (
     <SocialContext.Provider value={{
       likes, comments, toggleLike, addComment, deleteComment,
+      addReply, deleteReply, toggleCommentLike, toggleReplyLike,
       initialLoading, syncError,
     }}>
       {children}
@@ -258,6 +418,10 @@ export function useSocial() {
       toggleLike: () => {},
       addComment: () => {},
       deleteComment: () => {},
+      addReply: () => {},
+      deleteReply: () => {},
+      toggleCommentLike: () => {},
+      toggleReplyLike: () => {},
       initialLoading: false,
       syncError: null as string | null,
       likesFor: (_k: string) => [] as string[],
