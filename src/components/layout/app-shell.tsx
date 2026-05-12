@@ -3,8 +3,6 @@ import { type ReactNode } from 'react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { TopBar } from '@/components/layout/top-bar';
-import { ChatPanel } from '@/components/dashboard/chat-panel';
-import { WanderingBear } from '@/components/dashboard/wandering-bear';
 import { UserPicker } from '@/components/dashboard/user-picker';
 
 /**
@@ -18,7 +16,9 @@ import { UserPicker } from '@/components/dashboard/user-picker';
  *   │                                                     │
  *   └─────────────────────────────────────────────────────┘
  *
- *   Plus a floating chat bubble bottom-right (ChatPanel).
+ * Sforăilă is no longer interactive — his presence is now ambient
+ * (insights cards on the dashboard). The chat / wandering trigger
+ * have been retired.
  *
  * Login screen: UserPicker takes the whole viewport (no TopBar).
  */
@@ -47,20 +47,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <>
-      <div className="min-h-dvh flex flex-col" data-page-content>
-        <TopBar />
-        <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe pb-24 sm:pb-28">
-          {children}
-        </main>
-      </div>
-
-      {/* 🐻 Sforăilă — wanders the page, click him to open the chat. */}
-      <WanderingBear />
-
-      {/* Chat popup — bottom-right, opened by WanderingBear (or any
-          openChat() call from anywhere via the global CHAT_EVENT). */}
-      <ChatPanel />
-    </>
+    <div className="min-h-dvh flex flex-col" data-page-content>
+      <TopBar />
+      <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe">
+        {children}
+      </main>
+    </div>
   );
 }

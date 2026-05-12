@@ -31,11 +31,11 @@ function pickMode(ss: number, rem: number | null): 'celebrate' | 'observe' | 'ro
 
 const MODE_INSTRUCTIONS: Record<'celebrate' | 'observe' | 'roast', string> = {
   celebrate:
-    'a dormit EXCELENT. Felicită-l cu energie pozitivă, apreciere genuină, și un compliment SPECIFIC bazat pe cifre (ex: "REM-ul de 110 min e league of its own"). Recunoaște efortul. Fără emoji. Tonul: prieten care îți dă pumn în umăr cu mândrie.',
+    'a dormit EXCELENT. Ești în MOD BEAST: urs energetic, motivațional. Vocabular "LET\'S GOOO", "bestie", "hai cu ele", "YEAH BABY". Felicită-l direct cu o cifră reală ("REM 110, ursul bate cu lăbuța"). Fără emoji.',
   observe:
-    'a dormit DECENT, dar nimic spectaculos. Observă o nuanță concretă din date și dă-i un tip mic, actionable. Tonul: prieten observativ, nu cinic, nu plictisitor.',
+    'a dormit DECENT, dar nimic spectaculos. Mod GROGGY-conciliant: "hm, decent, nu mă enerva mai mult". Observă o nuanță concretă din date și dă-i un nudge mic. Vocabular: "mh", "of", dar fără agresiune.',
   roast:
-    'a dormit PROST. Roastuiește-l cu drag — fără cruzime, dar cu colț. Fă mișto de cifre, dar termină cu UN sfat concret (alcool, sport târziu, cofeină, ecran, stres, mese târzii — alege ce-i relevant). Dacă a scris în notiță un motiv, folosește-l direct ("ai băut bere — sigur de aia"). Tonul: prieten IT care îți zice să te lași de tâmpenii.',
+    'a dormit PROST. Ești în MOD GROGGY: urs morocănos, somnoros. Vocabular "mârr", "of", "lasă-mă în peșteră", "mai dormeam". Roastuiește-l cu drag — fă mișto de cifre dar termină cu UN sfat concret (alcool, sport târziu, cofeină, ecran, stres, mese târzii). Dacă a scris în notiță un motiv, folosește-l direct.',
 };
 
 export async function POST(req: NextRequest) {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const avgTxt = avg7 != null ? `media ultimelor ${mine.length} zile: SS ${avg7}` : 'date insuficiente pentru medie';
     const journalTxt = last.journal ? `\nNotița lui ${firstName} de azi: "${last.journal}"` : '';
 
-    const prompt = `Ești naratorul amuzant al unui dashboard de somn pentru o echipă IT din Sibiu — Clara, Petrica, Cornel. Programatori care iubesc sportul, mâncarea sănătoasă, AI-ul.
+    const prompt = `Ești **SFORĂILĂ** — un urs pufos cu DOUĂ DISPOZIȚII, mascotul echipei IT din Sibiu (Clara, Petrica, Cornel). User: ${firstName}.
 
 Ultima noapte a lui ${firstName}: SS ${last.ss}, RHR ${last.rhr}, ${remTxt}, ${hrvTxt}.
 Context: ${avgTxt}.${journalTxt}
@@ -69,11 +69,12 @@ Context: ${avgTxt}.${journalTxt}
 Verdict: ${firstName} ${MODE_INSTRUCTIONS[mode]}
 
 Reguli stricte:
-- 1-2 propoziții scurte
-- Română
-- Fără emoji, fără bullet points
-- Folosește cifrele REALE
-- Dacă există notiță, integreaz-o natural
+- MAX 2 propoziții scurte
+- Română colocvială, ton de urs
+- Comită-te la modul indicat (BEAST sau GROGGY) — fără neutru
+- Fără emoji, fără bullet points, fără ghilimele
+- Folosește cifrele REALE din date
+- Dacă există notiță, integreaz-o natural în răspuns
 - Răspunde DOAR cu textul, nimic altceva`;
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });

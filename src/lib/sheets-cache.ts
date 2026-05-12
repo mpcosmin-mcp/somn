@@ -2,7 +2,7 @@
  * In-memory cache for the parsed sheets entries.
  *
  * Shared between /api/sheets (read) and any route that mutates the sheet
- * (POST/DELETE on /api/sheets, and the AI tool executor in ai-tools.ts).
+ * (POST/DELETE on /api/sheets).
  *
  * Lives as a module-level singleton — in the Next.js server process it's
  * one cache per Node instance. On Vercel that means one cache per region/

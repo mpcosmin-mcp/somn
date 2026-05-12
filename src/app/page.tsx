@@ -1,7 +1,7 @@
 'use client';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
-import { SforailaLine } from '@/components/dashboard/sforaila-line';
+import { SforailaInsights } from '@/components/dashboard/sforaila-insights';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { TeamFeed } from '@/components/dashboard/team-feed';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
@@ -12,12 +12,13 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
 /**
  * Main dashboard — everything on ONE page, in this order:
  *
- *   1. Sforăilă one-liner (single sentence, top of page)
- *   2. KPI cards — Sleep Score / REM / HRV / RHR, each with target-vs-actual pill
- *   3. Leaderboard — full team clasament (replaces the old SquadBar)
- *   4. TeamFeed — social conversation on today's journals (likes + comments)
- *   5. Personal History (+ Sforăilă pattern note)
- *   6. Team Chart — SS / REM / RHR / HRV multi-metric switcher
+ *   1. Sforăilă Insights — 3 fun observations (azi / săpt / clasament)
+ *      from the AI. No chat anymore; this is his ambient presence.
+ *   2. KPI cards — Sleep Score / REM / HRV / RHR with target-vs-actual.
+ *   3. Leaderboard — team clasament.
+ *   4. TeamFeed — today's journals, likes + comments.
+ *   5. Personal History — recent entries + Sforăilă pattern note.
+ *   6. Team Chart — multi-metric switcher.
  */
 export default function Home() {
   const { user } = useUser();
@@ -37,9 +38,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-3 lg:gap-4 max-w-6xl mx-auto w-full">
-      {/* 🦞 Top one-liner */}
+      {/* 🐻 Sforăilă observă — 3 insights de la AI */}
       <div className="fade-in-up delay-0">
-        <SforailaLine entries={entries} user={user} />
+        <SforailaInsights entries={entries} user={user} />
       </div>
 
       {/* Personal KPIs — Sleep Score / REM / HRV / RHR */}
@@ -47,7 +48,7 @@ export default function Home() {
         <KpiCards entries={entries} user={user} />
       </div>
 
-      {/* Team clasament (replaces SquadBar) */}
+      {/* Team clasament */}
       <div className="fade-in-up delay-2">
         <Leaderboard entries={entries} currentUser={user} />
       </div>
@@ -57,7 +58,7 @@ export default function Home() {
         <TeamFeed entries={entries} currentUser={user} limit={5} />
       </div>
 
-      {/* Personal history (full width) */}
+      {/* Personal history (with Sforăilă pattern footer) */}
       <div className="fade-in-up delay-4">
         <PersonalHistory entries={entries} user={user} limit={6} />
       </div>
