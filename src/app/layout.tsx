@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { NO_FLASH_SCRIPT } from '@/lib/theme';
 import { UserProvider } from '@/lib/user';
 import { EntriesProvider } from '@/lib/entries-provider';
+import { SocialProvider } from '@/lib/social';
 import { AppShell } from '@/components/layout/app-shell';
 import './globals.css';
 
@@ -69,7 +70,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="antialiased">
         <UserProvider>
           <EntriesProvider>
-            <AppShell>{children}</AppShell>
+            <SocialProvider>
+              <AppShell>{children}</AppShell>
+            </SocialProvider>
           </EntriesProvider>
         </UserProvider>
       </body>

@@ -4,6 +4,7 @@ import { type SleepEntry, FIRST_NAME, personColor, ssColor, remColor, rhrColor, 
 import { fmtDateShort } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { EntryReactions } from '@/components/dashboard/entry-reactions';
+import { useSocial } from '@/lib/social';
 
 /**
  * Team Feed — the social layer of somn.
@@ -22,6 +23,7 @@ export function TeamFeed({ entries, currentUser, limit = 5 }: {
   limit?: number;
 }) {
   const [scope, setScope] = useState<'journals' | 'all'>('journals');
+  const { syncError } = useSocial();
 
   const feed = useMemo(() => {
     const filtered = scope === 'journals'
@@ -48,7 +50,18 @@ export function TeamFeed({ entries, currentUser, limit = 5 }: {
       {/* Header */}
       <div className="flex items-baseline justify-between gap-2 flex-wrap mb-3">
         <div>
-          <div className="label">Feed echipă · jurnalele oamenilor</div>
+          <div className="label flex items-center gap-2">
+            <span>Feed echipă · jurnalele oamenilor</span>
+            {syncError === 'kv-unavailable' && (
+              <span
+                className="num text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                style={{ background: 'rgba(251,191,36,0.12)', color: 'var(--color-warn)' }}
+                title="Vercel KV nu e configurat — reacțiile rămân doar pe acest device. Vezi SOCIAL_SYNC.md."
+              >
+                offline
+              </span>
+            )}
+          </div>
           <div className="text-[10px] num text-[var(--color-fg-dim)] mt-0.5">
             {journalCount} loguri cu notițe în total
           </div>
