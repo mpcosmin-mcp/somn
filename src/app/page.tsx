@@ -4,6 +4,7 @@ import { useEntries } from '@/lib/entries-provider';
 import { HipnosLine } from '@/components/dashboard/hipnos-line';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { SquadBar } from '@/components/dashboard/squad-bar';
+import { TeamFeed } from '@/components/dashboard/team-feed';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
@@ -54,8 +55,13 @@ export default function Home() {
         <SquadBar entries={entries} currentUser={user} />
       </div>
 
+      {/* Social feed — journals from the team, with likes + comments */}
+      <div className="fade-in-up delay-3">
+        <TeamFeed entries={entries} currentUser={user} limit={5} />
+      </div>
+
       {/* Split: Personal History · Team Leaderboard */}
-      <div className="fade-in-up delay-3 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+      <div className="fade-in-up delay-4 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
         <PersonalHistory entries={entries} user={user} limit={6} />
         <Leaderboard entries={entries} currentUser={user} />
       </div>
