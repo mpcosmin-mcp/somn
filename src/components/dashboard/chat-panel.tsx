@@ -51,15 +51,17 @@ export function ChatPanel() {
         aria-hidden
       />
 
-      {/* Chat popup — bottom-right on sm+, full-screen on mobile. */}
+      {/* Chat popup — anchored to Sforăilă's corner (top-left) on sm+,
+          full-screen on mobile. Same `top-[70px] left-4` position the
+          bear lives at, so the chat appears "from" his icon. */}
       <div
         className={`fixed z-50 flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden shadow-2xl shadow-black/40
-          inset-0 sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[420px] sm:max-w-[calc(100vw-2rem)] sm:h-[min(720px,calc(100dvh-6rem))] sm:rounded-2xl
+          inset-0 sm:inset-auto sm:top-[70px] sm:left-4 sm:w-[420px] sm:max-w-[calc(100vw-2rem)] sm:h-[min(720px,calc(100dvh-6rem))] sm:rounded-2xl
           lg:w-[460px]
-          transform-gpu transition-all duration-250 ease-out origin-bottom-right
+          transform-gpu transition-all duration-250 ease-out origin-top-left
           ${open
             ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}
+            : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}
         `}
         role="dialog"
         aria-modal="true"

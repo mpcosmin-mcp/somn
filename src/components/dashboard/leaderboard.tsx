@@ -32,7 +32,7 @@ interface Row {
 }
 
 export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; currentUser: string }) {
-  const [period, setPeriod] = useState<Period>('week');
+  const [period, setPeriod] = useState<Period>('today');
 
   const { rows, latestDate, periodLabel } = useMemo(() => {
     let scoped: SleepEntry[];
