@@ -62,7 +62,15 @@ export const viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ro" className={`${geistSans.variable} ${geistMono.variable}`}>
+    // suppressHydrationWarning: the NO_FLASH_SCRIPT below mutates the
+    // <html> classList synchronously before React hydrates (to apply
+    // the saved theme without a flash). That's an intentional mismatch
+    // between SSR and client — silence the warning here only.
+    <html
+      lang="ro"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Apply saved theme before hydration to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
