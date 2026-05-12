@@ -200,8 +200,56 @@ html.light .glass {
 .pill.average { color: var(--color-warn); background: color-mix(in srgb, var(--color-warn) 14%, transparent); }
 .pill.poor { color: var(--color-bad); background: color-mix(in srgb, var(--color-bad) 14%, transparent); }
 
+/* ─── Sforăilă, ursul morocănos ─── animated wandering chat trigger
+   Lives `fixed` just below the topbar, paces slowly across the page,
+   bobs gently while walking, faces the direction of travel. Pauses on
+   hover so the user can actually click him. */
+
+@keyframes bear-walk {
+  /* Walk right */
+  0%   { transform: translateX(0)                  scaleX(1);  }
+  44%  { transform: translateX(calc(100vw - 96px)) scaleX(1);  }
+  /* Pause briefly, flip to face left */
+  48%  { transform: translateX(calc(100vw - 96px)) scaleX(-1); }
+  /* Walk back */
+  92%  { transform: translateX(0)                  scaleX(-1); }
+  /* Flip back to face right and loop */
+  96%  { transform: translateX(0)                  scaleX(1);  }
+  100% { transform: translateX(0)                  scaleX(1);  }
+}
+
+@keyframes bear-bob {
+  0%, 100% { transform: translateY(0)    rotate(-2deg); }
+  50%      { transform: translateY(-2px) rotate(2deg);  }
+}
+
+.wandering-bear {
+  animation: bear-walk 60s ease-in-out infinite;
+  will-change: transform;
+}
+
+.wandering-bear-inner {
+  animation: bear-bob 0.7s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Catchable: pause on hover/focus-within so users can click reliably */
+.wandering-bear:hover,
+.wandering-bear:focus-within {
+  animation-play-state: paused;
+}
+.wandering-bear:hover .wandering-bear-inner,
+.wandering-bear:focus-within .wandering-bear-inner {
+  animation-play-state: paused;
+}
+
 /* Reduce motion respectfully */
 @media (prefers-reduced-motion: reduce) {
+  .wandering-bear,
+  .wandering-bear-inner {
+    animation: none !important;
+    transform: none !important;
+  }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

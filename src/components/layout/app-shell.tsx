@@ -4,6 +4,7 @@ import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { TopBar } from '@/components/layout/top-bar';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
+import { WanderingBear } from '@/components/dashboard/wandering-bear';
 import { UserPicker } from '@/components/dashboard/user-picker';
 
 /**
@@ -54,7 +55,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* Floating chat — bottom-right, always present */}
+      {/* 🐻 Sforăilă — wanders the page, click him to open the chat. */}
+      <WanderingBear />
+
+      {/* Chat popup — bottom-right, opened by WanderingBear (or any
+          openChat() call from anywhere via the global CHAT_EVENT). */}
       <ChatPanel />
     </>
   );
