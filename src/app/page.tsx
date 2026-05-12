@@ -3,7 +3,6 @@ import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { HipnosLine } from '@/components/dashboard/hipnos-line';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
-import { SquadBar } from '@/components/dashboard/squad-bar';
 import { TeamFeed } from '@/components/dashboard/team-feed';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
@@ -14,13 +13,11 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
  * Main dashboard — everything on ONE page, in this order:
  *
  *   1. Hipnos one-liner (single sentence, top of page)
- *   2. KPI cards — personal data, 3 big numbers
- *   3. Squad Competition — 3-up avg SS
- *   4. Split row: Personal History (+ Hipnos pattern note) · Team Leaderboard
- *   5. Team Chart — SS / REM / RHR / HRV multi-metric switcher
- *
- * Page scrolls vertically — no fake "fit in viewport" constraint
- * (that hid the team chart on the old /detail page).
+ *   2. KPI cards — Sleep Score / REM / HRV / RHR, each with target-vs-actual pill
+ *   3. Leaderboard — full team clasament (replaces the old SquadBar)
+ *   4. TeamFeed — social conversation on today's journals (likes + comments)
+ *   5. Personal History (+ Hipnos pattern note)
+ *   6. Team Chart — SS / REM / RHR / HRV multi-metric switcher
  */
 export default function Home() {
   const { user } = useUser();
@@ -45,29 +42,28 @@ export default function Home() {
         <HipnosLine entries={entries} user={user} />
       </div>
 
-      {/* Personal KPIs */}
+      {/* Personal KPIs — Sleep Score / REM / HRV / RHR */}
       <div className="fade-in-up delay-1">
         <KpiCards entries={entries} user={user} />
       </div>
 
-      {/* Squad competition (3-up averages) */}
+      {/* Team clasament (replaces SquadBar) */}
       <div className="fade-in-up delay-2">
-        <SquadBar entries={entries} currentUser={user} />
+        <Leaderboard entries={entries} currentUser={user} />
       </div>
 
-      {/* Social feed — journals from the team, with likes + comments */}
+      {/* Social feed — today's journals, with likes + comments */}
       <div className="fade-in-up delay-3">
         <TeamFeed entries={entries} currentUser={user} limit={5} />
       </div>
 
-      {/* Split: Personal History · Team Leaderboard */}
-      <div className="fade-in-up delay-4 grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+      {/* Personal history (full width) */}
+      <div className="fade-in-up delay-4">
         <PersonalHistory entries={entries} user={user} limit={6} />
-        <Leaderboard entries={entries} currentUser={user} />
       </div>
 
-      {/* Team chart — SS / REM / RHR / HRV switcher */}
-      <div className="fade-in-up delay-4">
+      {/* Team multi-metric chart */}
+      <div className="fade-in-up delay-5">
         <TeamChartPane entries={entries} />
       </div>
     </div>

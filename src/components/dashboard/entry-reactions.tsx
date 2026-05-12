@@ -1,12 +1,16 @@
 'use client';
 import { useState } from 'react';
+import { Heart, MessageCircle, Send, X } from 'lucide-react';
 import { type SleepEntry, FIRST_NAME, personColor } from '@/lib/sleep';
 import { useSocial, entryKeyOf, type Comment } from '@/lib/social';
 
 /**
  * Likes + comments footer for a single feed entry.
  *
- *   [♥ 3]  [💬 2]                          ← collapsed state
+ * Instagram-style icons via lucide-react:
+ *   - Heart outline (not liked) → filled red on click
+ *   - MessageCircle outline (always)
+ *   - Send for submit
  *
  * Click 💬 to expand the comment thread + composer.
  */
@@ -33,30 +37,37 @@ export function EntryReactions({ entry, currentUser }: {
 
   return (
     <div className="mt-2.5 pt-2 border-t border-[var(--color-border)]/60">
-      {/* Action row */}
+      {/* Action row — Instagram-style icons */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => toggleLike(key, currentUser)}
           aria-label={iLiked ? 'Retrage like' : 'Dă like'}
-          className="flex items-center gap-1.5 text-[11px] font-bold tap rounded-md px-1.5 -mx-1.5 py-0.5 transition-colors"
-          style={{ color: iLiked ? 'var(--color-bad)' : 'var(--color-fg-muted)' }}
+          aria-pressed={iLiked}
+          className="flex items-center gap-1.5 text-xs font-bold tap rounded-md px-1 -mx-1 py-0.5 transition-transform active:scale-90"
+          style={{ color: iLiked ? '#ef4444' : 'var(--color-fg-muted)' }}
         >
-          <span className="text-base leading-none">{iLiked ? '♥' : '♡'}</span>
-          {likes.length > 0 && <span className="num">{likes.length}</span>}
+          <Heart
+            size={18}
+            strokeWidth={2}
+            fill={iLiked ? '#ef4444' : 'none'}
+            className="transition-all"
+          />
+          {likes.length > 0 && <span className="num text-[11px]">{likes.length}</span>}
         </button>
 
         <button
           onClick={() => setOpen(o => !o)}
-          className={`flex items-center gap-1.5 text-[11px] font-bold tap rounded-md px-1.5 -mx-1.5 py-0.5 transition-colors ${
+          aria-label="Comentarii"
+          aria-pressed={open}
+          className={`flex items-center gap-1.5 text-xs font-bold tap rounded-md px-1 -mx-1 py-0.5 transition-colors ${
             open ? 'text-[var(--color-accent)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
           }`}
-          aria-label="Comentarii"
         >
-          <span className="text-sm leading-none">💬</span>
-          {comments.length > 0 && <span className="num">{comments.length}</span>}
+          <MessageCircle size={18} strokeWidth={2} />
+          {comments.length > 0 && <span className="num text-[11px]">{comments.length}</span>}
         </button>
 
-        {/* List who liked it (when there are likes) — tiny, on the right */}
+        {/* Who liked it — on the right when there are likes */}
         {likes.length > 0 && (
           <span className="text-[10px] text-[var(--color-fg-dim)] truncate ml-auto">
             {likes.slice(0, 3).map(u => FIRST_NAME[u] ?? u.split(' ')[0]).join(', ')}
@@ -67,7 +78,7 @@ export function EntryReactions({ entry, currentUser }: {
 
       {/* Expanded: thread + composer */}
       {open && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-2.5 space-y-2">
           {comments.length > 0 && (
             <div className="space-y-1.5">
               {comments
@@ -98,13 +109,14 @@ export function EntryReactions({ entry, currentUser }: {
             <button
               onClick={submit}
               disabled={!input.trim()}
-              className="text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              aria-label="Trimite"
+              className="rounded-lg p-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               style={{
-                background: input.trim() ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'var(--color-surface)',
+                background: input.trim() ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'transparent',
                 color: input.trim() ? '#fff' : 'var(--color-fg-muted)',
               }}
             >
-              trimite
+              <Send size={14} strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -143,10 +155,10 @@ function CommentRow({
       {canDelete && (
         <button
           onClick={onDelete}
-          className="text-[10px] text-[var(--color-fg-dim)] opacity-0 group-hover:opacity-100 hover:text-[var(--color-bad)] transition-all shrink-0"
+          className="text-[var(--color-fg-dim)] opacity-0 group-hover:opacity-100 hover:text-[var(--color-bad)] transition-all shrink-0 p-0.5"
           aria-label="Șterge comentariu"
         >
-          ✕
+          <X size={12} strokeWidth={2.5} />
         </button>
       )}
     </div>
