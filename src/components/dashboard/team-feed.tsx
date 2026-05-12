@@ -1,35 +1,38 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { type SleepEntry, FIRST_NAME, personColor, ssColor, remColor, rhrColor, hrvColor } from '@/lib/sleep';
-import { fmtDateShort } from '@/lib/utils';
+import { fmtDateShort, todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { EntryReactions } from '@/components/dashboard/entry-reactions';
 import { useSocial } from '@/lib/social';
 
+type Range = 'today' | 'recent';
+
 /**
  * Team Feed — the social layer of somn.
  *
- * Surfaces journal entries from across the team so people can discover
- * common patterns and react to each other's nights. Recent entries
- * with journals first; an option to also show recent entries WITHOUT
- * journals so the feed is never empty on quiet weeks.
+ * Default scope is TODAY only — keeps the conversation anchored to
+ * last night's sleep, prevents like/comment volume from accumulating
+ * forever on old entries, and the feed stays small and fast.
  *
- * Each card: avatar + name (colored) + date + headline stats →
- * journal body → reactions footer (likes + comment thread).
+ * If today is empty (early morning, nobody logged yet), the user can
+ * flip the "Recente" tab to see the most recent few across the team.
  */
 export function TeamFeed({ entries, currentUser, limit = 5 }: {
   entries: SleepEntry[];
   currentUser: string;
   limit?: number;
 }) {
-  const [scope, setScope] = useState<'journals' | 'all'>('journals');
+  const [range, setRange] = useState<Range>('today');
   const { syncError } = useSocial();
 
+  const today = todayStr();
+
   const feed = useMemo(() => {
-    const filtered = scope === 'journals'
-      ? entries.filter(e => !!(e.journal && e.journal.trim().length > 0))
+    const scoped = range === 'today'
+      ? entries.filter(e => e.date === today)
       : entries;
-    return filtered
+    return scoped
       .slice()
       .sort((a, b) => {
         // Date desc, then by SS desc as tiebreak
@@ -37,12 +40,12 @@ export function TeamFeed({ entries, currentUser, limit = 5 }: {
         if (cmp !== 0) return cmp;
         return b.ss - a.ss;
       })
-      .slice(0, limit);
-  }, [entries, scope, limit]);
+      .slice(0, range === 'today' ? 10 : limit);
+  }, [entries, range, today, limit]);
 
-  const journalCount = useMemo(
-    () => entries.filter(e => !!(e.journal && e.journal.trim().length > 0)).length,
-    [entries],
+  const todayCount = useMemo(
+    () => entries.filter(e => e.date === today).length,
+    [entries, today],
   );
 
   return (
@@ -51,7 +54,7 @@ export function TeamFeed({ entries, currentUser, limit = 5 }: {
       <div className="flex items-baseline justify-between gap-2 flex-wrap mb-3">
         <div>
           <div className="label flex items-center gap-2">
-            <span>Feed echipă · jurnalele oamenilor</span>
+            <span>Feed echipă{range === 'today' ? ' · azi' : ''}</span>
             {syncError === 'kv-unavailable' && (
               <span
                 className="num text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
@@ -63,21 +66,31 @@ export function TeamFeed({ entries, currentUser, limit = 5 }: {
             )}
           </div>
           <div className="text-[10px] num text-[var(--color-fg-dim)] mt-0.5">
-            {journalCount} loguri cu notițe în total
+            {range === 'today'
+              ? `${todayCount}/3 din echipă au logat azi`
+              : `ultimele ${feed.length} loguri din echipă`}
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <ScopeChip active={scope === 'journals'} onClick={() => setScope('journals')} label="Cu jurnal" />
-          <ScopeChip active={scope === 'all'} onClick={() => setScope('all')} label="Toate" />
+          <ScopeChip active={range === 'today'} onClick={() => setRange('today')} label="Azi" />
+          <ScopeChip active={range === 'recent'} onClick={() => setRange('recent')} label="Recente" />
         </div>
       </div>
 
       {/* Feed */}
       {feed.length === 0 ? (
         <div className="text-xs text-[var(--color-fg-muted)] italic py-6 text-center">
-          {scope === 'journals'
-            ? 'niciun jurnal încă. scrie o notiță când loghezi azi ca să pornești conversația.'
-            : 'niciun log încă.'}
+          {range === 'today' ? (
+            <>
+              nimeni n-a logat încă azi. fii primul — scrie o notiță și{' '}
+              <button onClick={() => setRange('recent')} className="text-[var(--color-accent)] font-bold hover:underline">
+                vezi feed-ul recent
+              </button>{' '}
+              cât aștepți.
+            </>
+          ) : (
+            'niciun log încă.'
+          )}
         </div>
       ) : (
         <div className="space-y-2.5">
