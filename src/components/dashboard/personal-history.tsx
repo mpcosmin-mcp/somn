@@ -5,8 +5,7 @@ import { type SleepEntry, ssColor, hrvColor, ssTier, personalTrendNote } from '@
  * Personal History — compact tabular view of the last few logs.
  *
  * Columns: DATA · SCOR · REM · HRV · STATUS pill (Optim/Average/Poor).
- * Footer: 🦞 Sforăilă pattern note — computed locally from the data
- *         (no AI call), so the user always sees what's trending.
+ * Footer: pattern note computed locally from the data — no AI call.
  */
 export function PersonalHistory({ entries, user, limit = 6 }: {
   entries: SleepEntry[];
@@ -79,26 +78,21 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
         })}
       </div>
 
-      {/* 🦞 Sforăilă pattern note — present at the bottom, always */}
+      {/* Pattern note — computed locally from the data, no AI */}
       {trend && (
-        <div className="mt-3 pt-3 border-t border-[var(--color-border)]/70 flex items-start gap-2.5">
-          <span className="text-base shrink-0 leading-tight" aria-hidden>🦞</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-[9px] uppercase tracking-[0.16em] font-bold text-[var(--color-accent)] mb-0.5">
-              Sforăilă · pattern
-            </div>
-            <p
-              className="text-xs leading-relaxed"
-              style={{
-                color:
-                  trend.tone === 'good' ? 'var(--color-good)'
-                  : trend.tone === 'warn' ? 'var(--color-warn)'
-                  : 'var(--color-fg-muted)',
-              }}
-            >
-              {trend.text}
-            </p>
-          </div>
+        <div className="mt-3 pt-3 border-t border-[var(--color-border)]/70">
+          <div className="label mb-1">pattern</div>
+          <p
+            className="text-xs leading-relaxed"
+            style={{
+              color:
+                trend.tone === 'good' ? 'var(--color-good)'
+                : trend.tone === 'warn' ? 'var(--color-warn)'
+                : 'var(--color-fg-muted)',
+            }}
+          >
+            {trend.text}
+          </p>
         </div>
       )}
     </section>
