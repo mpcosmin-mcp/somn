@@ -10,7 +10,8 @@ import { ProfilePopover } from '@/components/layout/profile-popover';
  *   Left:  brand "somn" + small tagline (sm+)
  *   Right: theme toggle · profile chip (click → popover with profile + XP + switch user)
  *
- * The chat with Sforăilă lives in a floating bubble at bottom-right (see ChatPanel).
+ * Sforăilă chat lives as a floating bubble top-left (see SforailaChat) — the
+ * only AI surface in the app, capped at 10 messages/day per user.
  * No nav links — this app has a single page.
  */
 export function TopBar() {
