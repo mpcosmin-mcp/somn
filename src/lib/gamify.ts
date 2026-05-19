@@ -47,6 +47,31 @@ export function tierFor(level: number): Tier {
   return TIERS[0];
 }
 
+/**
+ * Longest consecutive-day streak ever logged for this user.
+ *
+ * Unlike `streakFor` (current), this scans the whole history for the
+ * best run regardless of whether it's still active. Used as a personal
+ * record in the profile popover.
+ */
+export function maxStreakFor(data: SleepEntry[], name: string): number {
+  const dates = [...new Set(data.filter(d => d.name === name).map(e => e.date))].sort();
+  if (!dates.length) return 0;
+  let max = 1, cur = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const a = new Date(dates[i - 1] + 'T12:00:00');
+    const b = new Date(dates[i] + 'T12:00:00');
+    const gap = Math.round((b.getTime() - a.getTime()) / 86400000);
+    if (gap === 1) {
+      cur++;
+      if (cur > max) max = cur;
+    } else {
+      cur = 1;
+    }
+  }
+  return max;
+}
+
 /* Streak — number of consecutive logged days, ending at most yesterday */
 export function streakFor(data: SleepEntry[], name: string): number {
   const dates = [...new Set(data.filter(d => d.name === name).map(e => e.date))].sort().reverse();

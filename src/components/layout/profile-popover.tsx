@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { FIRST_NAME, personColor } from '@/lib/sleep';
-import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor } from '@/lib/gamify';
+import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor, maxStreakFor } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 
 /**
@@ -47,6 +47,13 @@ export function ProfilePopover() {
   const tier = tierFor(lvl);
   const streak = streakFor(entries, user);
   const progress = xpProgress(xp);
+
+  // Personal lifetime records — read straight from the user's entries.
+  const mine = entries.filter(e => e.name === user);
+  const bestSS = mine.length ? Math.max(...mine.map(e => e.ss)) : 0;
+  const remVals = mine.map(e => e.rem).filter((v): v is number => v != null);
+  const bestREM = remVals.length ? Math.max(...remVals) : 0;
+  const maxStreak = maxStreakFor(entries, user);
 
   return (
     <div className="relative" ref={wrapRef}>
@@ -115,10 +122,22 @@ export function ProfilePopover() {
             </div>
           </div>
 
+          {/* Personal records — best SS, best REM, longest streak ever */}
+          {mine.length > 0 && (
+            <div className="px-4 pb-3">
+              <div className="label mb-2">Recorduri</div>
+              <div className="grid grid-cols-3 gap-2">
+                <RecordCell emoji="🏆" value={bestSS} unit="SS" color={c} />
+                <RecordCell emoji="🌙" value={bestREM} unit="min REM" color={c} />
+                <RecordCell emoji="🔥" value={maxStreak} unit="zile" color={c} />
+              </div>
+            </div>
+          )}
+
           {/* Total logs + days stat */}
           <div className="px-4 pb-3 text-[10px] text-[var(--color-fg-muted)] num">
-            <span className="font-bold text-[var(--color-fg)]">{entries.length}</span> loguri ·{' '}
-            <span className="font-bold text-[var(--color-fg)]">{new Set(entries.map(e => e.date)).size}</span> zile
+            <span className="font-bold text-[var(--color-fg)]">{mine.length}</span> loguri ·{' '}
+            <span className="font-bold text-[var(--color-fg)]">{new Set(mine.map(e => e.date)).size}</span> zile
           </div>
 
           {/* Actions */}
@@ -133,6 +152,19 @@ export function ProfilePopover() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function RecordCell({ emoji, value, unit, color }: { emoji: string; value: number; unit: string; color: string }) {
+  return (
+    <div
+      className="rounded-xl px-2 py-2 text-center"
+      style={{ background: color + '0d', border: `1px solid ${color}22` }}
+    >
+      <div className="text-base leading-none mb-1" aria-hidden>{emoji}</div>
+      <div className="num font-bold text-sm leading-none" style={{ color }}>{value}</div>
+      <div className="text-[9px] text-[var(--color-fg-muted)] mt-0.5 leading-tight">{unit}</div>
     </div>
   );
 }
