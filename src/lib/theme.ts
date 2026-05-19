@@ -30,3 +30,9 @@ export function useTheme() {
 
 /* Inline script to set theme before hydration — prevents flash */
 export const NO_FLASH_SCRIPT = `(function(){try{var t=localStorage.getItem('${KEY}')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();`;
+
+/* Inline service-worker registration. Lives in <head> so static crawlers
+ * (PWABuilder, Lighthouse, Play Store listing audits) can see the SW
+ * registration without executing React. Skips localhost so Turbopack
+ * doesn't fight an active SW in dev. */
+export const SW_REGISTER_SCRIPT = `(function(){if('serviceWorker' in navigator && location.hostname !== 'localhost' && !location.hostname.startsWith('127.')){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(e){console.warn('[somn] SW reg fail',e);});});}})();`;

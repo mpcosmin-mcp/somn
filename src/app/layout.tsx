@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { NO_FLASH_SCRIPT } from '@/lib/theme';
+import { NO_FLASH_SCRIPT, SW_REGISTER_SCRIPT } from '@/lib/theme';
 import { UserProvider } from '@/lib/user';
 import { EntriesProvider } from '@/lib/entries-provider';
 import { SocialProvider } from '@/lib/social';
 import { AppShell } from '@/components/layout/app-shell';
-import { RegisterSW } from '@/components/layout/register-sw';
 import { InstallToast } from '@/components/layout/install-toast';
 import './globals.css';
 
@@ -76,6 +75,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         {/* Apply saved theme before hydration to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
+        {/* Register the service worker. Inline so crawlers (PWABuilder,
+            Lighthouse) see the registration without executing React. */}
+        <script dangerouslySetInnerHTML={{ __html: SW_REGISTER_SCRIPT }} />
       </head>
       <body className="antialiased">
         <UserProvider>
@@ -86,7 +88,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </SocialProvider>
           </EntriesProvider>
         </UserProvider>
-        <RegisterSW />
       </body>
     </html>
   );
