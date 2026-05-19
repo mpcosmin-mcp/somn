@@ -47,5 +47,12 @@ This project uses the **somn masterpiece** UI. Global skill: `~/.claude/skills/m
 - For data/types: `src/lib/sleep.ts` is the source of truth.
 - For UI components: `src/components/dashboard/` (feature) and `src/components/ui/` (primitives).
 - For layout: `src/components/layout/{app-shell,top-bar,profile-popover}.tsx`.
-- For AI calls: `src/app/api/{chat,vibe,patterns,story,roast}/route.ts` + `src/lib/ai-tools.ts`.
+- **No AI in somn anymore** — the Sforăilă chat + `/api/chat` + `@anthropic-ai/sdk` were removed. Runtime AI token cost = $0. (BLUEPRINT.md/TEMPLATE.md still describe the old AI — they're stale, see their headers.)
+
+## Token discipline
+
+- **Grep before read.** Never whole-file the big stale guides (BLUEPRINT ~8K, TEMPLATE ~7K) — they're historical, not current.
+- Current state lives in `EOD.md` (architecture snapshot, refreshed each EOD).
+- Design system = global `masterpiece-ui` skill (already referenced above), not a duplicated project file.
+- `/clear` between unrelated task batches.
 

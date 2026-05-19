@@ -1,5 +1,7 @@
 # AI-Powered Dashboard Template
 
+> ⚠️ **STALE + ~7K tokens. Do NOT whole-file read.** somn's AI coach was REMOVED — this template describes the old AI-edits-data architecture that no longer exists in somn. Kept as a generic reference for FUTURE AI-dashboard builds only. For current somn state: read `EOD.md` or grep a section.
+
 > Full-stack template for building dashboards where users talk to AI and **the AI can read AND edit the data**, with the UI updating instantly to reflect the changes.
 >
 > Battle-tested in [somn](https://somn-xi.vercel.app). Reusable for habit trackers, finance dashboards, fitness logs, project trackers, anything CRUD + chat.

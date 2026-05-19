@@ -1,5 +1,7 @@
 # somn — Build Blueprint
 
+> ⚠️ **STALE + ~8K tokens. Do NOT whole-file read.** Written when somn had an AI coach (Sforăilă chat) — that was REMOVED (see CHANGELOG/EOD). Sections about `@anthropic-ai/sdk`, `/api/chat`, tool-use loop no longer apply. Kept for historical reference only. For current state: read `EOD.md` (architecture snapshot) or grep a specific section.
+
 > A complete record of what was built, how, why, and what to reuse for future builds.
 >
 > **Production:** https://somn-xi.vercel.app
