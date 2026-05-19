@@ -29,7 +29,7 @@ export type Name = typeof NAMES[number];
 export const FIRST_NAME: Record<string, string> = {
   'Clara-Ileana Cirpatorea': 'Clara',
   'Petrica Cosmin Moga': 'Petrica',
-  'Cornel-Gabriel Meleru': 'Cornel',
+  'Cornel-Gabriel Meleru': 'Gabi',
 };
 
 export const PERSON_COLOR: Record<string, string> = {
