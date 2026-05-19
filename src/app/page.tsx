@@ -1,7 +1,6 @@
 'use client';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
-import { SforailaChat } from '@/components/dashboard/sforaila-chat';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { TeamFeed } from '@/components/dashboard/team-feed';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
@@ -17,9 +16,6 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
  *   3. TeamFeed — today's journals, likes + comments.
  *   4. Personal History — recent entries + pattern note (no AI).
  *   5. Team Chart — multi-metric switcher.
- *
- * The only AI surface is the floating Sforăilă chat bubble (top-left),
- * capped at 10 messages/day per user — see SforailaChat.
  */
 export default function Home() {
   const { user } = useUser();
@@ -63,9 +59,6 @@ export default function Home() {
       <div className="fade-in-up delay-4">
         <TeamChartPane entries={entries} />
       </div>
-
-      {/* The only AI surface — floating top-left, capped at 10/zi */}
-      <SforailaChat user={user} entries={entries} />
     </div>
   );
 }

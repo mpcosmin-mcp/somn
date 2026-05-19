@@ -213,8 +213,8 @@ export function lastNDays(entries: SleepEntry[], n: number, from: Date = new Dat
 /* ── Personal trend / pattern observation ──
  *
  * Computed deterministically from the data — no AI call, instant render.
- * Shown as a Sforăilă-flavored note at the bottom of the Personal History
- * card so the user always sees what the latest data is telling them.
+ * Shown as a short note at the bottom of the Personal History card so the
+ * user always sees what the latest data is telling them.
  */
 export interface TrendNote {
   text: string;

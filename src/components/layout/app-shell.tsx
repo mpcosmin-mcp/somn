@@ -16,11 +16,9 @@ import { UserPicker } from '@/components/dashboard/user-picker';
  *   │                                                     │
  *   └─────────────────────────────────────────────────────┘
  *
- * Sforăilă is no longer interactive — his presence is now ambient
- * (insights cards on the dashboard). The chat / wandering trigger
- * have been retired.
- *
  * Login screen: UserPicker takes the whole viewport (no TopBar).
+ * Auth is intentionally session-only — closing the tab clears the
+ * picked user, so the next open lands back on the login page.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, hydrated, setUser } = useUser();

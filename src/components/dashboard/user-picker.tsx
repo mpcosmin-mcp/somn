@@ -276,9 +276,6 @@ function LogStep({
         </button>
       </div>
 
-      <div className="text-[10px] text-[var(--color-fg-dim)] text-center pt-1">
-        întreabă-l pe Sforăilă pe dashboard · max 10 întrebări/zi
-      </div>
     </div>
   );
 }
