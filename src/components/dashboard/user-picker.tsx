@@ -7,6 +7,7 @@ import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { ProfileHoverCard } from '@/components/dashboard/profile-hover-card';
+import { LoginInstallBanner } from '@/components/layout/login-install-banner';
 
 const QUICK_FIELDS: Array<{
   key: 'ss' | 'rhr' | 'hrv' | 'rem';
@@ -60,11 +61,14 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
         </div>
 
         {!picked && (
-          <PickerStep
-            sortedNames={sortedNames}
-            entries={entries}
-            onPick={setPicked}
-          />
+          <>
+            <LoginInstallBanner />
+            <PickerStep
+              sortedNames={sortedNames}
+              entries={entries}
+              onPick={setPicked}
+            />
+          </>
         )}
 
         {picked && (
