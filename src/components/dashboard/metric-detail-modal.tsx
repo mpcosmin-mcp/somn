@@ -365,6 +365,7 @@ export function MetricDetailModal({
                   targetLabel="target"
                   unit={spec.key === 'ss' ? '' : spec.unit}
                   lowerBetter={!spec.higherBetter}
+                  colorByTarget
                 />
               </div>
             </div>

@@ -20,6 +20,9 @@ interface Props {
   unit?: string;
   /** If true, lower values are better (e.g. RHR) — flips the "delta from target" sign */
   lowerBetter?: boolean;
+  /** Color the line + dots by target status: green where on/above target, red where below
+   *  (flipped for lowerBetter). Opt-in — keeps the multi-person team chart on per-person colors. */
+  colorByTarget?: boolean;
 }
 
 const MONTHS_SHORT = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
@@ -46,6 +49,7 @@ export function TeamChart({
   targetLabel,
   unit = '',
   lowerBetter = false,
+  colorByTarget = false,
 }: Props) {
   const uid = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +166,22 @@ export function TeamChart({
 
   const targetY = target != null ? yFor(target) : null;
 
+  // ─── Threshold coloring ────────────────────────────────────
+  // Green where on/above target, red where below (flipped for lowerBetter).
+  // The line uses a vertical gradient with a hard color stop exactly at the
+  // target's y — so it flips color precisely where it crosses the target line.
+  const GOOD = 'var(--color-good)';
+  const BAD = 'var(--color-bad)';
+  const useThresh = colorByTarget && targetY != null;
+  const statusColor = (v: number | null): string | null => {
+    if (v == null || target == null) return null;
+    const ok = lowerBetter ? v <= target : v >= target;
+    return ok ? GOOD : BAD;
+  };
+  const threshFrac = targetY != null ? Math.max(0, Math.min(1, targetY / VH)) : 0;
+  const threshTop = lowerBetter ? BAD : GOOD;   // above the target line (smaller y)
+  const threshBot = lowerBetter ? GOOD : BAD;   // below the target line
+
   // ─── Hover mapping ─────────────────────────────────────────
   // Convert client mouse x → SVG viewBox x → nearest date index.
   // Since viewBox width = CSS width (no scaling), the math is 1:1.
@@ -237,6 +257,25 @@ export function TeamChart({
               <stop offset="100%" stopColor={s.color} stopOpacity="0" />
             </linearGradient>
           ))}
+
+          {useThresh && (
+            <>
+              {/* Hard-cut line gradient: green above target, red below (flipped for lowerBetter) */}
+              <linearGradient id={`thresh-${uid}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={VH}>
+                <stop offset="0" style={{ stopColor: threshTop }} />
+                <stop offset={threshFrac} style={{ stopColor: threshTop }} />
+                <stop offset={threshFrac} style={{ stopColor: threshBot }} />
+                <stop offset="1" style={{ stopColor: threshBot }} />
+              </linearGradient>
+              {/* Soft colored glow under the line — green zone above target, red below */}
+              <linearGradient id={`thresharea-${uid}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={VH}>
+                <stop offset="0" style={{ stopColor: threshTop, stopOpacity: 0.24 }} />
+                <stop offset={threshFrac} style={{ stopColor: threshTop, stopOpacity: 0.06 }} />
+                <stop offset={threshFrac} style={{ stopColor: threshBot, stopOpacity: 0.20 }} />
+                <stop offset="1" style={{ stopColor: threshBot, stopOpacity: 0 }} />
+              </linearGradient>
+            </>
+          )}
         </defs>
 
         {/* Y-axis grid lines + labels */}
@@ -288,12 +327,23 @@ export function TeamChart({
             >
               {targetLabel ?? 'target'} {target}
             </text>
+            {/* Target value marked on the y-axis (left), highlighted vs the gray ticks */}
+            <text
+              x={ML - 6} y={targetY + 3}
+              fontSize="10"
+              textAnchor="end"
+              fill="var(--color-accent)"
+              fontFamily="monospace"
+              fontWeight="bold"
+            >
+              {target}
+            </text>
           </g>
         )}
 
-        {/* Area fills */}
+        {/* Area fills — threshold colored glow when colorByTarget, else per-series gradient */}
         {seriesGeom.map((s, i) => s.area && (
-          <path key={`area-${i}`} d={s.area} fill={`url(#grad-${uid}-${i})`} />
+          <path key={`area-${i}`} d={s.area} fill={useThresh ? `url(#thresharea-${uid})` : `url(#grad-${uid}-${i})`} />
         ))}
 
         {/* Lines */}
@@ -301,7 +351,7 @@ export function TeamChart({
           <path
             key={`line-${i}`}
             d={s.line}
-            stroke={s.color}
+            stroke={useThresh ? `url(#thresh-${uid})` : s.color}
             strokeWidth={2.5}
             fill="none"
             strokeLinecap="round"
@@ -311,14 +361,14 @@ export function TeamChart({
           />
         ))}
 
-        {/* Dots on data points */}
+        {/* Dots on data points — stroke colored by each point's target status when enabled */}
         {seriesGeom.map((s, i) =>
-          s.visiblePts.map((p, j) => (
+          s.pts.map((p, idx) => p && (
             <circle
-              key={`dot-${i}-${j}`}
+              key={`dot-${i}-${idx}`}
               cx={p.x} cy={p.y} r={3}
               fill="var(--color-bg)"
-              stroke={s.color}
+              stroke={useThresh ? (statusColor(s.values[idx]) ?? s.color) : s.color}
               strokeWidth={1.5}
               vectorEffect="non-scaling-stroke"
             />
@@ -357,12 +407,13 @@ export function TeamChart({
             {seriesGeom.map((s, i) => {
               const p = s.pts[safeHoverIdx];
               if (!p) return null;
+              const hc = useThresh ? (statusColor(s.values[safeHoverIdx]) ?? s.color) : s.color;
               return (
                 <g key={`hover-${i}`}>
-                  <circle cx={p.x} cy={p.y} r={7} fill={s.color} opacity={0.18} />
+                  <circle cx={p.x} cy={p.y} r={7} fill={hc} opacity={0.18} />
                   <circle
                     cx={p.x} cy={p.y} r={4}
-                    fill={s.color}
+                    fill={hc}
                     stroke="var(--color-bg)"
                     strokeWidth={2}
                     vectorEffect="non-scaling-stroke"
@@ -482,6 +533,12 @@ function Tooltip({
           );
         })}
       </div>
+      {target != null && (
+        <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border)] flex items-center gap-1.5 text-[10px] num text-[var(--color-fg-muted)]">
+          <span className="inline-block w-3 border-t border-dashed border-current opacity-70" aria-hidden />
+          <span>target {lowerBetter ? '≤' : '≥'} {target}{unit}</span>
+        </div>
+      )}
     </div>
   );
 }
