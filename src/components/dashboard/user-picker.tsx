@@ -116,18 +116,18 @@ function PickerStep({
               className="group text-left transition-all hover:translate-x-1 active:scale-[0.99]"
             >
               <div
-                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl relative overflow-hidden border transition-all"
+                className="flex items-center gap-3 px-3 py-3 rounded-2xl relative overflow-hidden border transition-all"
                 style={{
                   background: `linear-gradient(135deg, ${c}10, transparent 70%)`,
                   borderColor: 'rgba(148,163,184,0.14)',
                 }}
               >
                 <div className="absolute inset-y-0 left-0 w-1" style={{ background: c }} />
-                <span className="text-base shrink-0 ml-1" aria-hidden>{medal}</span>
-                <Avi name={n} size="md" />
+                <span className="text-base shrink-0" aria-hidden>{medal}</span>
+                <Avi name={n} size="xl" variant="full" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-[var(--color-fg)]">{FIRST_NAME[n]}</span>
+                    <span className="font-bold text-base text-[var(--color-fg)]">{FIRST_NAME[n]}</span>
                     <span
                       className="text-[9px] num font-bold px-1.5 py-0.5 rounded shrink-0"
                       style={{ color: tier.color, background: tier.color + '15' }}

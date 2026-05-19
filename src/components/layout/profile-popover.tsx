@@ -80,7 +80,7 @@ export function ProfilePopover() {
             className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-[var(--color-border)]"
             style={{ background: `linear-gradient(135deg, ${c}1f, transparent 70%)` }}
           >
-            <Avi name={user} size="lg" />
+            <Avi name={user} size="xl" />
             <div className="flex-1 min-w-0">
               <div className="font-bold text-base truncate" style={{ color: c }}>{fn}</div>
               <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1 mt-0.5">
