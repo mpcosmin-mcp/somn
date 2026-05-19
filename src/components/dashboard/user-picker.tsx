@@ -6,6 +6,7 @@ import { submitEntry } from '@/lib/client-api';
 import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
+import { ProfileHoverCard } from '@/components/dashboard/profile-hover-card';
 
 const QUICK_FIELDS: Array<{
   key: 'ss' | 'rhr' | 'hrv' | 'rem';
@@ -93,6 +94,8 @@ function PickerStep({
   entries: SleepEntry[];
   onPick: (n: string) => void;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
   return (
     <div className="glass rounded-3xl p-5 sm:p-6 space-y-3">
       <div className="text-center mb-4">
@@ -110,48 +113,55 @@ function PickerStep({
           const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
 
           return (
-            <button
+            <div
               key={n}
-              onClick={() => onPick(n)}
-              className="group text-left transition-all hover:translate-x-1 active:scale-[0.99]"
+              className="relative"
+              onMouseEnter={() => setHovered(n)}
+              onMouseLeave={() => setHovered(prev => (prev === n ? null : prev))}
             >
-              <div
-                className="flex items-center gap-3 px-3 py-3 rounded-2xl relative overflow-hidden border transition-all"
-                style={{
-                  background: `linear-gradient(135deg, ${c}10, transparent 70%)`,
-                  borderColor: 'rgba(148,163,184,0.14)',
-                }}
+              <button
+                onClick={() => onPick(n)}
+                className="group w-full text-left transition-all hover:translate-x-1 active:scale-[0.99]"
               >
-                <div className="absolute inset-y-0 left-0 w-1" style={{ background: c }} />
-                <span className="text-base shrink-0" aria-hidden>{medal}</span>
-                <Avi name={n} size="xl" variant="full" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-base text-[var(--color-fg)]">{FIRST_NAME[n]}</span>
-                    <span
-                      className="text-[9px] num font-bold px-1.5 py-0.5 rounded shrink-0"
-                      style={{ color: tier.color, background: tier.color + '15' }}
-                    >
-                      {tier.icon} Lv {lvl}
-                    </span>
-                    {streak > 0 && (
-                      <span className="text-[9px] num font-bold text-[var(--color-accent)]">
-                        {streak}d 🔥
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">
-                    {tier.name}
-                  </div>
-                </div>
-                <span
-                  className="text-lg opacity-50 group-hover:opacity-100 transition-opacity shrink-0"
-                  style={{ color: c }}
+                <div
+                  className="flex items-center gap-3 px-3 py-3 rounded-2xl relative overflow-hidden border transition-all"
+                  style={{
+                    background: `linear-gradient(135deg, ${c}10, transparent 70%)`,
+                    borderColor: 'rgba(148,163,184,0.14)',
+                  }}
                 >
-                  →
-                </span>
-              </div>
-            </button>
+                  <div className="absolute inset-y-0 left-0 w-1" style={{ background: c }} />
+                  <span className="text-base shrink-0" aria-hidden>{medal}</span>
+                  <Avi name={n} size="lg" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-base text-[var(--color-fg)]">{FIRST_NAME[n]}</span>
+                      <span
+                        className="text-[9px] num font-bold px-1.5 py-0.5 rounded shrink-0"
+                        style={{ color: tier.color, background: tier.color + '15' }}
+                      >
+                        {tier.icon} Lv {lvl}
+                      </span>
+                      {streak > 0 && (
+                        <span className="text-[9px] num font-bold text-[var(--color-accent)]">
+                          {streak}d 🔥
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">
+                      {tier.name}
+                    </div>
+                  </div>
+                  <span
+                    className="text-lg opacity-50 group-hover:opacity-100 transition-opacity shrink-0"
+                    style={{ color: c }}
+                  >
+                    →
+                  </span>
+                </div>
+              </button>
+              {hovered === n && <ProfileHoverCard name={n} entries={entries} />}
+            </div>
           );
         })}
       </div>
