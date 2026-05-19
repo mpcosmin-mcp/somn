@@ -5,6 +5,7 @@ import {
   lastNDays,
 } from '@/lib/sleep';
 import { Sparkline } from '@/components/ui/sparkline';
+import type { MetricKey } from '@/components/dashboard/metric-detail-modal';
 
 /**
  * KPI Cards — Sleep Score / REM / HRV / RHR (the "Metrics de Aur").
@@ -17,7 +18,11 @@ import { Sparkline } from '@/components/ui/sparkline';
  *
  * The bottom border glows in the metric's semantic color.
  */
-export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: string }) {
+export function KpiCards({ entries, user, onMetricClick }: {
+  entries: SleepEntry[];
+  user: string;
+  onMetricClick?: (metric: MetricKey) => void;
+}) {
   const mine = entries
     .filter(e => e.name === user)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -66,6 +71,7 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         dates={dates}
         color={ssColor(last.ss)}
         accentVar="var(--color-accent)"
+        onClick={onMetricClick ? () => onMetricClick('ss') : undefined}
       />
       <KpiCard
         label="REM"
@@ -80,6 +86,7 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         dates={dates}
         color={last.rem != null ? remColor(last.rem) : 'var(--color-fg-dim)'}
         accentVar="#a78bfa"
+        onClick={onMetricClick ? () => onMetricClick('rem') : undefined}
       />
       <KpiCard
         label="HRV"
@@ -94,6 +101,7 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         dates={dates}
         color={hrvColor(last.hrv)}
         accentVar="#fbbf24"
+        onClick={onMetricClick ? () => onMetricClick('hrv') : undefined}
       />
       <KpiCard
         label="RHR"
@@ -108,6 +116,7 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
         dates={dates}
         color={last.rhr > 0 ? rhrColor(last.rhr) : 'var(--color-fg-dim)'}
         accentVar="#fb7185"
+        onClick={onMetricClick ? () => onMetricClick('rhr') : undefined}
       />
     </div>
   );
@@ -115,7 +124,7 @@ export function KpiCards({ entries, user }: { entries: SleepEntry[]; user: strin
 
 function KpiCard({
   label, value, unit, sparkUnit, delta, deltaUnit,
-  higherBetter, target, series, dates, color, accentVar,
+  higherBetter, target, series, dates, color, accentVar, onClick,
 }: {
   label: string;
   value: number | null;
@@ -129,6 +138,7 @@ function KpiCard({
   dates: string[];
   color: string;
   accentVar: string;
+  onClick?: () => void;
 }) {
   const deltaPositive = delta != null && (higherBetter ? delta > 0 : delta < 0);
   const deltaNegative = delta != null && (higherBetter ? delta < 0 : delta > 0);
@@ -151,9 +161,13 @@ function KpiCard({
     ? 'var(--color-fg-dim)'
     : onTarget ? 'var(--color-good)' : 'var(--color-bad)';
 
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div
-      className="kpi card px-4 lg:px-5 py-4 lg:py-5 flex flex-col"
+    <Tag
+      onClick={onClick}
+      type={onClick ? 'button' : undefined}
+      aria-label={onClick ? `Vezi detalii ${label}` : undefined}
+      className={`kpi card px-4 lg:px-5 py-4 lg:py-5 flex flex-col text-left ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] active:scale-[0.99] transition-all' : ''}`}
       style={{ ['--kpi-accent' as string]: accentVar }}
     >
       {/* Top row — label + target pill */}
@@ -200,6 +214,6 @@ function KpiCard({
         </span>
         <Sparkline values={series} dates={dates} unit={sparkUnit} width={56} height={20} color={color} />
       </div>
-    </div>
+    </Tag>
   );
 }

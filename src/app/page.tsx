@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
@@ -6,6 +7,7 @@ import { TeamFeed } from '@/components/dashboard/team-feed';
 import { PersonalHistory } from '@/components/dashboard/personal-history';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
+import { MetricDetailModal, type MetricKey } from '@/components/dashboard/metric-detail-modal';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
@@ -20,6 +22,7 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
 export default function Home() {
   const { user } = useUser();
   const { entries, loading, error, refetch } = useEntries();
+  const [openMetric, setOpenMetric] = useState<MetricKey | null>(null);
 
   if (!user) return null;
 
@@ -35,9 +38,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-3 lg:gap-4 max-w-6xl mx-auto w-full">
-      {/* Personal KPIs — Sleep Score / REM / HRV / RHR */}
+      {/* Personal KPIs — Sleep Score / REM / HRV / RHR · click → modal */}
       <div className="fade-in-up delay-0">
-        <KpiCards entries={entries} user={user} />
+        <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
       </div>
 
       {/* Team clasament */}
@@ -59,6 +62,14 @@ export default function Home() {
       <div className="fade-in-up delay-4">
         <TeamChartPane entries={entries} />
       </div>
+
+      {/* Per-metric drilldown — opens from clicking any KPI card */}
+      <MetricDetailModal
+        metric={openMetric}
+        entries={entries}
+        user={user}
+        onClose={() => setOpenMetric(null)}
+      />
     </div>
   );
 }
