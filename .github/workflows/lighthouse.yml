@@ -1,0 +1,38 @@
+name: Lighthouse
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"   # Mondays 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Lighthouse
+        id: lhci
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            https://somn-xi.vercel.app/
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: "./.github/lighthouse-config.json"
+
+      - name: Open issue on regression
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          existing=$(gh issue list --repo "$REPO" --search "in:title \"Lighthouse: somn\" is:open" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "Recurrence: run ${{ github.run_id }}"
+          else
+            gh issue create --repo "$REPO" --title "📉 Lighthouse: somn perf budget broken" --body "Run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --label performance
+          fi
