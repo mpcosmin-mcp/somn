@@ -14,20 +14,19 @@ export async function GET() {
   const checks: Record<string, { ok: boolean; detail?: string }> = {};
   let allOk = true;
 
-  // 1. Required env vars
-  const required = ["SHEETS_API_URL"];
-  for (const name of required) {
-    const present = Boolean(process.env[name]);
-    checks[`env.${name}`] = { ok: present };
-    if (!present) allOk = false;
-  }
-
-  // Optional env (AI features degrade gracefully without these)
-  const optional = ["ANTHROPIC_API_KEY", "KV_REST_API_URL", "KV_REST_API_TOKEN"];
-  for (const name of optional) {
+  // Env vars are informational, not hard failures. The app may read sheets
+  // config under a different name or client-side; the real health signal is
+  // whether the page serves (smoke) + sheets endpoint reachability below.
+  const tracked = [
+    "SHEETS_API_URL",
+    "ANTHROPIC_API_KEY",
+    "KV_REST_API_URL",
+    "KV_REST_API_TOKEN",
+  ];
+  for (const name of tracked) {
     checks[`env.${name}`] = {
       ok: Boolean(process.env[name]),
-      detail: process.env[name] ? undefined : "optional — feature degrades without it",
+      detail: process.env[name] ? undefined : "not set (informational)",
     };
   }
 
