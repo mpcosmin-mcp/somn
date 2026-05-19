@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useUser } from '@/lib/user';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ProfilePopover } from '@/components/layout/profile-popover';
+import { InstallButton } from '@/components/layout/install-button';
 
 /**
  * Thin top bar — the only persistent UI chrome.
@@ -29,8 +30,9 @@ export function TopBar() {
           </span>
         </Link>
 
-        {/* Right cluster — theme + profile */}
+        {/* Right cluster — install · theme + profile */}
         <div className="flex items-center gap-1.5">
+          <InstallButton />
           <ThemeToggle />
           <ProfilePopover />
         </div>

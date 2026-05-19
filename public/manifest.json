@@ -2,6 +2,8 @@
   "name": "somn — sleep tracker",
   "short_name": "somn",
   "description": "Sleep, REM, RHR & HRV tracker for IT people. Built with Next.js, AI-fueled, ruthlessly minimal.",
+  "id": "/",
+  "scope": "/",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

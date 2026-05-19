@@ -5,6 +5,8 @@ import { UserProvider } from '@/lib/user';
 import { EntriesProvider } from '@/lib/entries-provider';
 import { SocialProvider } from '@/lib/social';
 import { AppShell } from '@/components/layout/app-shell';
+import { RegisterSW } from '@/components/layout/register-sw';
+import { InstallToast } from '@/components/layout/install-toast';
 import './globals.css';
 
 const geistSans = Geist({
@@ -80,9 +82,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <EntriesProvider>
             <SocialProvider>
               <AppShell>{children}</AppShell>
+              <InstallToast />
             </SocialProvider>
           </EntriesProvider>
         </UserProvider>
+        <RegisterSW />
       </body>
     </html>
   );
