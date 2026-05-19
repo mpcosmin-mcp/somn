@@ -4,10 +4,10 @@ import {
   type SleepEntry,
   ssColor, remColor, hrvColor, rhrColor,
   ssTier, remTier, hrvTier, rhrTier,
-  lastNDays,
+  lastNDays, personalTrendNote,
 } from '@/lib/sleep';
 import { fmtDate } from '@/lib/utils';
-import { MultiLineChart } from '@/components/ui/multi-line-chart';
+import { TeamChart } from '@/components/ui/team-chart';
 
 export type MetricKey = 'ss' | 'rem' | 'hrv' | 'rhr';
 
@@ -163,6 +163,28 @@ export function MetricDetailModal({
     : 'var(--color-fg-muted)';
   const deltaArrow = delta == null ? '·' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
 
+  // Delta vs the very first measurement — long-arc progress (Shape pattern).
+  const deltaStart = last && present.length > 1 ? last.v - present[0].v : null;
+  const deltaStartGood = deltaStart != null && (spec.higherBetter ? deltaStart > 0 : deltaStart < 0);
+  const deltaStartBad = deltaStart != null && (spec.higherBetter ? deltaStart < 0 : deltaStart > 0);
+  const deltaStartColor = deltaStartGood
+    ? 'var(--color-good)'
+    : deltaStartBad
+    ? 'var(--color-bad)'
+    : 'var(--color-fg-muted)';
+  const deltaStartArrow = deltaStart == null ? '·' : deltaStart > 0 ? '↑' : deltaStart < 0 ? '↓' : '→';
+
+  const unitSuffix = spec.key === 'rem' ? 'min' : '';
+
+  // Deterministic narrative insight — the same holistic read shown on the
+  // Personal History card, surfaced here too (Shape's getPersonInsight pattern).
+  const trendNote = personalTrendNote(entries, user);
+  const toneColor = trendNote?.tone === 'good'
+    ? 'var(--color-good)'
+    : trendNote?.tone === 'warn'
+    ? 'var(--color-warn)'
+    : 'var(--color-fg-muted)';
+
   const vsTarget = last
     ? spec.higherBetter ? last.v - spec.target : spec.target - last.v
     : null;
@@ -233,12 +255,20 @@ export function MetricDetailModal({
                 </span>
                 <span className="text-sm text-[var(--color-fg-muted)] font-medium">{spec.unit}</span>
               </div>
-              <div className="text-[11px] num mt-2 flex items-center gap-1" style={{ color: deltaColor }}>
-                <span aria-hidden>{deltaArrow}</span>
-                {delta != null ? (
-                  <span>{Math.abs(delta)}{spec.key === 'rem' ? 'min' : ''} vs ultima</span>
-                ) : (
-                  <span className="text-[var(--color-fg-dim)]">prima măsurătoare</span>
+              <div className="text-[11px] num mt-2 flex items-center gap-3 flex-wrap">
+                <span className="flex items-center gap-1" style={{ color: deltaColor }}>
+                  <span aria-hidden>{deltaArrow}</span>
+                  {delta != null ? (
+                    <span>{Math.abs(delta)}{unitSuffix} vs ultima</span>
+                  ) : (
+                    <span className="text-[var(--color-fg-dim)]">prima măsurătoare</span>
+                  )}
+                </span>
+                {deltaStart != null && (
+                  <span className="flex items-center gap-1" style={{ color: deltaStartColor }}>
+                    <span aria-hidden>{deltaStartArrow}</span>
+                    <span>{Math.abs(deltaStart)}{unitSuffix} de la start</span>
+                  </span>
                 )}
               </div>
             </div>
@@ -252,19 +282,33 @@ export function MetricDetailModal({
             )}
           </div>
 
-          {/* 30-day trend chart */}
+          {/* Narrative insight — deterministic, instant, holistic read */}
+          {trendNote && (
+            <div
+              className="mb-5 px-3.5 py-3 rounded-xl border"
+              style={{
+                background: `color-mix(in srgb, ${toneColor} 9%, transparent)`,
+                borderColor: `color-mix(in srgb, ${toneColor} 28%, transparent)`,
+              }}
+            >
+              <div className="label mb-1" style={{ color: toneColor }}>insight</div>
+              <div className="text-sm leading-snug text-[var(--color-fg)]">{trendNote.text}</div>
+            </div>
+          )}
+
+          {/* 30-day trend chart — rich tooltip + crosshair (hover/touch) */}
           {present.length >= 2 && (
             <div className="mb-5">
               <div className="label mb-2">Evoluție · ultimele 30 de zile</div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-3">
-                <MultiLineChart
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 px-3 pt-3 pb-2">
+                <TeamChart
                   series={[{ name: spec.label, color: valueColor === 'var(--color-fg-dim)' ? '#a3e635' : valueColor, values: series30 }]}
-                  width={560}
-                  height={140}
-                  className="w-full"
-                  showLegend={false}
+                  dates={dates30}
+                  height={200}
                   target={spec.target}
-                  targetLabel={`target ${spec.higherBetter ? '≥' : '≤'} ${spec.target}`}
+                  targetLabel="target"
+                  unit={spec.key === 'ss' ? '' : spec.unit}
+                  lowerBetter={!spec.higherBetter}
                 />
               </div>
             </div>
