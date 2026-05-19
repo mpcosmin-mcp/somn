@@ -6,6 +6,43 @@ Versioning is loose — no SemVer. Each session is its own release.
 
 ---
 
+## [v0.8] · Chat retirement → PWA install → metric drilldown · 2026-05-19
+
+A long focused session. Ten commits, ~1260 lines added / ~720 deleted across 33 files.
+
+### Added
+- **Per-user avatars** in `public/avatars/` (Petrica, Clara, Gabi) — disco-themed JPGs. `<Avi>` upgraded with optional image source, `face`/`full` variants, `xl`/`2xl` sizes. Falls back to colored initial when missing.
+- **Login hover-card** (`ProfileHoverCard`) on desktop login picker — face avatar + tier + Lv + XP progress + streak + computed **best-at** badge (Petrica 🫀 lowest RHR, Clara 🔥 top streak, Gabi 🌙 REM master).
+- **Recorduri** in profile popover — 3-cell grid under XP: 🏆 best SS · 🌙 best REM · 🔥 longest streak ever. New `maxStreakFor()` helper in `gamify.ts` for lifetime-record streaks.
+- **PWA installable** — minimal cache-first service worker (`public/sw.js`) registered prod-only, `useInstall` hook centralizes `beforeinstallprompt` + iOS detection + standalone check + dismiss persistence. `InstallButton` (TopBar) + `InstallToast` (one-time card) + `LoginInstallBanner` (lime-gradient CTA above login picker).
+- **PNG icons** at 192 and 512 (generated from SVG via PowerShell + System.Drawing) for PWABuilder / Play Store. Manifest lists SVG + both PNGs as `any maskable`. Manifest gained `scope: "/"` + `id: "/"`.
+- **Metric detail modal** ("ca la health tracker") — every KPI card is now a button. Click → bottom-sheet (mobile) / centered card (desktop) with status pill, headline + delta + target pill, 30-day `MultiLineChart` with target reference line, 4 quick stats (avg 7d / avg 30d / lifetime best / total logs), full descending history. Escape + backdrop close, body scroll lock.
+- **INSTALL.md** at project root — PWA on desktop / Android / iOS, APK via PWABuilder TWA (Digital Asset Links + Play Store), troubleshooting, Capacitor path note.
+
+### Changed
+- **Personal History redesign** — 5-column tabular layout → 7-column on `sm+`: `Data | Trend | RHR | Scor | REM | HRV | Status`. Per-row 7-day SS sparkline colored by user. Mobile keeps compact 4-column view.
+- **`Cornel-Gabriel Meleru` → display name Gabi** (DB key untouched via FIRST_NAME map).
+- **Login mandatory** — dropped `localStorage` + cookie persistence in `UserProvider`. Every fresh open lands on `UserPicker`.
+- Login picker avatar shrunk from `xl` to `lg` per feedback.
+- Loguri/zile counter scoped to current user (was summing the whole team).
+
+### Removed
+- **Sforăilă chat surface entirely** — chat component, `/api/chat`, Lobster mascot SVG, `@anthropic-ai/sdk` dependency. `@vercel/kv` kept for social routes.
+
+### Fixed
+- Avatar mapping mishap — Petrica and Gabi images were swapped.
+- Streak chip dedupes against best-at badge when both would say "streak".
+
+### Verification
+Every batch followed AGENTS.md preview-and-approval — `npm run build` clean, `preview_eval` DOM checks (screenshots timed out on Windows headless, replaced with structured DOM reads), then push to `master`.
+
+### Pending verification
+- Real-device install flow (desktop Chrome/Edge, Android Chrome, iPhone Safari) — covered as pickup item in EOD.
+- Local KV env vars (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) needed for `/api/social/*` local testing; prod is fine.
+- Stale docs in README/BLUEPRINT/TEMPLATE still reference removed chat + old user names.
+
+---
+
 ## [v0.7] · Polish + dev-ready · 2026-05-08
 
 ### Added
