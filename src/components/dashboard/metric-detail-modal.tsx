@@ -74,19 +74,27 @@ const SPECS: Record<MetricKey, MetricSpec> = {
  * chart with target line → 4 quick stats (avg 7d / avg 30d / best ever /
  * total logs) → full descending history list.
  */
+const ORDER = Object.keys(SPECS) as MetricKey[];
+
 export function MetricDetailModal({
-  metric, entries, user, onClose,
+  metric, entries, user, onClose, onNavigate,
 }: {
   metric: MetricKey | null;
   entries: SleepEntry[];
   user: string;
   onClose: () => void;
+  /** Jump to another metric without closing — enables ‹ › + pill nav + arrow keys */
+  onNavigate?: (key: MetricKey) => void;
 }) {
-  // Lock scroll + listen for Escape while open.
+  // Lock scroll + listen for Escape / arrow-key navigation while open.
   useEffect(() => {
     if (!metric) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { onClose(); return; }
+      if (!onNavigate) return;
+      const i = ORDER.indexOf(metric);
+      if (e.key === 'ArrowRight') onNavigate(ORDER[(i + 1) % ORDER.length]);
+      else if (e.key === 'ArrowLeft') onNavigate(ORDER[(i - 1 + ORDER.length) % ORDER.length]);
     };
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handler);
@@ -94,7 +102,7 @@ export function MetricDetailModal({
       document.body.style.overflow = '';
       document.removeEventListener('keydown', handler);
     };
-  }, [metric, onClose]);
+  }, [metric, onClose, onNavigate]);
 
   const spec = metric ? SPECS[metric] : null;
 
@@ -139,6 +147,11 @@ export function MetricDetailModal({
   if (!metric || !spec || !stats) return null;
 
   const { present, last, prev, avg7, avg30, best } = stats;
+
+  // Module navigation — cycle through metrics without closing.
+  const curIdx = ORDER.indexOf(metric);
+  const prevKey = ORDER[(curIdx - 1 + ORDER.length) % ORDER.length];
+  const nextKey = ORDER[(curIdx + 1) % ORDER.length];
 
   // Build the 30-day chart series — use the same date axis density.
   const last30 = lastNDays(
@@ -218,28 +231,71 @@ export function MetricDetailModal({
         aria-label={`${spec.label} — detalii`}
       >
         {/* Header */}
-        <header className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-[var(--color-border)]">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold tracking-tight">{spec.label}</h2>
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: lastTier.color + '20', color: lastTier.color }}
-              >
-                {lastTier.label}
-              </span>
+        <header className="px-5 pt-5 pb-3 border-b border-[var(--color-border)]">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold tracking-tight">{spec.label}</h2>
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: lastTier.color + '20', color: lastTier.color }}
+                >
+                  {lastTier.label}
+                </span>
+              </div>
+              <p className="text-[11px] text-[var(--color-fg-muted)] mt-1 num">
+                target {spec.higherBetter ? '≥' : '≤'} {spec.target}{spec.unit}
+              </p>
             </div>
-            <p className="text-[11px] text-[var(--color-fg-muted)] mt-1 num">
-              target {spec.higherBetter ? '≥' : '≤'} {spec.target}{spec.unit}
-            </p>
+            <div className="flex items-center gap-1 shrink-0">
+              {onNavigate && (
+                <>
+                  <button
+                    onClick={() => onNavigate(prevKey)}
+                    aria-label="Modulul anterior"
+                    className="tap w-9 h-9 rounded-full hover:bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors text-xl leading-none"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => onNavigate(nextKey)}
+                    aria-label="Modulul următor"
+                    className="tap w-9 h-9 rounded-full hover:bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors text-xl leading-none"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+              <button
+                onClick={onClose}
+                aria-label="Închide"
+                className="shrink-0 w-9 h-9 rounded-full hover:bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Închide"
-            className="shrink-0 w-9 h-9 rounded-full hover:bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors text-xl leading-none"
-          >
-            ×
-          </button>
+
+          {/* Module switcher — jump straight to any metric */}
+          {onNavigate && (
+            <div className="flex gap-1.5 mt-3 overflow-x-auto -mx-1 px-1 pb-0.5">
+              {ORDER.map((k) => {
+                const active = k === metric;
+                return (
+                  <button
+                    key={k}
+                    onClick={() => onNavigate(k)}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors shrink-0"
+                    style={active
+                      ? { background: 'var(--color-accent)', color: 'var(--color-bg)' }
+                      : { background: 'var(--color-surface)', color: 'var(--color-fg-muted)' }}
+                  >
+                    {SPECS[k].label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </header>
 
         <div className="overflow-y-auto px-5 py-4 flex-1">

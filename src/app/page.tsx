@@ -69,6 +69,7 @@ export default function Home() {
         entries={entries}
         user={user}
         onClose={() => setOpenMetric(null)}
+        onNavigate={setOpenMetric}
       />
     </div>
   );
