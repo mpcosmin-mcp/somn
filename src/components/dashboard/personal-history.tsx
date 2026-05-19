@@ -1,10 +1,13 @@
 'use client';
-import { type SleepEntry, ssColor, hrvColor, ssTier, personalTrendNote } from '@/lib/sleep';
+import { type SleepEntry, ssColor, hrvColor, rhrColor, ssTier, personalTrendNote, personColor } from '@/lib/sleep';
+import { Sparkline } from '@/components/ui/sparkline';
 
 /**
  * Personal History — compact tabular view of the last few logs.
  *
- * Columns: DATA · SCOR · REM · HRV · STATUS pill (Optim/Average/Poor).
+ * Columns: DATA · TREND (sparkline) · RHR · SCOR · REM · HRV · STATUS pill.
+ * The sparkline per row shows the 7 days of SS ending on that row's date,
+ * so the rightmost dot IS that row's score — instant trend-in-context.
  * Footer: pattern note computed locally from the data — no AI call.
  */
 export function PersonalHistory({ entries, user, limit = 6 }: {
@@ -12,10 +15,10 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
   user: string;
   limit?: number;
 }) {
-  const mine = entries
+  const sortedDesc = entries
     .filter(e => e.name === user)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, limit);
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const mine = sortedDesc.slice(0, limit);
 
   const dayShort = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
   const monthShort = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
@@ -26,6 +29,26 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
   };
 
   const trend = personalTrendNote(entries, user);
+  const sparkColor = personColor(user);
+
+  // Lookup of date → SS for fast per-row sparkline assembly.
+  const ssByDate = new Map<string, number>();
+  for (const e of sortedDesc) ssByDate.set(e.date, e.ss);
+
+  /** Build SS values + dates for the 7 calendar days ending on `endIso` (inclusive). */
+  const sparkSeriesFor = (endIso: string) => {
+    const end = new Date(endIso + 'T12:00:00');
+    const values: (number | null)[] = [];
+    const dates: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(end);
+      d.setDate(end.getDate() - i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dates.push(iso);
+      values.push(ssByDate.has(iso) ? ssByDate.get(iso)! : null);
+    }
+    return { values, dates };
+  };
 
   if (!mine.length) {
     return (
@@ -46,8 +69,10 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
       </div>
 
       {/* Header row */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 lg:gap-4 items-center pb-2 border-b border-[var(--color-border)]">
+      <div className="grid grid-cols-[auto_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-3 lg:gap-4 items-center pb-2 border-b border-[var(--color-border)]">
         <span className="label">Data</span>
+        <span className="label hidden sm:inline">Trend</span>
+        <span className="label text-right hidden sm:inline">RHR</span>
         <span className="label text-right">Scor</span>
         <span className="label text-right hidden sm:inline">REM</span>
         <span className="label text-right hidden sm:inline">HRV</span>
@@ -60,9 +85,19 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
           const t = ssTier(e.ss);
           const pill = e.ss >= 75 ? 'optim' : e.ss >= 60 ? 'average' : 'poor';
           const pillLabel = e.ss >= 75 ? 'Optim' : e.ss >= 60 ? 'Average' : 'Poor';
+          const { values, dates } = sparkSeriesFor(e.date);
           return (
-            <div key={e.date} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 lg:gap-4 items-center py-2.5">
+            <div key={e.date} className="grid grid-cols-[auto_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-3 lg:gap-4 items-center py-2.5">
               <span className="text-xs text-[var(--color-fg)]">{fmt(e.date)}</span>
+              <div className="hidden sm:flex items-center min-w-0">
+                <Sparkline values={values} dates={dates} unit="" width={96} height={22} color={sparkColor} />
+              </div>
+              <span
+                className="num text-xs text-right hidden sm:inline"
+                style={{ color: rhrColor(e.rhr) }}
+              >
+                {e.rhr}
+              </span>
               <span className="num font-bold text-base text-right" style={{ color: ssColor(e.ss) }}>
                 {e.ss}
               </span>
