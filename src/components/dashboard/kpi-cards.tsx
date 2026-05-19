@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import {
   type SleepEntry,
   ssColor, hrvColor, remColor, rhrColor,
@@ -161,13 +162,30 @@ function KpiCard({
     ? 'var(--color-fg-dim)'
     : onTarget ? 'var(--color-good)' : 'var(--color-bad)';
 
+  const [hovered, setHovered] = useState(false);
+
+  // One-line verdict for the hover preview.
+  const verdict = (() => {
+    if (delta == null) return { text: 'prima măsurătoare cu date', color: 'var(--color-fg-muted)' };
+    if (delta === 0) return { text: 'la fel ca ieri', color: 'var(--color-fg-muted)' };
+    const good = higherBetter ? delta > 0 : delta < 0;
+    return good
+      ? { text: 'în creștere față de ieri', color: 'var(--color-good)' }
+      : { text: 'în scădere față de ieri', color: 'var(--color-bad)' };
+  })();
+
   const Tag = onClick ? 'button' : 'div';
   return (
+    <div
+      className={`relative ${hovered ? 'z-30' : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
     <Tag
       onClick={onClick}
       type={onClick ? 'button' : undefined}
       aria-label={onClick ? `Vezi detalii ${label}` : undefined}
-      className={`kpi card px-4 lg:px-5 py-4 lg:py-5 flex flex-col text-left ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] active:scale-[0.99] transition-all' : ''}`}
+      className={`kpi card w-full px-4 lg:px-5 py-4 lg:py-5 flex flex-col text-left ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] active:scale-[0.99] transition-all' : ''}`}
       style={{ ['--kpi-accent' as string]: accentVar }}
     >
       {/* Top row — label + target pill */}
@@ -215,5 +233,31 @@ function KpiCard({
         <Sparkline values={series} dates={dates} unit={sparkUnit} width={56} height={20} color={color} />
       </div>
     </Tag>
+
+      {/* Hover preview — desktop peek: bigger chart + delta + target + verdict */}
+      {hovered && (
+        <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-2xl shadow-black/40 p-3 pointer-events-none fade-in-up">
+          <div className="flex items-baseline justify-between gap-2 mb-2">
+            <span className="label">{label}</span>
+            <span className="num font-bold text-lg leading-none" style={{ color: value == null ? 'var(--color-fg-dim)' : color }}>
+              {value ?? '—'}<span className="text-[10px] text-[var(--color-fg-dim)] font-medium ml-0.5">{unit}</span>
+            </span>
+          </div>
+          <Sparkline values={series} dates={dates} unit={sparkUnit} color={color} width={232} height={44} />
+          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[var(--color-border)]/60 text-[11px] num">
+            <span className="flex items-center gap-1 font-bold" style={{ color: deltaColor }}>
+              <span aria-hidden>{deltaArrow}</span>
+              {delta != null ? <>{Math.abs(delta)}{deltaUnit} vs ieri</> : <span className="text-[var(--color-fg-dim)]">prima</span>}
+            </span>
+            {vsTarget != null && (
+              <span className="num font-bold" style={{ color: targetPillColor }}>
+                {onTarget ? '✓ peste' : 'sub'} target {higherBetter ? '≥' : '≤'} {target}
+              </span>
+            )}
+          </div>
+          <div className="text-[10px] mt-1.5 leading-snug" style={{ color: verdict.color }}>{verdict.text}</div>
+        </div>
+      )}
+    </div>
   );
 }
