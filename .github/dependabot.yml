@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      next-react:
+        patterns:
+          - "next*"
+          - "@next/*"
+          - "react*"
+          - "react-dom"
+          - "@types/react*"
+      anthropic:
+        patterns:
+          - "@anthropic-ai/*"
+      tailwind:
+        patterns:
+          - "tailwind*"
+          - "@tailwindcss/*"
+          - "postcss*"
+      vercel:
+        patterns:
+          - "@vercel/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci"
