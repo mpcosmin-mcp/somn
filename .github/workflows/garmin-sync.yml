@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Garmin sync
         env:
-          GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+          GARMIN_USERNAME: ${{ secrets.GARMIN_EMAIL || secrets.GARMIN_USERNAME }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
           SHEETS_API_URL: ${{ secrets.SHEETS_API_URL }}
           SOMN_NAME: ${{ vars.SOMN_NAME }}
