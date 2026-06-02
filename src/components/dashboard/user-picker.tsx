@@ -45,9 +45,6 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
   const sortedNames = entries.length > 0
     ? [...NAMES].sort((a, b) => calcXP(entries, b) - calcXP(entries, a))
     : [...NAMES];
-  const todayAlreadyLogged = picked
-    ? entries.some(e => e.name === picked && e.date === todayStr())
-    : false;
 
   return (
     <main className="aurora min-h-dvh flex items-center justify-center px-4 py-8">
@@ -74,7 +71,7 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
         {picked && (
           <LogStep
             user={picked}
-            already={todayAlreadyLogged}
+            entries={entries}
             onBack={() => setPicked(null)}
             onDone={() => onPick(picked)}
           />
@@ -175,10 +172,10 @@ function PickerStep({
 
 /* ─── STEP 2: quick log form ───────────────────────────── */
 function LogStep({
-  user, already, onBack, onDone,
+  user, entries, onBack, onDone,
 }: {
   user: string;
-  already: boolean;
+  entries: SleepEntry[];
   onBack: () => void;
   onDone: () => void;
 }) {
@@ -187,8 +184,11 @@ function LogStep({
   const [vals, setVals] = useState<{ ss: string; rem: string; rhr: string; hrv: string; journal: string }>({
     ss: '', rem: '', rhr: '', hrv: '', journal: '',
   });
+  const [date, setDate] = useState(todayStr());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isToday = date === todayStr();
+  const already = entries.some(e => e.name === user && e.date === date);
 
   const canSave = vals.ss.trim() !== '' && vals.rhr.trim() !== '';
 
@@ -198,7 +198,7 @@ function LogStep({
     setError(null);
     try {
       await submitEntry({
-        date: todayStr(),
+        date,
         name: user,
         ss: Number(vals.ss),
         rhr: Number(vals.rhr),
@@ -223,7 +223,9 @@ function LogStep({
         <div className="flex-1 min-w-0">
           <div className="text-base font-bold" style={{ color: c }}>{fn}</div>
           <div className="text-[11px] text-[var(--color-fg-muted)]">
-            {already ? 'azi e deja logat — poți reactualiza' : 'logul de azi · completează ce ai'}
+            {already
+              ? (isToday ? 'azi e deja logat — poți reactualiza' : 'log existent pentru data asta — actualizezi')
+              : (isToday ? 'logul de azi · completează ce ai' : 'log retroactiv · completează ce ai')}
           </div>
         </div>
         <button
@@ -232,6 +234,17 @@ function LogStep({
         >
           ← schimbă
         </button>
+      </div>
+
+      <div>
+        <label className="label block mb-1.5">Data</label>
+        <input
+          type="date"
+          value={date}
+          max={todayStr()}
+          onChange={e => setDate(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -280,7 +293,11 @@ function LogStep({
             boxShadow: canSave ? '0 8px 24px -8px var(--color-accent-glow)' : 'none',
           }}
         >
-          {saving ? 'se salvează...' : already ? 'actualizează' : 'salvează și intră'}
+          {saving
+            ? 'se salvează...'
+            : already
+              ? 'actualizează'
+              : isToday ? 'salvează și intră' : 'salvează retroactiv'}
         </button>
         <button
           onClick={onDone}
