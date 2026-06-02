@@ -9,15 +9,13 @@ import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
 import { MetricDetailModal, type MetricKey } from '@/components/dashboard/metric-detail-modal';
 import { LogEntryButton } from '@/components/dashboard/log-entry-button';
-import { InsightStrip } from '@/components/dashboard/insight-strip';
-import { PersonalRecordsCard } from '@/components/dashboard/personal-records-card';
-import { HeadToHead } from '@/components/dashboard/head-to-head';
-import { BadgesStrip } from '@/components/dashboard/badges-strip';
+import { StreakStrip } from '@/components/dashboard/streak-strip';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
  * Main dashboard — everything on ONE page, in this order:
  *
+ *   0. StreakStrip — Duolingo-style daily bullets + current streak.
  *   1. KPI cards — Sleep Score / REM / HRV / RHR with target-vs-actual.
  *   2. Leaderboard — team clasament.
  *   3. TeamFeed — today's journals, likes + comments.
@@ -43,9 +41,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-3 lg:gap-4 max-w-6xl mx-auto w-full">
-      {/* MVP · fact-of-the-period · personal anomalies */}
+      {/* Duolingo-style streak — current run + last 7 days as dots */}
       <div className="fade-in-up delay-0">
-        <InsightStrip entries={entries} user={user} />
+        <StreakStrip entries={entries} user={user} />
       </div>
 
       {/* Personal KPIs — Sleep Score / REM / HRV / RHR · click → modal */}
@@ -58,11 +56,6 @@ export default function Home() {
         <Leaderboard entries={entries} currentUser={user} />
       </div>
 
-      {/* Head-to-head — current user vs each teammate */}
-      <div className="fade-in-up delay-2">
-        <HeadToHead entries={entries} user={user} />
-      </div>
-
       {/* Social feed — today's journals, with likes + comments */}
       <div className="fade-in-up delay-2">
         <TeamFeed entries={entries} currentUser={user} limit={5} />
@@ -71,16 +64,6 @@ export default function Home() {
       {/* Personal history (with pattern footer) */}
       <div className="fade-in-up delay-3">
         <PersonalHistory entries={entries} user={user} limit={6} />
-      </div>
-
-      {/* Personal Records */}
-      <div className="fade-in-up delay-3">
-        <PersonalRecordsCard entries={entries} user={user} />
-      </div>
-
-      {/* Earned badges */}
-      <div className="fade-in-up delay-4">
-        <BadgesStrip entries={entries} user={user} />
       </div>
 
       {/* Team multi-metric chart */}
