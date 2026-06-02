@@ -1,5 +1,5 @@
 'use client';
-import { type SleepEntry, ssColor, hrvColor, rhrColor, ssTier, personalTrendNote, personColor } from '@/lib/sleep';
+import { type SleepEntry, ssColor, hrvColor, rhrColor, ssTier, personColor } from '@/lib/sleep';
 import { Sparkline } from '@/components/ui/sparkline';
 
 /**
@@ -28,7 +28,6 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
     return `${String(d.getDate()).padStart(2, '0')} ${monthShort[d.getMonth()]}, ${dayShort[d.getDay()]}`;
   };
 
-  const trend = personalTrendNote(entries, user);
   const sparkColor = personColor(user);
 
   // Lookup of date → SS for fast per-row sparkline assembly.
@@ -113,23 +112,6 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
         })}
       </div>
 
-      {/* Pattern note — computed locally from the data, no AI */}
-      {trend && (
-        <div className="mt-3 pt-3 border-t border-[var(--color-border)]/70">
-          <div className="label mb-1">pattern</div>
-          <p
-            className="text-xs leading-relaxed"
-            style={{
-              color:
-                trend.tone === 'good' ? 'var(--color-good)'
-                : trend.tone === 'warn' ? 'var(--color-warn)'
-                : 'var(--color-fg-muted)',
-            }}
-          >
-            {trend.text}
-          </p>
-        </div>
-      )}
     </section>
   );
 }

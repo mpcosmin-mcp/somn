@@ -50,7 +50,7 @@ export function StreakStrip({ entries, user }: { entries: SleepEntry[]; user: st
         <div className="leading-none">
           <div
             className="num font-bold text-2xl"
-            style={{ color: streak > 0 ? '#f97316' : 'var(--color-fg-dim)' }}
+            style={{ color: streak > 0 ? 'var(--color-good)' : 'var(--color-fg-dim)' }}
           >
             {streak}
           </div>
@@ -62,25 +62,35 @@ export function StreakStrip({ entries, user }: { entries: SleepEntry[]; user: st
 
       {/* Bullets — last 7 days */}
       <div className="flex-1 min-w-0 flex items-end justify-between gap-1">
-        {days.map(d => (
-          <div key={d.iso} className="flex flex-col items-center gap-1 min-w-0">
-            <span
-              className={`w-3 h-3 rounded-full transition-all ${d.isToday && !d.logged ? 'streak-pulse' : ''}`}
-              style={{
-                background: d.logged ? c : 'transparent',
-                border: d.logged ? `1px solid ${c}` : '1px solid var(--color-border)',
-                boxShadow: d.logged && d.isToday ? `0 0 10px ${c}88` : 'none',
-              }}
-              aria-label={d.logged ? `${d.iso} logat` : `${d.iso} fără log`}
-            />
-            <span
-              className="text-[9px] num font-bold"
-              style={{ color: d.isToday ? c : 'var(--color-fg-dim)' }}
-            >
-              {d.label}
-            </span>
-          </div>
-        ))}
+        {days.map(d => {
+          // green = logged · orange = missed · pulsing orange ring = today, not yet
+          const green = 'var(--color-good)';
+          const orange = 'var(--color-warn)';
+          const filled = d.logged;
+          const todayPending = d.isToday && !d.logged;
+          return (
+            <div key={d.iso} className="flex flex-col items-center gap-1.5 min-w-0">
+              <span
+                className={`w-5 h-5 rounded-full transition-all ${todayPending ? 'streak-pulse' : ''}`}
+                style={{
+                  background: filled ? green : (todayPending ? 'transparent' : orange),
+                  border: filled
+                    ? `2px solid ${green}`
+                    : `2px solid ${orange}`,
+                  boxShadow: filled ? `0 0 8px ${green}66` : 'none',
+                  opacity: d.logged || todayPending ? 1 : 0.8,
+                }}
+                aria-label={d.logged ? `${d.iso} logat` : `${d.iso} fără log`}
+              />
+              <span
+                className="text-[10px] num font-bold"
+                style={{ color: d.isToday ? 'var(--color-fg)' : 'var(--color-fg-dim)' }}
+              >
+                {d.label}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Tonight nudge — only when today's not logged yet */}
