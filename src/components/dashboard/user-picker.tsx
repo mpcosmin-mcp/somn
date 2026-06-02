@@ -5,6 +5,7 @@ import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
 import { submitEntry } from '@/lib/client-api';
 import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
+import { loginGreeting, factOfThePeriod } from '@/lib/insights';
 import { Avi } from '@/components/ui/avi';
 import { ProfileHoverCard } from '@/components/dashboard/profile-hover-card';
 import { LoginInstallBanner } from '@/components/layout/login-install-banner';
@@ -166,6 +167,8 @@ function PickerStep({
           );
         })}
       </div>
+
+      <FactPill entries={entries} />
     </div>
   );
 }
@@ -189,6 +192,7 @@ function LogStep({
   const [error, setError] = useState<string | null>(null);
   const isToday = date === todayStr();
   const already = entries.some(e => e.name === user && e.date === date);
+  const greeting = loginGreeting(entries, user);
 
   const canSave = vals.ss.trim() !== '' && vals.rhr.trim() !== '';
 
@@ -221,8 +225,20 @@ function LogStep({
       <div className="flex items-center gap-3">
         <Avi name={user} size="md" />
         <div className="flex-1 min-w-0">
-          <div className="text-base font-bold" style={{ color: c }}>{fn}</div>
-          <div className="text-[11px] text-[var(--color-fg-muted)]">
+          <div className="text-base font-bold leading-tight" style={{ color: c }}>{greeting.headline}</div>
+          <div
+            className="text-[11px] mt-0.5"
+            style={{
+              color:
+                greeting.tone === 'fire' ? '#f97316'
+                : greeting.tone === 'good' ? 'var(--color-good)'
+                : greeting.tone === 'warn' ? 'var(--color-warn)'
+                : 'var(--color-fg-muted)',
+            }}
+          >
+            {greeting.sub}
+          </div>
+          <div className="text-[10px] text-[var(--color-fg-dim)] mt-0.5">
             {already
               ? (isToday ? 'azi e deja logat — poți reactualiza' : 'log existent pentru data asta — actualizezi')
               : (isToday ? 'logul de azi · completează ce ai' : 'log retroactiv · completează ce ai')}
@@ -230,7 +246,7 @@ function LogStep({
         </div>
         <button
           onClick={onBack}
-          className="text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors px-2 py-1"
+          className="text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors px-2 py-1 self-start"
         >
           ← schimbă
         </button>
@@ -351,6 +367,24 @@ function GlassInput({
         placeholder={placeholder}
         className="w-full bg-transparent outline-none num font-bold text-xl text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] placeholder:font-normal"
       />
+    </div>
+  );
+}
+
+/* ─── Fact pill — rotating team fact under the login picker ─── */
+function FactPill({ entries }: { entries: SleepEntry[] }) {
+  const fact = factOfThePeriod(entries);
+  if (!fact) return null;
+  const periodLabel = fact.period === 'day' ? 'azi' : fact.period === 'week' ? 'săptămâna' : 'luna';
+  return (
+    <div className="mt-3 px-3 py-2 rounded-2xl bg-white/[0.04] border border-white/10 flex items-start gap-2">
+      <span className="text-base shrink-0 leading-tight">💡</span>
+      <div className="min-w-0">
+        <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--color-fg-dim)] font-semibold">
+          fact {periodLabel}
+        </div>
+        <div className="text-[11px] text-[var(--color-fg)] leading-snug">{fact.text}</div>
+      </div>
     </div>
   );
 }
