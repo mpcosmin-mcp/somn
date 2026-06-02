@@ -8,6 +8,7 @@ import { PersonalHistory } from '@/components/dashboard/personal-history';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
 import { MetricDetailModal, type MetricKey } from '@/components/dashboard/metric-detail-modal';
+import { LogEntryButton } from '@/components/dashboard/log-entry-button';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
@@ -71,6 +72,8 @@ export default function Home() {
         onClose={() => setOpenMetric(null)}
         onNavigate={setOpenMetric}
       />
+
+      <LogEntryButton user={user} />
     </div>
   );
 }
