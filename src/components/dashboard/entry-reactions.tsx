@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Heart, MessageCircle, Send, X, CornerDownRight } from 'lucide-react';
 import { type SleepEntry, FIRST_NAME, personColor } from '@/lib/sleep';
 import { useSocial, entryKeyOf, type Comment, type Reply } from '@/lib/social';
+import { MentionText, MENTIONABLES, appendMention } from '@/lib/mentions';
 
 /**
  * Likes + comments footer for a single feed entry.
@@ -105,28 +106,31 @@ export function EntryReactions({ entry, currentUser }: {
             ))}
 
           {/* Top-level composer */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitTopLevel(); } }}
-              placeholder="scrie ceva..."
-              maxLength={280}
-              className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] focus:outline-none focus:border-[var(--color-accent)]/60 transition-colors"
-            />
-            <button
-              onClick={submitTopLevel}
-              disabled={!input.trim()}
-              aria-label="Trimite"
-              className="rounded-lg p-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              style={{
-                background: input.trim() ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'transparent',
-                color: input.trim() ? '#fff' : 'var(--color-fg-muted)',
-              }}
-            >
-              <Send size={14} strokeWidth={2} />
-            </button>
+          <div className="space-y-1.5">
+            <MentionChips exclude={currentUser} onPick={f => setInput(v => appendMention(v, f))} />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitTopLevel(); } }}
+                placeholder="scrie ceva... (@ pentru a menționa)"
+                maxLength={280}
+                className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] focus:outline-none focus:border-[var(--color-accent)]/60 transition-colors"
+              />
+              <button
+                onClick={submitTopLevel}
+                disabled={!input.trim()}
+                aria-label="Trimite"
+                className="rounded-lg p-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                style={{
+                  background: input.trim() ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'transparent',
+                  color: input.trim() ? '#fff' : 'var(--color-fg-muted)',
+                }}
+              >
+                <Send size={14} strokeWidth={2} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -211,29 +215,32 @@ function CommentBlock({
 
           {/* Reply composer */}
           {replyOpen && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={replyInput}
-                onChange={e => setReplyInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(); } }}
-                placeholder={`răspunde lui ${FIRST_NAME[comment.from] ?? comment.from.split(' ')[0]}...`}
-                maxLength={280}
-                autoFocus
-                className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1 text-[11px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] focus:outline-none focus:border-[var(--color-accent)]/60 transition-colors"
-              />
-              <button
-                onClick={submitReply}
-                disabled={!replyInput.trim()}
-                aria-label="Trimite răspuns"
-                className="rounded-lg p-1.5 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                style={{
-                  background: replyInput.trim() ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'transparent',
-                  color: replyInput.trim() ? '#fff' : 'var(--color-fg-muted)',
-                }}
-              >
-                <Send size={12} strokeWidth={2} />
-              </button>
+            <div className="space-y-1 pt-1">
+              <MentionChips exclude={currentUser} onPick={f => setReplyInput(v => appendMention(v, f))} />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={replyInput}
+                  onChange={e => setReplyInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(); } }}
+                  placeholder={`răspunde lui ${FIRST_NAME[comment.from] ?? comment.from.split(' ')[0]}...`}
+                  maxLength={280}
+                  autoFocus
+                  className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1 text-[11px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] focus:outline-none focus:border-[var(--color-accent)]/60 transition-colors"
+                />
+                <button
+                  onClick={submitReply}
+                  disabled={!replyInput.trim()}
+                  aria-label="Trimite răspuns"
+                  className="rounded-lg p-1.5 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  style={{
+                    background: replyInput.trim() ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'transparent',
+                    color: replyInput.trim() ? '#fff' : 'var(--color-fg-muted)',
+                  }}
+                >
+                  <Send size={12} strokeWidth={2} />
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -285,7 +292,7 @@ function CommentBody({
           <span className="text-[var(--color-fg-dim)] num text-[10px] ml-1.5">{ago}</span>
         </div>
         <p className={`${textSize} text-[var(--color-fg)] mt-0.5 whitespace-pre-line break-words`}>
-          {text}
+          <MentionText text={text} />
         </p>
 
         {/* Per-comment/reply actions */}
@@ -325,6 +332,32 @@ function CommentBody({
           <X size={11} strokeWidth={2.5} />
         </button>
       )}
+    </div>
+  );
+}
+
+/* ─── @-mention quick-insert chips ───────────────────────── */
+
+function MentionChips({ exclude, onPick }: {
+  exclude?: string;
+  onPick: (first: string) => void;
+}) {
+  const people = MENTIONABLES.filter(m => m.full !== exclude);
+  if (!people.length) return null;
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      <span className="text-[9px] text-[var(--color-fg-dim)]">menționează:</span>
+      {people.map(p => (
+        <button
+          key={p.full}
+          type="button"
+          onClick={() => onPick(p.first)}
+          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md transition-transform active:scale-90"
+          style={{ color: p.color, background: `${p.color}14` }}
+        >
+          @{p.first}
+        </button>
+      ))}
     </div>
   );
 }
