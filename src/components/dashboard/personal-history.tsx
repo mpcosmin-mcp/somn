@@ -1,5 +1,5 @@
 'use client';
-import { type SleepEntry, ssColor, hrvColor, rhrColor, ssTier, personColor } from '@/lib/sleep';
+import { type SleepEntry, ssColor, hrvColor, rhrColor, ssTier, personColor, sleepDurationMin, fmtDuration, durationColor } from '@/lib/sleep';
 import { Sparkline } from '@/components/ui/sparkline';
 
 /**
@@ -87,7 +87,15 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
           const { values, dates } = sparkSeriesFor(e.date);
           return (
             <div key={e.date} className="grid grid-cols-[auto_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-3 lg:gap-4 items-center py-2.5">
-              <span className="text-xs text-[var(--color-fg)]">{fmt(e.date)}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs text-[var(--color-fg)]">{fmt(e.date)}</span>
+                {(() => {
+                  const d = sleepDurationMin(e.start, e.end);
+                  return d != null
+                    ? <span className="text-[10px] num leading-tight" style={{ color: durationColor(d) }}>{fmtDuration(d)}</span>
+                    : null;
+                })()}
+              </div>
               <div className="hidden sm:flex items-center min-w-0">
                 <Sparkline values={values} dates={dates} unit="" width={96} height={22} color={sparkColor} />
               </div>

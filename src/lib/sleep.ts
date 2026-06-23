@@ -11,6 +11,8 @@ export interface SleepEntry {
   hrv: number | null;      // heart rate variability, ms
   rem: number | null;      // REM minutes (NEW in v2)
   journal: string | null;  // free-form daily note (NEW in v2)
+  start?: string | null;   // bedtime "HH:MM" (NEW v3 — optional; absent on older logs)
+  end?: string | null;     // wake time "HH:MM" (NEW v3)
 }
 
 export interface AggEntry {
@@ -208,6 +210,56 @@ export function lastNDays(entries: SleepEntry[], n: number, from: Date = new Dat
   const cutoff = new Date(from); cutoff.setDate(cutoff.getDate() - n);
   const cutStr = cutoff.toISOString().split('T')[0];
   return entries.filter(e => e.date >= cutStr);
+}
+
+/* ── Sleep timing (bedtime / wake / duration) — NEW v3 ──
+ * Times are "HH:MM" 24h strings. Everything tolerates null/undefined so older
+ * logs (which have no times) and partial input degrade cleanly.
+ */
+
+/** Parse "HH:MM" → minutes since 00:00, or null if missing/invalid. */
+export function hhmmToMin(t?: string | null): number | null {
+  if (!t) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim());
+  if (!m) return null;
+  const h = +m[1], mm = +m[2];
+  if (h > 23 || mm > 59) return null;
+  return h * 60 + mm;
+}
+
+/** Minutes slept from bedtime→wake. Adds a day when the clock wraps past
+ *  midnight (e.g. 22:36 → 07:25 = 529 min). null if either time is missing. */
+export function sleepDurationMin(start?: string | null, end?: string | null): number | null {
+  const s = hhmmToMin(start), e = hhmmToMin(end);
+  if (s == null || e == null) return null;
+  let d = e - s;
+  if (d <= 0) d += 24 * 60;
+  return d;
+}
+
+/** "8h 49m" / "7h" / "—" */
+export function fmtDuration(min: number | null): string {
+  if (min == null) return '—';
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/** Color for a sleep duration (minutes). Ideal band 7-9h. */
+export function durationColor(min: number | null): string {
+  if (min == null) return C.dim;
+  if (min < 360) return C.bad;     // < 6h
+  if (min < 420) return C.under;   // 6–7h
+  if (min <= 540) return C.good;   // 7–9h sweet spot
+  return C.under;                  // > 9h (oversleep)
+}
+
+/** Bedtime as minutes since 18:00 so evening→early-morning is monotonic
+ *  (22:00→240, 00:30→390, 02:00→480). Lets us compare/range bedtimes without
+ *  the midnight wrap breaking naive HH:MM math. null if missing. */
+export function bedtimeFrom18(start?: string | null): number | null {
+  const s = hhmmToMin(start);
+  if (s == null) return null;
+  return (s - 18 * 60 + 24 * 60) % (24 * 60);
 }
 
 /* Personal trend / pattern note + the coach insight engine now live in

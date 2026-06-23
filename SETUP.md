@@ -14,15 +14,19 @@ The AI roasts and weekly stories use Claude Haiku 4.5 (cheap, ~$0.50/month for 3
 
 ---
 
-## 2. Google Sheet — clean schema (7 columns, no `score`)
+## 2. Google Sheet — clean schema (9 columns, no `score`)
 
 **Final header row:**
 
-| A | B | C | D | E | F | G |
-|---|---|---|---|---|---|---|
-| `date` | `name` | `sleep_score` | `rhr` | `hrv` | `rem` | `journal` |
+| A | B | C | D | E | F | G | H | I |
+|---|---|---|---|---|---|---|---|---|
+| `date` | `name` | `sleep_score` | `rhr` | `hrv` | `rem` | `journal` | `start` | `end` |
 
 The legacy `score` column was never used by anything — drop it.
+
+> `start`/`end` = bedtime/wake as `HH:MM` (v3 sleep-time logging). **Format
+> columns H and I as Plain Text** (Format → Number → Plain text) — otherwise
+> Google coerces "22:36" into a time serial that reads back wrong on a UTC server.
 
 ### If you've already started using v2 — fix the Sheet
 
@@ -36,11 +40,11 @@ The current Sheet has confused headers (`score: rem`, shifted columns). Fix:
    - **G1** → `journal`
 5. Done. Data lives in correct columns now.
 
-Verify by checking row 1 reads exactly: `date | name | sleep_score | rhr | hrv | rem | journal`.
+Verify by checking row 1 reads exactly: `date | name | sleep_score | rhr | hrv | rem | journal | start | end`.
 
 ### If starting fresh
 
-Create those 7 headers in row 1, in that order.
+Create those 9 headers in row 1, in that order (format `start`/`end` as Plain Text).
 
 ### Update the Apps Script — REPLACE the entire file
 
@@ -71,6 +75,8 @@ function doGet(e) {
     const hrv = e.parameter.hrv ? parseFloat(e.parameter.hrv) : '';
     const rem = e.parameter.rem ? parseFloat(e.parameter.rem) : '';
     const journal = String(e.parameter.journal || '');
+    const start = String(e.parameter.start || '');
+    const end = String(e.parameter.end || '');
 
     const data = sheet.getDataRange().getValues();
     const headers = data[0] || [];
@@ -88,7 +94,7 @@ function doGet(e) {
       }
     }
 
-    const rowValues = [date, name, sleepScore, rhr, hrv, rem, journal];
+    const rowValues = [date, name, sleepScore, rhr, hrv, rem, journal, start, end];
     if (foundRow > 0) {
       sheet.getRange(foundRow, 1, 1, rowValues.length).setValues([rowValues]);
     } else {

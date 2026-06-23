@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, ssTier, FIRST_NAME } from '@/lib/sleep';
+import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, ssTier, FIRST_NAME, sleepDurationMin, fmtDuration } from '@/lib/sleep';
 import { todayStr, fmtDate, cn } from '@/lib/utils';
 import { submitEntry } from '@/lib/client-api';
 import { Card } from '@/components/ui/card';
@@ -21,6 +21,8 @@ export function LogEntry({
 }) {
   const [date, setDate] = useState(todayStr());
   const [journal, setJournal] = useState('');
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [savedEntry, setSavedEntry] = useState<SleepEntry | null>(null);
@@ -33,6 +35,7 @@ export function LogEntry({
   // Pre-existing entry for the selected date?
   const existing = entries.find(e => e.date === date && e.name === user);
   const isToday = date === todayStr();
+  const dur = sleepDurationMin(start || null, end || null);
 
   useEffect(() => {
     if (existing) {
@@ -41,12 +44,16 @@ export function LogEntry({
       if (rhrRef.current) rhrRef.current.value = String(existing.rhr);
       if (hrvRef.current) hrvRef.current.value = existing.hrv != null ? String(existing.hrv) : '';
       setJournal(existing.journal ?? '');
+      setStart(existing.start ?? '');
+      setEnd(existing.end ?? '');
     } else {
       if (ssRef.current) ssRef.current.value = '';
       if (remRef.current) remRef.current.value = '';
       if (rhrRef.current) rhrRef.current.value = '';
       if (hrvRef.current) hrvRef.current.value = '';
       setJournal('');
+      setStart('');
+      setEnd('');
     }
   }, [date, existing]);
 
@@ -68,7 +75,7 @@ export function LogEntry({
     if (rhr < 30 || rhr > 150) { setErr('RHR în afara intervalului plauzibil'); return; }
 
     setSaving(true);
-    const entry: SleepEntry = { date, name: user, ss, rhr, hrv, rem, journal: journalText || null };
+    const entry: SleepEntry = { date, name: user, ss, rhr, hrv, rem, journal: journalText || null, start: start || null, end: end || null };
     try {
       await submitEntry(entry);
       // Notify parent (so it merges into state) and show the post-save summary
@@ -119,6 +126,15 @@ export function LogEntry({
           <Stat label="HRV" value={savedEntry.hrv}  unit="ms"   color={hrvColor(savedEntry.hrv)} />
         </div>
 
+        {sleepDurationMin(savedEntry.start, savedEntry.end) != null && (
+          <div className="text-center mb-3 sm:mb-4">
+            <span className="text-xs text-[var(--color-fg-muted)]">ai dormit </span>
+            <span className="num font-bold text-lg" style={{ color: 'var(--color-accent)' }}>
+              {fmtDuration(sleepDurationMin(savedEntry.start, savedEntry.end))}
+            </span>
+          </div>
+        )}
+
         <Button variant="primary" className="w-full" onClick={onClose}>ok, înapoi la dashboard</Button>
       </Card>
     );
@@ -153,6 +169,20 @@ export function LogEntry({
           )}
         />
         <div className="text-[10px] text-[var(--color-fg-muted)] mt-1">{fmtDate(date)}</div>
+      </div>
+
+      {/* Bedtime / wake — optional, auto-computes total sleep */}
+      <div className="mb-4">
+        <label className="label block mb-1.5">Ore de somn · opțional</label>
+        <div className="grid grid-cols-2 gap-3">
+          <TimeField label="Culcare" value={start} onChange={setStart} />
+          <TimeField label="Trezire" value={end} onChange={setEnd} />
+        </div>
+        {dur != null && (
+          <div className="text-[11px] num font-bold mt-1.5 text-[var(--color-accent)]">
+            ai dormit {fmtDuration(dur)}
+          </div>
+        )}
       </div>
 
       {/* 4 metric grid */}
@@ -222,6 +252,26 @@ const Field = forwardRef<HTMLInputElement, { label: string; hint: string; ph: st
   ),
 );
 Field.displayName = 'Field';
+
+/* Time picker field — bedtime/wake (controlled) */
+function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="label">{label}</label>
+      <input
+        type="time"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className={cn(
+          'w-full h-10 px-3 rounded-lg num text-center',
+          'bg-[var(--color-card)] text-[var(--color-fg)]',
+          'border border-[var(--color-border)]',
+          'focus:outline-none focus:border-[var(--color-accent)]',
+        )}
+      />
+    </div>
+  );
+}
 
 /* Compact stat tile for the post-save feedback screen */
 function Stat({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { type SleepEntry, NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
+import { type SleepEntry, NAMES, FIRST_NAME, personColor, sleepDurationMin, fmtDuration } from '@/lib/sleep';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
 import { submitEntry } from '@/lib/client-api';
 import { useEntries } from '@/lib/entries-provider';
@@ -181,8 +181,8 @@ function LogStep({
 }) {
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];
   const c = personColor(user);
-  const [vals, setVals] = useState<{ ss: string; rem: string; rhr: string; hrv: string; journal: string }>({
-    ss: '', rem: '', rhr: '', hrv: '', journal: '',
+  const [vals, setVals] = useState<{ ss: string; rem: string; rhr: string; hrv: string; journal: string; start: string; end: string }>({
+    ss: '', rem: '', rhr: '', hrv: '', journal: '', start: '', end: '',
   });
   const [date, setDate] = useState(todayStr());
   const [saving, setSaving] = useState(false);
@@ -205,6 +205,8 @@ function LogStep({
         hrv: vals.hrv.trim() === '' ? null : Number(vals.hrv),
         rem: vals.rem.trim() === '' ? null : Number(vals.rem),
         journal: vals.journal.trim() === '' ? null : vals.journal.trim(),
+        start: vals.start || null,
+        end: vals.end || null,
       });
       onDone();
     } catch (e) {
@@ -245,6 +247,36 @@ function LogStep({
           onChange={e => setDate(e.target.value)}
           className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
         />
+      </div>
+
+      {/* Bedtime / wake — optional, auto-computes total sleep */}
+      <div>
+        <label className="label block mb-1.5">Ore de somn · opțional</label>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <span className="text-[9px] num text-[var(--color-fg-dim)] block mb-1">CULCARE</span>
+            <input
+              type="time"
+              value={vals.start}
+              onChange={e => setVals(s => ({ ...s, start: e.target.value }))}
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
+            />
+          </div>
+          <div>
+            <span className="text-[9px] num text-[var(--color-fg-dim)] block mb-1">TREZIRE</span>
+            <input
+              type="time"
+              value={vals.end}
+              onChange={e => setVals(s => ({ ...s, end: e.target.value }))}
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
+            />
+          </div>
+        </div>
+        {sleepDurationMin(vals.start || null, vals.end || null) != null && (
+          <div className="text-[11px] num font-bold mt-1.5" style={{ color: c }}>
+            ai dormit {fmtDuration(sleepDurationMin(vals.start || null, vals.end || null))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">

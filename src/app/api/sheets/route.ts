@@ -28,6 +28,8 @@ interface RawSheetRow {
   rem?: Cell;
   score?: Cell;
   journal?: Cell;
+  start?: Cell;
+  end?: Cell;
   [k: string]: Cell;
 }
 
@@ -41,6 +43,30 @@ function parseStr(v: Cell): string | null {
   if (v == null) return null;
   const s = String(v).trim();
   return s ? s : null;
+}
+
+/**
+ * Parse a Sheets cell into a clean "HH:MM" 24h string, or null.
+ * Handles the two realistic shapes:
+ *   - a plain "HH:MM" text string — the EXPECTED case; keep the `start`/`end`
+ *     columns formatted as Plain Text in the Sheet so this branch always fires.
+ *   - a Sheets time-of-day stored as a fraction of a day (0.94166… = 22:36).
+ * A Date-coerced value is intentionally NOT handled: on a UTC serverless host
+ * `getHours()` is timezone-shifted, so Plain Text formatting is the real fix.
+ */
+function parseTime(v: Cell): string | null {
+  if (v === '' || v == null) return null;
+  const s = String(v).trim();
+  const hm = /^(\d{1,2}):(\d{2})/.exec(s);
+  if (hm) return `${hm[1].padStart(2, '0')}:${hm[2]}`;
+  const num = Number(s);
+  if (!Number.isNaN(num) && num > 0 && num < 1) {
+    const total = Math.round(num * 24 * 60);
+    const h = Math.floor(total / 60) % 24;
+    const m = total % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  return null;
 }
 
 /**
@@ -114,6 +140,8 @@ export async function GET() {
           hrv: parseNum(r.hrv),
           rem,
           journal,
+          start: parseTime(r.start),
+          end: parseTime(r.end),
         };
       })
       .filter(r => r.date && r.name);
@@ -128,7 +156,7 @@ export async function GET() {
       if (!existing) {
         dedupedMap.set(key, e);
       } else {
-        const score = (x: SleepEntry) => (x.rem != null ? 1 : 0) + (x.journal ? 1 : 0) + (x.hrv != null ? 0.5 : 0);
+        const score = (x: SleepEntry) => (x.rem != null ? 1 : 0) + (x.journal ? 1 : 0) + (x.hrv != null ? 0.5 : 0) + (x.start ? 0.75 : 0) + (x.end ? 0.75 : 0);
         if (score(e) > score(existing)) dedupedMap.set(key, e);
       }
     }
@@ -148,13 +176,14 @@ export async function GET() {
 /**
  * POST /api/sheets — writes a single entry to the Sheet
  *
- * Body: { date, name, ss, rhr, hrv?, rem? }
- * The Apps Script handler must accept ?action=write&date=...&name=...&sleep_score=...&rhr=...&hrv=...&rem=...
+ * Body: { date, name, ss, rhr, hrv?, rem?, journal?, start?, end? }
+ * The Apps Script handler must accept ?action=write&date=...&name=...&sleep_score=...&rhr=...&hrv=...&rem=...&journal=...&start=...&end=...
+ * (start/end are "HH:MM" bedtime/wake — new columns; old scripts simply ignore them.)
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { date, name, ss, rhr, hrv, rem, journal } = body as Partial<SleepEntry>;
+    const { date, name, ss, rhr, hrv, rem, journal, start, end } = body as Partial<SleepEntry>;
     if (!date || !name || ss == null || rhr == null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -167,6 +196,8 @@ export async function POST(req: NextRequest) {
       hrv: hrv == null ? '' : String(hrv),
       rem: rem == null ? '' : String(rem),
       journal: journal ?? '',
+      start: start ?? '',
+      end: end ?? '',
     });
     const url = `${SHEETS_API}?${params}`;
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });

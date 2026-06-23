@@ -6,7 +6,7 @@
    personalTrendNote() is a thin wrapper kept so the metric-detail
    modal keeps its old signature (one shared engine, no double work).
    ───────────────────────────────────────────────────────── */
-import { type SleepEntry } from './sleep';
+import { type SleepEntry, sleepDurationMin, bedtimeFrom18, fmtDuration } from './sleep';
 
 export type InsightTone = 'good' | 'warn' | 'tip';
 
@@ -159,6 +159,50 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
         id: 'tired-despite-score', tone: 'tip',
         title: 'Scor bun, dar REM mic',
         body: 'Dormi ok pe scor, însă REM-ul mic explică oboseala. REM-ul vine spre dimineață — somn mai lung și neîntrerupt îl crește.',
+      });
+    }
+  }
+
+  /* ── Sleep duration (needs start+end on ≥3 recent logs) ── */
+  const durations = last7
+    .map(e => sleepDurationMin(e.start, e.end))
+    .filter((d): d is number => d != null);
+  if (durations.length >= 3) {
+    const avgDur = mean(durations);
+    if (avgDur < 420) {
+      push('duration', 2, {
+        id: 'dur-low', tone: 'warn',
+        title: `Media somn ${fmtDuration(round(avgDur))} · sub 7h`,
+        body: 'Sub 7h cronic taie din REM și recuperare. Țintește 7-9h — mută ora de culcare cu 30-45 min mai devreme.',
+      });
+    } else if (avgDur >= 480) {
+      push('duration', 22, {
+        id: 'dur-good', tone: 'good',
+        title: `Media somn ${fmtDuration(round(avgDur))} · în target`,
+        body: 'Durată solidă (7-9h). Exact ce vrei — protejează fereastra asta de somn.',
+      });
+    }
+  }
+
+  /* ── Bedtime regularity / lateness (needs start on ≥3 recent logs) ──
+   * bedtimeFrom18 linearizes evening→morning so the range is meaningful. */
+  const bedtimes = last7
+    .map(e => bedtimeFrom18(e.start))
+    .filter((b): b is number => b != null);
+  if (bedtimes.length >= 3) {
+    const range = Math.max(...bedtimes) - Math.min(...bedtimes);
+    if (range >= 90) {
+      push('bedtime', 10, {
+        id: 'bed-irregular', tone: 'tip',
+        title: 'Ora de culcare variază mult',
+        body: 'Cea mai mare pârghie: culcă-te la aceeași oră ±30 min, inclusiv weekend. Ritmul circadian iubește predictibilitatea.',
+      });
+    } else if (mean(bedtimes) >= 360) {
+      // avg bedtime at/after 00:00 (360 min past 18:00)
+      push('bedtime', 11, {
+        id: 'bed-late', tone: 'tip',
+        title: 'Te culci după miezul nopții',
+        body: 'Culcarea târzie scurtează somnul profund de la începutul nopții. Trage ora de culcare spre 23:00.',
       });
     }
   }
