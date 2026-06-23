@@ -3,19 +3,21 @@ import { useMemo, useState } from 'react';
 import {
   type SleepEntry,
   NAMES, FIRST_NAME, personColor,
+  sleepDurationMin, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
 import { Card } from '@/components/ui/card';
 import { TeamChart } from '@/components/ui/team-chart';
 
 type Range = '7' | '30' | 'all';
-type Metric = 'ss' | 'rem' | 'rhr' | 'hrv';
+type Metric = 'ss' | 'rem' | 'rhr' | 'hrv' | 'dur';
 
 const METRIC_META: Record<Metric, { label: string; unit: string; target: number; lowerBetter?: boolean }> = {
   ss:  { label: 'Sleep Score', unit: '',    target: 75 },
   rem: { label: 'REM',         unit: 'min', target: 90 },
   rhr: { label: 'RHR',         unit: 'bpm', target: 60, lowerBetter: true },
   hrv: { label: 'HRV',         unit: 'ms',  target: 45 },
+  dur: { label: 'Durată',      unit: 'min', target: DUR_TARGET },
 };
 
 /**
@@ -48,7 +50,9 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
       const personMap = new Map(scoped.filter(e => e.name === n).map(e => [e.date, e]));
       const values = allDates.map(d => {
         const v = personMap.get(d);
-        return v ? (v[metric] as number | null) ?? null : null;
+        if (!v) return null;
+        if (metric === 'dur') return sleepDurationMin(v.start, v.end);
+        return (v[metric] as number | null) ?? null;
       });
       return {
         name: FIRST_NAME[n] ?? n.split(' ')[0],

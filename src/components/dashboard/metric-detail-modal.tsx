@@ -2,15 +2,16 @@
 import { useEffect, useMemo } from 'react';
 import {
   type SleepEntry,
-  ssColor, remColor, hrvColor, rhrColor,
-  ssTier, remTier, hrvTier, rhrTier,
+  ssColor, remColor, hrvColor, rhrColor, durationColor,
+  ssTier, remTier, hrvTier, rhrTier, durTier,
+  sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
 import { personalTrendNote } from '@/lib/coach';
 import { fmtDate } from '@/lib/utils';
 import { TeamChart } from '@/components/ui/team-chart';
 
-export type MetricKey = 'ss' | 'rem' | 'hrv' | 'rhr';
+export type MetricKey = 'ss' | 'rem' | 'hrv' | 'rhr' | 'dur';
 
 interface MetricSpec {
   key: MetricKey;
@@ -22,6 +23,8 @@ interface MetricSpec {
   tier: (v: number | null) => { label: string; color: string };
   /** Pull the metric value off an entry (or null when missing) */
   value: (e: SleepEntry) => number | null;
+  /** Optional formatter for non-integer metrics (e.g. duration → "8h 49m"). */
+  format?: (v: number | null) => string;
 }
 
 const SPECS: Record<MetricKey, MetricSpec> = {
@@ -64,6 +67,17 @@ const SPECS: Record<MetricKey, MetricSpec> = {
     color: (v) => (v == null || v <= 0 ? 'var(--color-fg-dim)' : rhrColor(v)),
     tier: (v) => (v == null || v <= 0 ? { label: '—', color: '#52525b' } : rhrTier(v)),
     value: (e) => (e.rhr > 0 ? e.rhr : null),
+  },
+  dur: {
+    key: 'dur',
+    label: 'Durată',
+    unit: '',
+    target: DUR_TARGET,
+    higherBetter: true,
+    color: (v) => durationColor(v),
+    tier: (v) => durTier(v),
+    value: (e) => sleepDurationMin(e.start, e.end),
+    format: (v) => fmtDuration(v),
   },
 };
 
@@ -188,7 +202,9 @@ export function MetricDetailModal({
     : 'var(--color-fg-muted)';
   const deltaStartArrow = deltaStart == null ? '·' : deltaStart > 0 ? '↑' : deltaStart < 0 ? '↓' : '→';
 
-  const unitSuffix = spec.key === 'rem' ? 'min' : '';
+  const unitSuffix = spec.key === 'rem' || spec.key === 'dur' ? 'min' : '';
+  /** Render a value through the spec's optional formatter (e.g. duration → "8h 49m"). */
+  const renderVal = (v: number | null): string => spec.format ? spec.format(v) : (v == null ? '—' : String(v));
 
   // Deterministic narrative insight — the same holistic read shown on the
   // Personal History card, surfaced here too (Shape's getPersonInsight pattern).
@@ -305,18 +321,18 @@ export function MetricDetailModal({
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
                 <span
-                  className="num font-bold leading-none text-5xl tracking-tight"
+                  className={`num font-bold leading-none tracking-tight ${spec.format ? 'text-4xl' : 'text-5xl'}`}
                   style={{ color: valueColor }}
                 >
-                  {lastValue ?? '—'}
+                  {renderVal(lastValue)}
                 </span>
-                <span className="text-sm text-[var(--color-fg-muted)] font-medium">{spec.unit}</span>
+                {spec.unit && <span className="text-sm text-[var(--color-fg-muted)] font-medium">{spec.unit}</span>}
               </div>
               <div className="text-[11px] num mt-2 flex items-center gap-3 flex-wrap">
                 <span className="flex items-center gap-1" style={{ color: deltaColor }}>
                   <span aria-hidden>{deltaArrow}</span>
                   {delta != null ? (
-                    <span>{Math.abs(delta)}{unitSuffix} vs ultima</span>
+                    <span>{spec.format ? spec.format(Math.abs(delta)) : `${Math.abs(delta)}${unitSuffix}`} vs ultima</span>
                   ) : (
                     <span className="text-[var(--color-fg-dim)]">prima măsurătoare</span>
                   )}
@@ -324,7 +340,7 @@ export function MetricDetailModal({
                 {deltaStart != null && (
                   <span className="flex items-center gap-1" style={{ color: deltaStartColor }}>
                     <span aria-hidden>{deltaStartArrow}</span>
-                    <span>{Math.abs(deltaStart)}{unitSuffix} de la start</span>
+                    <span>{spec.format ? spec.format(Math.abs(deltaStart)) : `${Math.abs(deltaStart)}${unitSuffix}`} de la start</span>
                   </span>
                 )}
               </div>
@@ -334,7 +350,7 @@ export function MetricDetailModal({
                 className="num text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
                 style={{ background: targetPillBg, color: targetPillColor }}
               >
-                {onTarget ? '+' : ''}{vsTarget} {onTarget ? '✓ peste target' : 'sub target'}
+                {onTarget ? '+' : ''}{spec.format ? spec.format(Math.abs(vsTarget)) : vsTarget} {onTarget ? '✓ peste target' : 'sub target'}
               </span>
             )}
           </div>
@@ -374,9 +390,9 @@ export function MetricDetailModal({
 
           {/* Quick stats grid */}
           <div className="grid grid-cols-4 gap-2 mb-5">
-            <StatCell label="medie 7z" value={avg7} unit={spec.unit} color={spec.color(avg7)} />
-            <StatCell label="medie 30z" value={avg30} unit={spec.unit} color={spec.color(avg30)} />
-            <StatCell label={spec.higherBetter ? 'best' : 'cel mai mic'} value={best} unit={spec.unit} color={spec.color(best)} />
+            <StatCell label="medie 7z" value={avg7} unit={spec.unit} color={spec.color(avg7)} format={spec.format} />
+            <StatCell label="medie 30z" value={avg30} unit={spec.unit} color={spec.color(avg30)} format={spec.format} />
+            <StatCell label={spec.higherBetter ? 'best' : 'cel mai mic'} value={best} unit={spec.unit} color={spec.color(best)} format={spec.format} />
             <StatCell label="total loguri" value={present.length} unit="" color="var(--color-fg)" />
           </div>
 
@@ -401,7 +417,7 @@ export function MetricDetailModal({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="num font-bold text-sm" style={{ color: spec.color(p.v) }}>
-                        {p.v}<span className="text-[10px] text-[var(--color-fg-dim)] font-normal ml-0.5">{spec.unit}</span>
+                        {spec.format ? spec.format(p.v) : p.v}{spec.unit && <span className="text-[10px] text-[var(--color-fg-dim)] font-normal ml-0.5">{spec.unit}</span>}
                       </span>
                     </div>
                   </div>
@@ -420,8 +436,9 @@ export function MetricDetailModal({
   );
 }
 
-function StatCell({ label, value, unit, color }: {
+function StatCell({ label, value, unit, color, format }: {
   label: string; value: number | null; unit: string; color: string;
+  format?: (v: number | null) => string;
 }) {
   return (
     <div
@@ -429,7 +446,7 @@ function StatCell({ label, value, unit, color }: {
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       <div className="num font-bold text-base leading-none" style={{ color: value == null ? 'var(--color-fg-dim)' : color }}>
-        {value ?? '—'}
+        {format ? format(value) : (value ?? '—')}
       </div>
       <div className="text-[9px] text-[var(--color-fg-muted)] mt-1 leading-tight">{label}{unit ? ` · ${unit}` : ''}</div>
     </div>

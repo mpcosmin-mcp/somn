@@ -11,7 +11,6 @@ import { MetricDetailModal, type MetricKey } from '@/components/dashboard/metric
 import { LogEntryButton } from '@/components/dashboard/log-entry-button';
 import { StreakStrip } from '@/components/dashboard/streak-strip';
 import { SleepCoach } from '@/components/dashboard/sleep-coach';
-import { SleepDuration } from '@/components/dashboard/sleep-duration';
 import { ReadingList } from '@/components/dashboard/reading-list';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
@@ -19,14 +18,13 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
  * Main dashboard — everything on ONE page, in this order:
  *
  *   0. StreakStrip — daily bullets colored by score + current streak.
- *   1. KPI cards — Sleep Score / REM / HRV / RHR (today + weekly reality).
- *   2. Sleep duration — bedtime→wake total + weekly average.
- *   3. Sleep Coach — deterministic per-person insights (no AI).
- *   4. Leaderboard — team clasament.
- *   5. TeamFeed — today's journals, likes + comments.
- *   6. Personal History — recent entries + per-night duration.
- *   7. Team Chart — multi-metric switcher.
- *   8. Reading list — curated sleep books (static links).
+ *   1. KPI cards — Sleep Score / REM / HRV / RHR / Durată (today + weekly reality).
+ *   2. Sleep Coach — deterministic per-person insights (no AI).
+ *   3. Leaderboard — team clasament.
+ *   4. TeamFeed — today's journals, likes + comments.
+ *   5. Personal History — recent entries + per-night duration.
+ *   6. Team Chart — multi-metric switcher (incl. Durată tab).
+ *   7. Reading list — curated sleep books (static links).
  */
 export default function Home() {
   const { user } = useUser();
@@ -40,7 +38,7 @@ export default function Home() {
   if (error) {
     return (
       <div className="px-4 py-3 rounded-xl bg-[var(--color-bad)]/10 border border-[var(--color-bad)]/30 text-[var(--color-bad)] text-sm">
-        {error} <button onClick={refetch} className="underline">retry</button>
+        {error} <button onClick={() => refetch({ fresh: true })} className="underline">retry</button>
       </div>
     );
   }
@@ -55,11 +53,6 @@ export default function Home() {
       {/* Personal KPIs — Sleep Score / REM / HRV / RHR · click → modal */}
       <div className="fade-in-up delay-0">
         <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
-      </div>
-
-      {/* Sleep duration — bedtime→wake total + weekly average */}
-      <div className="fade-in-up delay-1">
-        <SleepDuration entries={entries} user={user} />
       </div>
 
       {/* Sleep Coach — deterministic per-person insights (no AI, $0 runtime) */}

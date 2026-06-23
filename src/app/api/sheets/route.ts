@@ -99,12 +99,16 @@ function pickFirst(row: RawSheetRow, keys: string[]): Cell {
   return null;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    // Fast path: serve from cache if still fresh (60s TTL).
-    const cached = getCachedEntries();
-    if (cached) {
-      return NextResponse.json({ entries: cached });
+    // `?fresh=1` bypasses the 60s server-side cache — used by the client when
+    // someone hit "sync" or returned to the tab after editing the Sheet by hand.
+    const fresh = req.nextUrl.searchParams.get('fresh') === '1';
+    if (!fresh) {
+      const cached = getCachedEntries();
+      if (cached) {
+        return NextResponse.json({ entries: cached });
+      }
     }
 
     const url = `${SHEETS_API}?v=${Date.now()}`;

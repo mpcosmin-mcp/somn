@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import {
   type SleepEntry,
-  ssColor, hrvColor, remColor, rhrColor,
+  ssColor, hrvColor, remColor, rhrColor, durationColor,
+  sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
 import { Sparkline } from '@/components/ui/sparkline';
@@ -38,6 +39,7 @@ export function KpiCards({ entries, user, onMetricClick }: {
   const remSeries = dates.map(d => get(d)?.rem ?? null);
   const hrvSeries = dates.map(d => get(d)?.hrv ?? null);
   const rhrSeries = dates.map(d => get(d)?.rhr ?? null);
+  const durSeries = dates.map(d => { const e = get(d); return e ? sleepDurationMin(e.start, e.end) : null; });
 
   if (!last) {
     return (
@@ -56,9 +58,12 @@ export function KpiCards({ entries, user, onMetricClick }: {
   const remDelta = (prev && last.rem != null && prev.rem != null) ? last.rem - prev.rem : null;
   const hrvDelta = (prev && last.hrv != null && prev.hrv != null) ? last.hrv - prev.hrv : null;
   const rhrDelta = (prev && last.rhr > 0 && prev.rhr > 0) ? last.rhr - prev.rhr : null;
+  const lastDur = sleepDurationMin(last.start, last.end);
+  const prevDur = prev ? sleepDurationMin(prev.start, prev.end) : null;
+  const durDelta = (lastDur != null && prevDur != null) ? lastDur - prevDur : null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
       <KpiCard
         label="Sleep Score"
         value={last.ss}
@@ -119,16 +124,35 @@ export function KpiCards({ entries, user, onMetricClick }: {
         accentVar="#fb7185"
         onClick={onMetricClick ? () => onMetricClick('rhr') : undefined}
       />
+      <KpiCard
+        label="Durată"
+        value={lastDur}
+        displayValue={lastDur != null ? fmtDuration(lastDur) : null}
+        unit=""
+        sparkUnit="m"
+        delta={durDelta}
+        deltaUnit="min"
+        higherBetter
+        target={DUR_TARGET}
+        series={durSeries}
+        dates={dates}
+        color={durationColor(lastDur)}
+        accentVar="#34d399"
+        onClick={onMetricClick ? () => onMetricClick('dur') : undefined}
+      />
     </div>
   );
 }
 
 function KpiCard({
-  label, value, unit, sparkUnit, delta, deltaUnit,
+  label, value, displayValue, unit, sparkUnit, delta, deltaUnit,
   higherBetter, target, series, dates, color, accentVar, onClick,
 }: {
   label: string;
   value: number | null;
+  /** Override for the headline render — used when the metric isn't a plain
+   * integer (e.g. "8h 49m" for duration). Falls back to `value` when absent. */
+  displayValue?: string | null;
   unit: string;
   sparkUnit: string;
   delta: number | null;
@@ -214,15 +238,15 @@ function KpiCard({
         )}
       </div>
 
-      {/* Headline number */}
+      {/* Headline number (or formatted display value for non-integer metrics) */}
       <div className="flex items-baseline gap-1.5">
         <span
-          className="num font-bold leading-none text-4xl lg:text-5xl tracking-tight"
+          className={`num font-bold leading-none tracking-tight ${displayValue ? 'text-3xl lg:text-4xl' : 'text-4xl lg:text-5xl'}`}
           style={{ color: value == null ? 'var(--color-fg-dim)' : color }}
         >
-          {value ?? '—'}
+          {displayValue ?? value ?? '—'}
         </span>
-        <span className="text-xs text-[var(--color-fg-muted)] font-medium">{unit}</span>
+        {unit && <span className="text-xs text-[var(--color-fg-muted)] font-medium">{unit}</span>}
       </div>
 
       {/* Bottom row — delta + sparkline */}
@@ -248,7 +272,7 @@ function KpiCard({
           <div className="flex items-baseline justify-between gap-2 mb-2">
             <span className="label">{label}</span>
             <span className="num font-bold text-lg leading-none" style={{ color: value == null ? 'var(--color-fg-dim)' : color }}>
-              {value ?? '—'}<span className="text-[10px] text-[var(--color-fg-dim)] font-medium ml-0.5">{unit}</span>
+              {displayValue ?? value ?? '—'}{unit && <span className="text-[10px] text-[var(--color-fg-dim)] font-medium ml-0.5">{unit}</span>}
             </span>
           </div>
           <Sparkline values={series} dates={dates} unit={sparkUnit} color={color} width={232} height={44} />

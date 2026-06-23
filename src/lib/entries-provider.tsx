@@ -7,7 +7,7 @@ interface Ctx {
   entries: SleepEntry[];
   loading: boolean;
   error: string;
-  refetch: () => Promise<void>;
+  refetch: (opts?: { fresh?: boolean }) => Promise<void>;
   /** Optimistic update: replace any (date, name) match with the new entry */
   upsertLocal: (entry: SleepEntry) => void;
 }
@@ -61,10 +61,10 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (opts: { fresh?: boolean } = {}) => {
     try {
       setError('');
-      const data = await fetchAllEntries();
+      const data = await fetchAllEntries(opts);
       setEntries(data);
       writeCache(data);
     } catch (e) {
@@ -84,6 +84,18 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       setLoading(false);  // we have data to render right now
     }
     refetch();
+    // Re-sync when the user returns to the tab — catches edits made
+    // directly in the Sheet that the app never knew to invalidate for.
+    let lastSync = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      // throttle: avoid refetching on every tab switch
+      if (Date.now() - lastSync < 5000) return;
+      lastSync = Date.now();
+      refetch({ fresh: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refetch]);
 
   const upsertLocal = useCallback((entry: SleepEntry) => {
@@ -109,7 +121,7 @@ export function useEntries(): Ctx {
       entries: [],
       loading: false,
       error: '',
-      refetch: async () => {},
+      refetch: async () => undefined,
       upsertLocal: () => {},
     };
   }

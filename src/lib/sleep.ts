@@ -253,6 +253,28 @@ export function durationColor(min: number | null): string {
   return C.under;                  // > 9h (oversleep)
 }
 
+/** Sleep-duration target — first-class with the other metrics. 8h. */
+export const DUR_TARGET = 480;
+
+/** Tier label + color for sleep duration (mirror of ssTier/remTier/etc). */
+export function durTier(min: number | null): { label: string; color: string } {
+  if (min == null) return { label: '—', color: C.dim };
+  if (min < 360) return { label: 'Slab', color: C.bad };
+  if (min < 420) return { label: 'Sub target', color: C.under };
+  if (min <= 540) return { label: 'Bun', color: C.good };
+  return { label: 'Oversleep', color: C.under };
+}
+
+/** Above-/below-target status (mirror of ssStatus/etc). */
+export function durStatus(min: number | null): MetricStatus {
+  if (min == null) return { arrow: '→', label: '—', color: C.dim };
+  const c = durationColor(min);
+  const delta = min - DUR_TARGET;
+  if (Math.abs(delta) < 15) return { arrow: '→', label: 'aproape de target', color: c };
+  if (delta > 0) return { arrow: '↑', label: `+${Math.round(delta)}min peste target`, color: c };
+  return { arrow: '↓', label: `${Math.round(delta)}min sub target`, color: c };
+}
+
 /** Bedtime as minutes since 18:00 so evening→early-morning is monotonic
  *  (22:00→240, 00:30→390, 02:00→480). Lets us compare/range bedtimes without
  *  the midnight wrap breaking naive HH:MM math. null if missing. */

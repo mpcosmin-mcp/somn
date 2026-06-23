@@ -3,8 +3,9 @@
 
 import { type SleepEntry } from '@/lib/sleep';
 
-export async function fetchAllEntries(): Promise<SleepEntry[]> {
-  const res = await fetch('/api/sheets', { cache: 'no-store' });
+export async function fetchAllEntries(opts: { fresh?: boolean } = {}): Promise<SleepEntry[]> {
+  const url = opts.fresh ? '/api/sheets?fresh=1' : '/api/sheets';
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`/api/sheets ${res.status}`);
   const json = (await res.json()) as { entries: SleepEntry[] };
   return json.entries ?? [];
