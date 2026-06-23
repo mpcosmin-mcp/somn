@@ -10,6 +10,8 @@ import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
 import { MetricDetailModal, type MetricKey } from '@/components/dashboard/metric-detail-modal';
 import { LogEntryButton } from '@/components/dashboard/log-entry-button';
 import { StreakStrip } from '@/components/dashboard/streak-strip';
+import { SleepCoach } from '@/components/dashboard/sleep-coach';
+import { ReadingList } from '@/components/dashboard/reading-list';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
@@ -17,10 +19,12 @@ import { DashboardSkeleton } from '@/components/ui/skeleton';
  *
  *   0. StreakStrip — Duolingo-style daily bullets + current streak.
  *   1. KPI cards — Sleep Score / REM / HRV / RHR with target-vs-actual.
- *   2. Leaderboard — team clasament.
- *   3. TeamFeed — today's journals, likes + comments.
- *   4. Personal History — recent entries + pattern note (no AI).
- *   5. Team Chart — multi-metric switcher.
+ *   2. Sleep Coach — deterministic per-person insights (no AI).
+ *   3. Leaderboard — team clasament.
+ *   4. TeamFeed — today's journals, likes + comments.
+ *   5. Personal History — recent entries + pattern note (no AI).
+ *   6. Team Chart — multi-metric switcher.
+ *   7. Reading list — curated sleep books (static links).
  */
 export default function Home() {
   const { user } = useUser();
@@ -51,6 +55,11 @@ export default function Home() {
         <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
       </div>
 
+      {/* Sleep Coach — deterministic per-person insights (no AI, $0 runtime) */}
+      <div className="fade-in-up delay-1">
+        <SleepCoach entries={entries} user={user} />
+      </div>
+
       {/* Team clasament */}
       <div className="fade-in-up delay-1">
         <Leaderboard entries={entries} currentUser={user} />
@@ -69,6 +78,11 @@ export default function Home() {
       {/* Team multi-metric chart */}
       <div className="fade-in-up delay-4">
         <TeamChartPane entries={entries} />
+      </div>
+
+      {/* Reading list — curated sleep books (static links, $0 runtime) */}
+      <div className="fade-in-up delay-5">
+        <ReadingList />
       </div>
 
       {/* Per-metric drilldown — opens from clicking any KPI card */}

@@ -4,8 +4,9 @@ import {
   type SleepEntry,
   ssColor, remColor, hrvColor, rhrColor,
   ssTier, remTier, hrvTier, rhrTier,
-  lastNDays, personalTrendNote,
+  lastNDays,
 } from '@/lib/sleep';
+import { personalTrendNote } from '@/lib/coach';
 import { fmtDate } from '@/lib/utils';
 import { TeamChart } from '@/components/ui/team-chart';
 
