@@ -1,5 +1,5 @@
 'use client';
-import { type SleepEntry, personColor, FIRST_NAME } from '@/lib/sleep';
+import { type SleepEntry, personColor, FIRST_NAME, ssColor } from '@/lib/sleep';
 import { streakFor } from '@/lib/gamify';
 import { todayStr } from '@/lib/utils';
 
@@ -9,9 +9,10 @@ import { todayStr } from '@/lib/utils';
  *   🔥 N zile       L M M J V S D
  *                    ● ● ● ○ ○ ● ◐
  *
- * The last 7 days as bullets, today rightmost. Filled = logged, empty = not.
- * Today shows a glow if logged, a soft pulse if not yet — the nudge to come
- * back tonight. Single small card, nothing else.
+ * The last 7 days as bullets, today rightmost. Each logged day's dot is
+ * colored by that day's Sleep Score (green/amber/red) so the strip mirrors
+ * real performance, not just "did I log". Missed days are hollow/dim; today,
+ * if not yet logged, shows a soft pulse — the nudge to come back tonight.
  */
 export function StreakStrip({ entries, user }: { entries: SleepEntry[]; user: string }) {
   const fn = FIRST_NAME[user] ?? user.split(' ')[0];
@@ -19,24 +20,26 @@ export function StreakStrip({ entries, user }: { entries: SleepEntry[]; user: st
   const streak = streakFor(entries, user);
   const today = todayStr();
 
-  // Pre-index "did I log on date X" for O(1) lookup
-  const mineByDate = new Set(
-    entries.filter(e => e.name === user).map(e => e.date),
+  // Pre-index date → entry for O(1) lookup (we need the score, to color the dot)
+  const mineByDate = new Map(
+    entries.filter(e => e.name === user).map(e => [e.date, e] as const),
   );
 
   // Last 7 days, oldest → today
-  const days: Array<{ iso: string; label: string; logged: boolean; isToday: boolean }> = [];
+  const days: Array<{ iso: string; label: string; logged: boolean; isToday: boolean; ss: number | null }> = [];
   const dayShort = ['D', 'L', 'M', 'M', 'J', 'V', 'S']; // Sun..Sat
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setHours(12, 0, 0, 0);
     d.setDate(d.getDate() - i);
     const iso = todayStr(d);
+    const e = mineByDate.get(iso);
     days.push({
       iso,
       label: dayShort[d.getDay()],
-      logged: mineByDate.has(iso),
+      logged: !!e,
       isToday: iso === today,
+      ss: e ? e.ss : null,
     });
   }
 
@@ -63,24 +66,24 @@ export function StreakStrip({ entries, user }: { entries: SleepEntry[]; user: st
       {/* Bullets — last 7 days */}
       <div className="flex-1 min-w-0 flex items-end justify-between gap-1">
         {days.map(d => {
-          // green = logged · orange = missed · pulsing orange ring = today, not yet
-          const green = 'var(--color-good)';
-          const orange = 'var(--color-warn)';
-          const filled = d.logged;
+          // Dot color mirrors sleep PERFORMANCE, not just "logged":
+          //   logged → that day's Sleep Score color (green/amber/red)
+          //   missed → hollow dim ring (clearly "no data", not a bad night)
+          //   today & not yet logged → pulsing accent ring (the nudge)
           const todayPending = d.isToday && !d.logged;
+          const perf = d.ss != null ? ssColor(d.ss) : null;
+          const dim = 'var(--color-fg-dim)';
           return (
             <div key={d.iso} className="flex flex-col items-center gap-1.5 min-w-0">
               <span
                 className={`w-5 h-5 rounded-full transition-all ${todayPending ? 'streak-pulse' : ''}`}
                 style={{
-                  background: filled ? green : (todayPending ? 'transparent' : orange),
-                  border: filled
-                    ? `2px solid ${green}`
-                    : `2px solid ${orange}`,
-                  boxShadow: filled ? `0 0 8px ${green}66` : 'none',
-                  opacity: d.logged || todayPending ? 1 : 0.8,
+                  background: perf ?? 'transparent',
+                  border: `2px solid ${perf ?? (todayPending ? 'var(--color-accent)' : dim)}`,
+                  boxShadow: perf ? `0 0 8px ${perf}66` : 'none',
+                  opacity: d.logged ? 1 : (todayPending ? 0.9 : 0.4),
                 }}
-                aria-label={d.logged ? `${d.iso} logat` : `${d.iso} fără log`}
+                aria-label={d.logged ? `${d.iso}: scor ${d.ss}` : (todayPending ? `${d.iso}: încă nelogat` : `${d.iso}: fără log`)}
               />
               <span
                 className="text-[10px] num font-bold"

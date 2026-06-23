@@ -154,13 +154,21 @@ function KpiCard({
     ? (higherBetter ? value - target : target - value)
     : null;
   const onTarget = vsTarget != null && vsTarget >= 0;
-  const targetPillBg = vsTarget == null
-    ? 'transparent'
-    : onTarget ? 'color-mix(in srgb, var(--color-good) 14%, transparent)'
-               : 'color-mix(in srgb, var(--color-bad) 14%, transparent)';
   const targetPillColor = vsTarget == null
     ? 'var(--color-fg-dim)'
     : onTarget ? 'var(--color-good)' : 'var(--color-bad)';
+
+  // ── Weekly reality: how many of the last 7 logged days hit target ──
+  // Counters the "all green" illusion of a today-only headline number.
+  const wkVals = series.filter((v): v is number => v != null);
+  const wkN = wkVals.length;
+  const wkHits = wkVals.filter(v => (higherBetter ? v >= target : v <= target)).length;
+  const wkRatio = wkN ? wkHits / wkN : 0;
+  const wkColor = wkN === 0 ? 'var(--color-fg-dim)'
+    : wkRatio >= 0.6 ? 'var(--color-good)'
+    : wkRatio <= 0.35 ? 'var(--color-bad)'
+    : 'var(--color-warn)';
+  const wkBg = wkN === 0 ? 'transparent' : `color-mix(in srgb, ${wkColor} 14%, transparent)`;
 
   const [hovered, setHovered] = useState(false);
 
@@ -191,13 +199,13 @@ function KpiCard({
       {/* Top row — label + target pill */}
       <div className="flex items-center justify-between mb-2 gap-1.5">
         <span className="label">{label}</span>
-        {vsTarget != null ? (
+        {wkN > 0 ? (
           <span
             className="num text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap"
-            style={{ background: targetPillBg, color: targetPillColor }}
-            title={`target ${higherBetter ? '≥' : '≤'} ${target}${unit}`}
+            style={{ background: wkBg, color: wkColor }}
+            title={`săptămâna asta: ${wkHits}/${wkN} zile pe target (${higherBetter ? '≥' : '≤'} ${target}${unit}) · numărul mare e doar azi`}
           >
-            {onTarget ? '+' : ''}{vsTarget} {onTarget ? '✓' : 'sub'}
+            săpt {wkHits}/{wkN} ✓
           </span>
         ) : (
           <span className="text-[9px] num text-[var(--color-fg-dim)]">
