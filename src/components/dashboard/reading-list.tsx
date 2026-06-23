@@ -1,13 +1,48 @@
 'use client';
-import { SLEEP_BOOKS } from '@/lib/coach';
+import { useState } from 'react';
+import { SLEEP_BOOKS, type SleepBook } from '@/lib/coach';
 
 /**
- * Reading list — a small curated shelf of reputable sleep books.
- * Static content, zero runtime cost. Each row links to a Goodreads
- * search for the title+author, so the link can never 404.
+ * Reading list — a small curated shelf of reputable sleep books, with covers.
+ * Static content, zero runtime cost. Covers are fetched from Open Library by
+ * ISBN; if one is missing the row falls back to an on-brand placeholder, so a
+ * link never looks broken. Each row links to a Goodreads search (never 404s).
  */
 function goodreads(title: string, author: string) {
   return `https://www.goodreads.com/search?q=${encodeURIComponent(`${title} ${author}`)}`;
+}
+
+function BookCover({ book }: { book: SleepBook }) {
+  const [failed, setFailed] = useState(false);
+  const frame = 'w-12 h-[72px] shrink-0 rounded-md border border-[var(--color-border)] overflow-hidden';
+
+  if (failed || !book.cover) {
+    return (
+      <div
+        className={`${frame} grid place-items-center`}
+        style={{
+          background: 'linear-gradient(150deg, color-mix(in srgb, var(--color-accent) 24%, var(--color-surface)), var(--color-surface))',
+          color: 'var(--color-accent)',
+        }}
+        aria-hidden
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={book.cover}
+      alt={`Coperta „${book.title}”`}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={`${frame} object-cover bg-[var(--color-surface)]`}
+    />
+  );
 }
 
 export function ReadingList() {
@@ -36,8 +71,9 @@ export function ReadingList() {
             href={goodreads(b.title, b.author)}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-start gap-3 py-3 -mx-2 px-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+            className="group flex items-center gap-3.5 py-3 -mx-2 px-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
           >
+            <BookCover book={b} />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-sm font-medium text-[var(--color-fg)] leading-snug">{b.title}</span>
@@ -49,7 +85,7 @@ export function ReadingList() {
               width="15" height="15" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               aria-hidden
-              className="shrink-0 mt-1 text-[var(--color-fg-dim)] group-hover:text-[var(--color-accent)] group-hover:translate-x-0.5 transition-all"
+              className="shrink-0 text-[var(--color-fg-dim)] group-hover:text-[var(--color-accent)] group-hover:translate-x-0.5 transition-all"
             >
               <path d="M7 7h10v10" /><path d="M7 17 17 7" />
             </svg>

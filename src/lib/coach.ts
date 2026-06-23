@@ -204,6 +204,9 @@ export interface SleepBook {
   title: string;
   author: string;
   why: string;
+  /** Local cover image in /public — bundled, so it loads instantly with no
+   * dependency on an external (and often slow) cover CDN. */
+  cover: string;
 }
 
 export const SLEEP_BOOKS: SleepBook[] = [
@@ -211,25 +214,30 @@ export const SLEEP_BOOKS: SleepBook[] = [
     title: 'Why We Sleep',
     author: 'Matthew Walker',
     why: 'Biblia somnului — de ce contează fiecare oră de REM și somn profund.',
+    cover: '/books/why-we-sleep.jpg',
   },
   {
     title: 'The Sleep Solution',
     author: 'W. Chris Winter',
     why: 'Un neurolog explică somnul simplu și practic. Fix pentru insomnie ușoară.',
+    cover: '/books/the-sleep-solution.jpg',
   },
   {
     title: 'The Circadian Code',
     author: 'Satchin Panda',
     why: 'Cum lumina și ora meselor îți reglează ritmul circadian și somnul.',
+    cover: '/books/the-circadian-code.jpg',
   },
   {
     title: 'Sleep Smarter',
     author: 'Shawn Stevenson',
     why: '21 de strategii concrete pentru un somn mai bun, ușor de aplicat.',
+    cover: '/books/sleep-smarter.jpg',
   },
   {
     title: 'Sleep: The Myth of 8 Hours',
     author: 'Nick Littlehales',
     why: 'Metoda R90 folosită de sportivi de top — somnul pe cicluri, nu pe ore.',
+    cover: '/books/sleep-myth-8-hours.jpg',
   },
 ];
