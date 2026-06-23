@@ -4,12 +4,16 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  fetchLikes, toggleLikeRemote,
+  fetchEntryReactions, toggleEntryReactionRemote, type EntryReactions,
   fetchComments, addCommentRemote, deleteCommentRemote,
   replyToCommentRemote, toggleCommentLikeRemote, toggleReplyLikeRemote,
   deleteReplyRemote,
   type ApiError,
 } from '@/lib/social-api';
+import {
+  type ReactionMap, DEFAULT_REACTION,
+  toggleReaction as toggleReactionMap, reactorsOf,
+} from '@/lib/reactions';
 
 /* ─── Social layer — likes + comments ─────────────────────
  *
@@ -33,7 +37,9 @@ import {
  * entryKey = `${date}_${name}` — uniquely identifies a sleep log row.
  */
 
-const LIKES_KEY    = 'somn_likes_v2';
+// v1 reactions — entry "likes" generalized to an emoji ReactionMap.
+// New cache key (the old `somn_likes_v2` held a different shape: string[]).
+const REACTIONS_KEY = 'somn_reactions_v1';
 // v3 — Comments grew `likes` + `replies` fields (Instagram-style threading).
 // Old cached v2 records lack those, would crash the new UI on .includes().
 const COMMENTS_KEY = 'somn_comments_v3';
@@ -57,7 +63,6 @@ export interface Comment {
   replies: Reply[];
 }
 
-export type LikesMap    = Record<string, string[]>;
 export type CommentsMap = Record<string, Comment[]>;
 
 /** Pad legacy KV records (pre-threading) with default arrays so the new
@@ -84,8 +89,12 @@ export function hydrateReply(raw: unknown): Reply {
 }
 
 interface SocialContextValue {
-  likes: LikesMap;
+  /** entryKey → ReactionMap (emoji → users). */
+  reactions: EntryReactions;
   comments: CommentsMap;
+  /** Toggle one emoji reaction for `user` on an entry. */
+  toggleEntryReaction: (entryKey: string, emoji: string, user: string) => void;
+  /** Back-compat: toggle a ❤️ reaction on an entry. */
   toggleLike: (entryKey: string, user: string) => void;
   /** Add a top-level comment to an entry. */
   addComment: (entryKey: string, comment: Comment) => void;
@@ -126,16 +135,21 @@ export function entryKeyOf(date: string, name: string): string {
 
 /* ─── Provider (mount once in the root layout) ───────────── */
 export function SocialProvider({ children }: { children: ReactNode }) {
-  const [likes, setLikes] = useState<LikesMap>({});
+  const [reactions, setReactions] = useState<EntryReactions>({});
   const [comments, setComments] = useState<CommentsMap>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Entries with an in-flight optimistic reaction. A background refetch must
+  // NOT clobber these (otherwise a tap can "vanish" mid-flight — the prod
+  // race that made reactions feel broken).
+  const pendingReactions = useRef<Set<string>>(new Set());
 
   // Hydrate from localStorage SYNCHRONOUSLY on mount, then refetch.
   // Every comment goes through hydrateComment() so missing-field records
   // (legacy or partial writes) get padded with empty arrays.
   useEffect(() => {
-    setLikes(readCache<LikesMap>(LIKES_KEY));
+    setReactions(readCache<EntryReactions>(REACTIONS_KEY));
     const rawComments = readCache<Record<string, unknown[]>>(COMMENTS_KEY);
     const hydrated: CommentsMap = {};
     for (const [k, arr] of Object.entries(rawComments)) {
@@ -150,11 +164,20 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
     const refresh = async () => {
       try {
-        const [l, c] = await Promise.all([fetchLikes(), fetchComments()]);
+        const [r, c] = await Promise.all([fetchEntryReactions(), fetchComments()]);
         if (cancelled) return;
-        setLikes(l);
+        // Merge server snapshot but preserve any entry with an in-flight
+        // optimistic reaction — never overwrite a tap that hasn't settled.
+        setReactions(prev => {
+          const merged: EntryReactions = { ...r };
+          for (const k of pendingReactions.current) {
+            if (prev[k]) merged[k] = prev[k];
+            else delete merged[k];
+          }
+          writeCache(REACTIONS_KEY, merged);
+          return merged;
+        });
         setComments(c);
-        writeCache(LIKES_KEY, l);
         writeCache(COMMENTS_KEY, c);
         setSyncError(null);
       } catch (err) {
@@ -180,26 +203,27 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
   /* ── Mutations: optimistic with smart rollback ─────────── */
 
-  const toggleLike = useCallback((entryKey: string, user: string) => {
-    let snapshot: string[] = [];
-    setLikes(prev => {
-      snapshot = prev[entryKey] ?? [];
-      const optimistic: LikesMap = snapshot.includes(user)
-        ? { ...prev, [entryKey]: snapshot.filter(u => u !== user) }
-        : { ...prev, [entryKey]: [...snapshot, user] };
-      if (optimistic[entryKey].length === 0) delete optimistic[entryKey];
-      writeCache(LIKES_KEY, optimistic);
+  const toggleEntryReaction = useCallback((entryKey: string, emoji: string, user: string) => {
+    pendingReactions.current.add(entryKey);
+    let snapshot: ReactionMap = {};
+    setReactions(prev => {
+      snapshot = prev[entryKey] ?? {};
+      const map = toggleReactionMap(snapshot, emoji, user);
+      const optimistic: EntryReactions = { ...prev };
+      if (Object.keys(map).length === 0) delete optimistic[entryKey];
+      else optimistic[entryKey] = map;
+      writeCache(REACTIONS_KEY, optimistic);
       return optimistic;
     });
 
-    toggleLikeRemote(entryKey, user)
-      .then(serverArr => {
+    toggleEntryReactionRemote(entryKey, emoji, user)
+      .then(serverMap => {
         // Server-canonical state wins.
-        setLikes(curr => {
-          const next: LikesMap = { ...curr };
-          if (serverArr.length === 0) delete next[entryKey];
-          else next[entryKey] = serverArr;
-          writeCache(LIKES_KEY, next);
+        setReactions(curr => {
+          const next: EntryReactions = { ...curr };
+          if (Object.keys(serverMap).length === 0) delete next[entryKey];
+          else next[entryKey] = serverMap;
+          writeCache(REACTIONS_KEY, next);
           return next;
         });
         setSyncError(null);
@@ -208,18 +232,25 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         // Roll back ONLY on genuine 4xx client errors. For 5xx / network /
         // kv-unavailable, keep the optimistic value (offline-first).
         if (err?.status && err.status >= 400 && err.status < 500) {
-          setLikes(curr => {
-            const reverted: LikesMap = { ...curr };
-            if (snapshot.length === 0) delete reverted[entryKey];
+          setReactions(curr => {
+            const reverted: EntryReactions = { ...curr };
+            if (Object.keys(snapshot).length === 0) delete reverted[entryKey];
             else reverted[entryKey] = snapshot;
-            writeCache(LIKES_KEY, reverted);
+            writeCache(REACTIONS_KEY, reverted);
             return reverted;
           });
         } else {
           setSyncError(err?.isKvUnavailable ? 'kv-unavailable' : (err?.message ?? 'sync error'));
         }
-      });
+      })
+      .finally(() => { pendingReactions.current.delete(entryKey); });
   }, []);
+
+  // Back-compat: a bare "like" is a ❤️ reaction.
+  const toggleLike = useCallback(
+    (entryKey: string, user: string) => toggleEntryReaction(entryKey, DEFAULT_REACTION, user),
+    [toggleEntryReaction],
+  );
 
   const addComment = useCallback((entryKey: string, comment: Comment) => {
     setComments(prev => {
@@ -398,7 +429,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
   return (
     <SocialContext.Provider value={{
-      likes, comments, toggleLike, addComment, deleteComment,
+      reactions, comments, toggleEntryReaction, toggleLike, addComment, deleteComment,
       addReply, deleteReply, toggleCommentLike, toggleReplyLike,
       initialLoading, syncError,
     }}>
@@ -413,8 +444,9 @@ export function useSocial() {
   if (!ctx) {
     // Safe defaults so unprovided trees don't crash (tests, errors)
     return {
-      likes: {} as LikesMap,
+      reactions: {} as EntryReactions,
       comments: {} as CommentsMap,
+      toggleEntryReaction: () => {},
       toggleLike: () => {},
       addComment: () => {},
       deleteComment: () => {},
@@ -424,13 +456,17 @@ export function useSocial() {
       toggleReplyLike: () => {},
       initialLoading: false,
       syncError: null as string | null,
+      entryReactionsFor: (_k: string) => ({} as ReactionMap),
       likesFor: (_k: string) => [] as string[],
       commentsFor: (_k: string) => [] as Comment[],
     };
   }
   return {
     ...ctx,
-    likesFor: (entryKey: string) => ctx.likes[entryKey] ?? [],
+    /** Full emoji ReactionMap for an entry. */
+    entryReactionsFor: (entryKey: string) => ctx.reactions[entryKey] ?? {},
+    /** Back-compat: just the ❤️ reactors for an entry. */
+    likesFor: (entryKey: string) => reactorsOf(ctx.reactions[entryKey] ?? {}, DEFAULT_REACTION),
     commentsFor: (entryKey: string) => ctx.comments[entryKey] ?? [],
   };
 }

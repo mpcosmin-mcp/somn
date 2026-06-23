@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Send, X, CornerDownRight } from 'lucide-react';
 import { type SleepEntry, FIRST_NAME, personColor } from '@/lib/sleep';
 import { useSocial, entryKeyOf, type Comment, type Reply } from '@/lib/social';
 import { MentionText, MENTIONABLES, appendMention } from '@/lib/mentions';
+import { ReactionBar } from '@/components/dashboard/reaction-bar';
 
 /**
  * Likes + comments footer for a single feed entry.
@@ -28,16 +29,15 @@ export function EntryReactions({ entry, currentUser }: {
   currentUser: string;
 }) {
   const {
-    toggleLike, addComment, deleteComment, likesFor, commentsFor,
+    toggleEntryReaction, entryReactionsFor, addComment, deleteComment, commentsFor,
     addReply, deleteReply, toggleCommentLike, toggleReplyLike,
   } = useSocial();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
 
   const key = entryKeyOf(entry.date, entry.name);
-  const entryLikes = likesFor(key);
+  const entryReactions = entryReactionsFor(key);
   const comments = commentsFor(key);
-  const iLikedEntry = entryLikes.includes(currentUser);
 
   const submitTopLevel = () => {
     const t = input.trim();
@@ -53,36 +53,24 @@ export function EntryReactions({ entry, currentUser }: {
   return (
     <div className="mt-2.5 pt-2 border-t border-[var(--color-border)]/60">
       {/* Action row */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => toggleLike(key, currentUser)}
-          aria-label={iLikedEntry ? 'Retrage like' : 'Dă like'}
-          aria-pressed={iLikedEntry}
-          className="flex items-center gap-1.5 text-xs font-bold tap rounded-md px-1 -mx-1 py-0.5 transition-transform active:scale-90"
-          style={{ color: iLikedEntry ? '#ef4444' : 'var(--color-fg-muted)' }}
-        >
-          <Heart size={18} strokeWidth={2} fill={iLikedEntry ? '#ef4444' : 'none'} className="transition-all" />
-          {entryLikes.length > 0 && <span className="num text-[11px]">{entryLikes.length}</span>}
-        </button>
+      <div className="flex items-center gap-3 flex-wrap">
+        <ReactionBar
+          reactions={entryReactions}
+          currentUser={currentUser}
+          onToggle={(emoji) => toggleEntryReaction(key, emoji, currentUser)}
+        />
 
         <button
           onClick={() => setOpen(o => !o)}
           aria-label="Comentarii"
           aria-pressed={open}
-          className={`flex items-center gap-1.5 text-xs font-bold tap rounded-md px-1 -mx-1 py-0.5 transition-colors ${
+          className={`flex items-center gap-1.5 text-xs font-bold tap rounded-md px-1 -mx-1 py-0.5 transition-colors ml-auto ${
             open ? 'text-[var(--color-accent)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
           }`}
         >
           <MessageCircle size={18} strokeWidth={2} />
           {totalThreadCount > 0 && <span className="num text-[11px]">{totalThreadCount}</span>}
         </button>
-
-        {entryLikes.length > 0 && (
-          <span className="text-[10px] text-[var(--color-fg-dim)] truncate ml-auto">
-            {entryLikes.slice(0, 3).map(u => FIRST_NAME[u] ?? u.split(' ')[0]).join(', ')}
-            {entryLikes.length > 3 && ` +${entryLikes.length - 3}`}
-          </span>
-        )}
       </div>
 
       {/* Expanded thread */}

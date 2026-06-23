@@ -2,7 +2,8 @@
    keep the React hook focused on state. */
 'use client';
 
-import type { Comment, Reply, LikesMap, CommentsMap } from '@/lib/social';
+import type { Comment, Reply, CommentsMap } from '@/lib/social';
+import type { ReactionMap } from '@/lib/reactions';
 
 export interface ApiError extends Error {
   status: number;
@@ -16,24 +17,31 @@ function buildError(status: number, msg: string, isKvUnavailable = false): ApiEr
   return e;
 }
 
-/* ─── Likes (top-level on the sleep entry itself) ───────── */
+/* ─── Entry reactions (emoji reactions on the sleep entry itself) ───────── */
 
-export async function fetchLikes(): Promise<LikesMap> {
+/** entryKey → ReactionMap (emoji → users). */
+export type EntryReactions = Record<string, ReactionMap>;
+
+export async function fetchEntryReactions(): Promise<EntryReactions> {
   const r = await fetch('/api/social/likes', { cache: 'no-store' });
-  const j = (await r.json()) as { likes?: LikesMap; error?: string };
+  const j = (await r.json()) as { reactions?: EntryReactions; error?: string };
   if (!r.ok) throw buildError(r.status, j.error ?? 'fetch failed', j.error === 'kv-unavailable');
-  return j.likes ?? {};
+  return j.reactions ?? {};
 }
 
-export async function toggleLikeRemote(entryKey: string, user: string): Promise<string[]> {
+export async function toggleEntryReactionRemote(
+  entryKey: string,
+  emoji: string,
+  user: string,
+): Promise<ReactionMap> {
   const r = await fetch('/api/social/likes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entryKey, user }),
+    body: JSON.stringify({ entryKey, emoji, user }),
   });
-  const j = (await r.json()) as { likes?: string[]; error?: string };
+  const j = (await r.json()) as { reactions?: ReactionMap; error?: string };
   if (!r.ok) throw buildError(r.status, j.error ?? 'toggle failed', j.error === 'kv-unavailable');
-  return j.likes ?? [];
+  return j.reactions ?? {};
 }
 
 /* ─── Comments + replies (single endpoint, action discriminator) ─── */
