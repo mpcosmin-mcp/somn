@@ -47,18 +47,33 @@ function parseStr(v: Cell): string | null {
 
 /**
  * Parse a Sheets cell into a clean "HH:MM" 24h string, or null.
- * Handles the two realistic shapes:
- *   - a plain "HH:MM" text string — the EXPECTED case; keep the `start`/`end`
- *     columns formatted as Plain Text in the Sheet so this branch always fires.
- *   - a Sheets time-of-day stored as a fraction of a day (0.94166… = 22:36).
- * A Date-coerced value is intentionally NOT handled: on a UTC serverless host
- * `getHours()` is timezone-shifted, so Plain Text formatting is the real fix.
+ * Handles three shapes seen in practice:
+ *   1. a plain "HH:MM" text string — the clean case (Plain Text column, or a
+ *      value written as a string by the Apps Script).
+ *   2. a Date that Google coerced from a typed time, anchored to the 1899-12-30
+ *      epoch. Its ISO is UTC with the sheet's *historical* Bucharest offset
+ *      (LMT = +1:44:24) baked in, so the naive UTC hour reads ~1h44m low. We add
+ *      the offset back and read HH:MM via UTC methods, so it's stable on a UTC
+ *      server (the trap a naive getHours() would hit). Recovers times that were
+ *      typed straight into non-text cells in the Sheet.
+ *   3. a time-of-day stored as a fraction of a day (0.94166… = 22:36).
  */
+const BUCHAREST_LMT_SEC = 6264; // +1h 44m 24s — the 1899-epoch offset Sheets bakes in
+
 function parseTime(v: Cell): string | null {
   if (v === '' || v == null) return null;
   const s = String(v).trim();
+  // 1. Clean "HH:MM"
   const hm = /^(\d{1,2}):(\d{2})/.exec(s);
   if (hm) return `${hm[1].padStart(2, '0')}:${hm[2]}`;
+  // 2. 1899-epoch Date coercion → undo the baked-in LMT offset
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() < 1970) {
+    const c = new Date(d.getTime() + BUCHAREST_LMT_SEC * 1000);
+    const mins = (c.getUTCHours() * 60 + c.getUTCMinutes()) % 1440;
+    return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  }
+  // 3. fraction of a day
   const num = Number(s);
   if (!Number.isNaN(num) && num > 0 && num < 1) {
     const total = Math.round(num * 24 * 60);
