@@ -247,7 +247,10 @@ export function personalTrendNote(entries: SleepEntry[], user: string): TrendNot
 export interface SleepBook {
   title: string;
   author: string;
+  /** One-line tagline (the chip under the title). */
   why: string;
+  /** 1-2 sentence "synopsis" — the Netflix-style hover blurb. */
+  hook: string;
   /** Local cover image in /public — bundled, so it loads instantly with no
    * dependency on an external (and often slow) cover CDN. */
   cover: string;
@@ -257,31 +260,36 @@ export const SLEEP_BOOKS: SleepBook[] = [
   {
     title: 'Why We Sleep',
     author: 'Matthew Walker',
-    why: 'Biblia somnului — de ce contează fiecare oră de REM și somn profund.',
+    why: 'Biblia somnului',
+    hook: 'De ce fiecare oră de somn pierdută îți taie din memorie, imunitate și ani de viață — și ce face de fapt REM-ul pentru creier. Cartea care a schimbat cum vede lumea somnul.',
     cover: '/books/why-we-sleep.jpg',
   },
   {
     title: 'The Sleep Solution',
     author: 'W. Chris Winter',
-    why: 'Un neurolog explică somnul simplu și practic. Fix pentru insomnie ușoară.',
+    why: 'Practic, fără pastile',
+    hook: 'Un neurolog care tratează sportivi de top îți arată că insomnia se rezolvă fără medicamente. Calm, concret, anti-panică — exact pentru nopțile în care „nu poți adormi".',
     cover: '/books/the-sleep-solution.jpg',
   },
   {
     title: 'The Circadian Code',
     author: 'Satchin Panda',
-    why: 'Cum lumina și ora meselor îți reglează ritmul circadian și somnul.',
+    why: 'Ritmul circadian',
+    hook: 'Ceasul tău intern decide totul: când mănânci, când vezi lumină, când dormi. Aliniază-le și energia, somnul și greutatea se reglează aproape singure.',
     cover: '/books/the-circadian-code.jpg',
   },
   {
     title: 'Sleep Smarter',
     author: 'Shawn Stevenson',
-    why: '21 de strategii concrete pentru un somn mai bun, ușor de aplicat.',
+    why: '21 de pași concreți',
+    hook: '21 de lucruri pe care le poți aplica chiar diseară — temperatură, lumină, cofeină, rutină de seară. Zero teorie inutilă, doar ce schimbă noaptea asta.',
     cover: '/books/sleep-smarter.jpg',
   },
   {
     title: 'Sleep: The Myth of 8 Hours',
     author: 'Nick Littlehales',
-    why: 'Metoda R90 folosită de sportivi de top — somnul pe cicluri, nu pe ore.',
+    why: 'Metoda R90',
+    hook: 'Antrenorul de somn al echipelor de fotbal de top: nu număra ore, numără cicluri de 90 de minute. Cum dorm sportivii de performanță — și cum poți și tu.',
     cover: '/books/sleep-myth-8-hours.jpg',
   },
 ];
