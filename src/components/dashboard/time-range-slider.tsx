@@ -71,14 +71,13 @@ export function TimeRangeSlider({ start, end, onChange }: {
 
   return (
     <div className="select-none">
-      <div className="text-center mb-3">
-        <span className="num font-bold text-2xl leading-none" style={{ color: 'var(--color-accent)' }}>{fmtDuration(dur)}</span>
-        {inSweet && <span className="ml-2 text-[10px] font-bold" style={{ color: 'var(--color-good)' }}>★ în sweet spot</span>}
+      <div className="h-4 mb-1 text-center">
+        {inSweet && <span className="text-[10px] font-bold" style={{ color: 'var(--color-good)' }}>★ în sweet spot</span>}
       </div>
 
       <div
         ref={trackRef}
-        className="relative h-10 rounded-xl bg-[var(--color-surface)] touch-none"
+        className="relative h-10 mt-5 rounded-xl bg-[var(--color-surface)] touch-none"
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
@@ -95,9 +94,9 @@ export function TimeRangeSlider({ start, end, onChange }: {
           }}
           aria-hidden
         />
-        {/* filled sleep bar */}
+        {/* filled sleep bar — duration written on it */}
         <div
-          className="absolute inset-y-2.5 rounded-full"
+          className="absolute inset-y-2.5 rounded-full grid place-items-center overflow-hidden"
           style={{
             left: `${clampPct(startMin)}%`,
             width: `${clampPct(endMin) - clampPct(startMin)}%`,
@@ -105,7 +104,9 @@ export function TimeRangeSlider({ start, end, onChange }: {
             boxShadow: '0 0 12px var(--color-accent-glow)',
           }}
           aria-hidden
-        />
+        >
+          <span className="num font-bold text-[11px] text-white whitespace-nowrap px-1">{fmtDuration(dur)}</span>
+        </div>
         <Thumb pos={clampPct(startMin)} icon="🌙" label={toClock(startMin)} ariaLabel="Ora de culcare" onDown={down('start')} onKey={key('start')} />
         <Thumb pos={clampPct(endMin)} icon="☀️" label={toClock(endMin)} ariaLabel="Ora de trezire" onDown={down('end')} onKey={key('end')} />
       </div>

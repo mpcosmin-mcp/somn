@@ -174,9 +174,9 @@ export function LogEntry({
       {/* Bedtime / wake — drag on the timeline (optional) */}
       <div className="mb-4">
         <label className="label block mb-2">Ore de somn · opțional</label>
-        {start && end ? (
-          <div className="px-1 pt-5">
-            <TimeRangeSlider start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+        <div className="px-1">
+          <TimeRangeSlider start={start || '23:00'} end={end || '07:00'} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+          {(start || end) && (
             <button
               type="button"
               onClick={() => { setStart(''); setEnd(''); }}
@@ -184,16 +184,8 @@ export function LogEntry({
             >
               × fără ore
             </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => { setStart('23:00'); setEnd('07:00'); }}
-            className="w-full h-11 rounded-lg border border-dashed border-[var(--color-border)] text-xs font-medium text-[var(--color-fg-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-fg)] transition-colors"
-          >
-            🌙 adaugă ore de somn
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* 4 metric grid */}

@@ -46,6 +46,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh flex flex-col" data-page-content>
+      {/* Ambient indigo depth — fixed, behind everything */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(72% 44% at 50% -8%, rgba(99,102,241,0.13), transparent 70%), radial-gradient(42% 36% at 88% 3%, rgba(129,140,248,0.07), transparent 65%)',
+        }}
+      />
       <TopBar />
       <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe">
         {children}

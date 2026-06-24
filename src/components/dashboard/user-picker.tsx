@@ -253,13 +253,13 @@ function LogStep({
       {/* Bedtime / wake — drag on the timeline (optional) */}
       <div>
         <label className="label block mb-2">Ore de somn · opțional</label>
-        {vals.start && vals.end ? (
-          <div className="px-1 pt-5">
-            <TimeRangeSlider
-              start={vals.start}
-              end={vals.end}
-              onChange={(s, e) => setVals(v => ({ ...v, start: s, end: e }))}
-            />
+        <div className="px-1">
+          <TimeRangeSlider
+            start={vals.start || '23:00'}
+            end={vals.end || '07:00'}
+            onChange={(s, e) => setVals(v => ({ ...v, start: s, end: e }))}
+          />
+          {(vals.start || vals.end) && (
             <button
               type="button"
               onClick={() => setVals(v => ({ ...v, start: '', end: '' }))}
@@ -267,16 +267,8 @@ function LogStep({
             >
               × fără ore
             </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setVals(v => ({ ...v, start: '23:00', end: '07:00' }))}
-            className="w-full h-11 rounded-xl border border-dashed border-white/15 text-xs font-medium text-[var(--color-fg-muted)] hover:border-[var(--color-accent)]/60 hover:text-[var(--color-fg)] transition-colors"
-          >
-            🌙 adaugă ore de somn
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">

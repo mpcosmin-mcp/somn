@@ -94,11 +94,15 @@ html, body {
   color: var(--color-fg-muted);
 }
 
-/* Card primitive */
+/* Card primitive — subtle top highlight + soft lift for premium depth */
 .card {
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+html.light .card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 /* Soft glow on accent surfaces */
@@ -220,6 +224,12 @@ html.light .glass {
 .delay-3  { animation-delay: 180ms; }
 .delay-4  { animation-delay: 240ms; }
 .delay-5  { animation-delay: 300ms; }
+
+/* Directional reveals — the side gutters slide in from their own edge */
+@keyframes fade-left  { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+@keyframes fade-right { from { opacity: 0; transform: translateX(16px);  } to { opacity: 1; transform: none; } }
+.fade-in-left  { animation: fade-left  0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.fade-in-right { animation: fade-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 /* Streak strip — soft pulse on today's bullet until it's logged */
 @keyframes streak-pulse {

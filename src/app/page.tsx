@@ -15,16 +15,15 @@ import { ReadingList } from '@/components/dashboard/reading-list';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
- * Main dashboard — everything on ONE page, in this order:
+ * Main dashboard — X-style 3-column on xl+, single column below.
  *
- *   0. StreakStrip — daily bullets colored by score + current streak.
- *   1. KPI cards — Sleep Score / REM / HRV / RHR / Durată (today + weekly reality).
- *   2. Sleep Coach — deterministic per-person insights (no AI).
- *   3. Leaderboard — team clasament.
- *   4. TeamFeed — today's journals, likes + comments.
- *   5. Personal History — recent entries + per-night duration.
- *   6. Team Chart — multi-metric switcher (incl. Durată tab).
- *   7. Reading list — curated sleep books (static links).
+ *   LEFT gutter  : Sleep Coach (sticky)
+ *   CENTER feed  : streak · KPIs · leaderboard · feed · history · chart
+ *   RIGHT gutter : Reading list (sticky)
+ *
+ * Below xl the gutters collapse: Coach renders inline after the KPIs and the
+ * Reading list at the bottom (both hidden in the center on xl, shown in the
+ * gutters instead — rendered in both places, toggled by breakpoint).
  */
 export default function Home() {
   const { user } = useUser();
@@ -44,45 +43,54 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col gap-3 lg:gap-4 max-w-6xl mx-auto w-full">
-      {/* Duolingo-style streak — current run + last 7 days as dots */}
-      <div className="fade-in-up delay-0">
-        <StreakStrip entries={entries} user={user} />
-      </div>
+    <>
+      <div className="mx-auto w-full max-w-[94rem] xl:grid xl:grid-cols-[16rem_minmax(0,1fr)_16rem] xl:gap-5 xl:items-start">
+        {/* LEFT gutter — Sleep Coach (xl+ only, sticky) */}
+        <aside className="hidden xl:block sticky top-20 fade-in-left delay-2">
+          <SleepCoach entries={entries} user={user} />
+        </aside>
 
-      {/* Personal KPIs — Sleep Score / REM / HRV / RHR · click → modal */}
-      <div className="fade-in-up delay-0">
-        <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
-      </div>
+        {/* CENTER — the feed */}
+        <div className="flex flex-col gap-3 lg:gap-4 min-w-0">
+          <div className="fade-in-up delay-0">
+            <StreakStrip entries={entries} user={user} />
+          </div>
 
-      {/* Sleep Coach — deterministic per-person insights (no AI, $0 runtime) */}
-      <div className="fade-in-up delay-1">
-        <SleepCoach entries={entries} user={user} />
-      </div>
+          <div className="fade-in-up delay-0">
+            <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
+          </div>
 
-      {/* Team clasament */}
-      <div className="fade-in-up delay-1">
-        <Leaderboard entries={entries} currentUser={user} />
-      </div>
+          {/* Coach inline below xl (gutter takes over on xl) */}
+          <div className="xl:hidden fade-in-up delay-1">
+            <SleepCoach entries={entries} user={user} />
+          </div>
 
-      {/* Social feed — today's journals, with likes + comments */}
-      <div className="fade-in-up delay-2">
-        <TeamFeed entries={entries} currentUser={user} limit={5} />
-      </div>
+          <div className="fade-in-up delay-1">
+            <Leaderboard entries={entries} currentUser={user} />
+          </div>
 
-      {/* Personal history (with pattern footer) */}
-      <div className="fade-in-up delay-3">
-        <PersonalHistory entries={entries} user={user} limit={6} />
-      </div>
+          <div className="fade-in-up delay-2">
+            <TeamFeed entries={entries} currentUser={user} limit={5} />
+          </div>
 
-      {/* Team multi-metric chart */}
-      <div className="fade-in-up delay-4">
-        <TeamChartPane entries={entries} />
-      </div>
+          <div className="fade-in-up delay-3">
+            <PersonalHistory entries={entries} user={user} limit={6} />
+          </div>
 
-      {/* Reading list — curated sleep books (static links, $0 runtime) */}
-      <div className="fade-in-up delay-5">
-        <ReadingList />
+          <div className="fade-in-up delay-4">
+            <TeamChartPane entries={entries} />
+          </div>
+
+          {/* Reading list inline below xl (gutter takes over on xl) */}
+          <div className="xl:hidden fade-in-up delay-5">
+            <ReadingList />
+          </div>
+        </div>
+
+        {/* RIGHT gutter — Reading list (xl+ only, sticky) */}
+        <aside className="hidden xl:block sticky top-20 fade-in-right delay-3">
+          <ReadingList />
+        </aside>
       </div>
 
       {/* Per-metric drilldown — opens from clicking any KPI card */}
@@ -95,6 +103,6 @@ export default function Home() {
       />
 
       <LogEntryButton user={user} />
-    </div>
+    </>
   );
 }
