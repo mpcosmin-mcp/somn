@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { type SleepEntry, NAMES, FIRST_NAME, personColor, sleepDurationMin, fmtDuration } from '@/lib/sleep';
+import { type SleepEntry, NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
+import { TimeRangeSlider } from '@/components/dashboard/time-range-slider';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
 import { submitEntry } from '@/lib/client-api';
 import { useEntries } from '@/lib/entries-provider';
@@ -249,33 +250,32 @@ function LogStep({
         />
       </div>
 
-      {/* Bedtime / wake — optional, auto-computes total sleep */}
+      {/* Bedtime / wake — drag on the timeline (optional) */}
       <div>
-        <label className="label block mb-1.5">Ore de somn · opțional</label>
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <span className="text-[9px] num text-[var(--color-fg-dim)] block mb-1">CULCARE</span>
-            <input
-              type="time"
-              value={vals.start}
-              onChange={e => setVals(s => ({ ...s, start: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
+        <label className="label block mb-2">Ore de somn · opțional</label>
+        {vals.start && vals.end ? (
+          <div className="px-1 pt-5">
+            <TimeRangeSlider
+              start={vals.start}
+              end={vals.end}
+              onChange={(s, e) => setVals(v => ({ ...v, start: s, end: e }))}
             />
+            <button
+              type="button"
+              onClick={() => setVals(v => ({ ...v, start: '', end: '' }))}
+              className="text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg)] transition-colors mt-2"
+            >
+              × fără ore
+            </button>
           </div>
-          <div>
-            <span className="text-[9px] num text-[var(--color-fg-dim)] block mb-1">TREZIRE</span>
-            <input
-              type="time"
-              value={vals.end}
-              onChange={e => setVals(s => ({ ...s, end: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
-            />
-          </div>
-        </div>
-        {sleepDurationMin(vals.start || null, vals.end || null) != null && (
-          <div className="text-[11px] num font-bold mt-1.5" style={{ color: c }}>
-            ai dormit {fmtDuration(sleepDurationMin(vals.start || null, vals.end || null))}
-          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setVals(v => ({ ...v, start: '23:00', end: '07:00' }))}
+            className="w-full h-11 rounded-xl border border-dashed border-white/15 text-xs font-medium text-[var(--color-fg-muted)] hover:border-[var(--color-accent)]/60 hover:text-[var(--color-fg)] transition-colors"
+          >
+            🌙 adaugă ore de somn
+          </button>
         )}
       </div>
 
