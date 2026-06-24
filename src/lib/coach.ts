@@ -1,8 +1,8 @@
 /* ─────────────────────────────────────────────────────────
    sleep coach — deterministic insight engine + reading list
    The SINGLE pattern detector in the app. No AI, instant render.
-   Reads ONLY ss/rhr/hrv/rem — wake-time & sleep duration are not
-   tracked in the schema, so the coach stays silent on those by design.
+   Reads ss/rhr/hrv/rem + bedtime/wake (duration). Each nudge is grounded in a
+   principle from one of the reading-list books and carries a `source` citation.
    personalTrendNote() is a thin wrapper kept so the metric-detail
    modal keeps its old signature (one shared engine, no double work).
    ───────────────────────────────────────────────────────── */
@@ -15,8 +15,10 @@ export interface Insight {
   tone: InsightTone;
   /** Compact one-liner — the observation pulled from the data. */
   title: string;
-  /** Short prescriptive nudge — generic sleep hygiene only, no doses/diagnoses. */
+  /** Short prescriptive nudge, grounded in a principle from a reading-list book. */
   body: string;
+  /** Citation — which book the principle comes from (rendered as a source chip). */
+  source?: string;
 }
 
 const round = (n: number) => Math.round(n);
@@ -59,13 +61,15 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('ss-trend', 0, {
         id: 'ss-down', tone: 'warn',
         title: `SS în scădere ${k} zile la rând`,
-        body: 'Trendul cere recuperare: diseară ecran off cu ~60 min înainte, cameră răcoroasă (18-19°C) și oră fixă de culcare.',
+        body: 'Stevenson: revino la baze — cameră la 18-19°C, ecrane stinse cu o oră înainte, cofeina doar dimineața.',
+        source: 'Stevenson · Sleep Smarter',
       });
     } else if (deltas.every(d => d > 0)) {
       push('ss-trend', 20, {
         id: 'ss-up', tone: 'good',
         title: `SS în creștere ${k} zile la rând`,
-        body: 'Ești pe val — ține exact rutina asta. Consistența bate intensitatea: păstrează ora de culcare.',
+        body: 'Panda: ritmul circadian iubește predictibilitatea. Ține orele fixe și valul continuă.',
+        source: 'Panda · The Circadian Code',
       });
     }
   }
@@ -74,13 +78,15 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
     push('ss-trend', 1, {
       id: 'ss-drop', tone: 'warn',
       title: `${ssDelta} SS față de aseară`,
-      body: 'O noapte slabă se repară cu una bună — fără cafea după prânz azi și culcare mai devreme.',
+      body: 'Winter: o noapte slabă nu strică nimic — fără panică. Presiunea de somn se adună, diseară adormi mai ușor.',
+      source: 'Winter · The Sleep Solution',
     });
   } else if (ssDelta >= 8) {
     push('ss-trend', 21, {
       id: 'ss-jump', tone: 'good',
       title: `+${ssDelta} SS față de aseară`,
-      body: 'Salt frumos. Ce-ai făcut aseară (oră de culcare, wind-down) merită repetat — notează în jurnal.',
+      body: 'Stevenson: transformă ce-a funcționat aseară într-o rutină fixă. Repetabilitatea face scorul.',
+      source: 'Stevenson · Sleep Smarter',
     });
   }
 
@@ -92,13 +98,15 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('rem', 2, {
         id: 'rem-low', tone: 'warn',
         title: `REM mediu ${aRem}min · sub target`,
-        body: 'REM-ul crește cu somn neîntrerupt: fără alcool seara și oră de culcare constantă. Țintă ≥90min.',
+        body: 'Walker: alcoolul și culcarea târzie fragmentează REM-ul. Seară fără alcool + oră fixă = mai mult REM.',
+        source: 'Walker · Why We Sleep',
       });
     } else if (aRem >= 100) {
       push('rem', 22, {
         id: 'rem-high', tone: 'good',
         title: `REM mediu ${aRem}min · peste target`,
-        body: 'REM solid = minte odihnită. Exact ce vrei — menține ritmul de somn.',
+        body: 'Walker: REM-ul consolidează memoria și emoțiile — îl ai din plin. Menține ritmul.',
+        source: 'Walker · Why We Sleep',
       });
     }
   }
@@ -110,13 +118,15 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
     push('rhr', 3, {
       id: 'rhr-high', tone: 'warn',
       title: `RHR ${last.rhr}bpm · ridicat`,
-      body: 'Puls de repaus ridicat = stres, oboseală sau somn insuficient. Zi mai ușoară, hidratare și culcare devreme.',
+      body: 'Winter: puls de repaus ridicat = corp nerecuperat. Zi ușoară, hidratare, culcare la ora obișnuită.',
+      source: 'Winter · The Sleep Solution',
     });
   } else if (last.rhr > 0 && last.rhr < 55) {
     push('rhr', 23, {
       id: 'rhr-low', tone: 'good',
       title: `RHR ${last.rhr}bpm · jos`,
-      body: 'Puls de repaus mic = corp bine odihnit. Profită de energie azi.',
+      body: 'Puls jos = recuperare bună (Winter). Profită de energie azi.',
+      source: 'Winter · The Sleep Solution',
     });
   }
 
@@ -129,13 +139,15 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('hrv', 4, {
         id: 'hrv-down', tone: 'warn',
         title: `HRV scade ${first}→${lastH}ms`,
-        body: 'Sistemul nervos cere recuperare. Respirație lentă înainte de somn (4s inspir / 6s expir) și fără ecrane în pat.',
+        body: 'HRV în scădere = stres. Stevenson: cameră răcoroasă, fără ecrane în pat, respirație lentă înainte de somn.',
+        source: 'Stevenson · Sleep Smarter',
       });
     } else if (lastH - first >= 10) {
       push('hrv', 24, {
         id: 'hrv-up', tone: 'good',
         title: `HRV crește ${first}→${lastH}ms`,
-        body: 'Recuperare on point — corpul răspunde bine la rutina ta. Ține-o.',
+        body: 'HRV crește — sistemul nervos se recuperează (Winter). Ține rutina.',
+        source: 'Winter · The Sleep Solution',
       });
     }
   }
@@ -147,7 +159,8 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('consistency', 10, {
         id: 'inconsistent', tone: 'tip',
         title: 'Somn inconsistent săptămâna asta',
-        body: 'Cea mai mare pârghie: aceeași oră de trezire în fiecare zi, inclusiv weekend. Îți ancorează ritmul circadian.',
+        body: 'Panda: ancora #1 e ora de TREZIRE fixă, inclusiv weekend. Ritmul circadian se așază pe ea.',
+        source: 'Panda · The Circadian Code',
       });
     }
   }
@@ -158,7 +171,8 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('rem', 11, {
         id: 'tired-despite-score', tone: 'tip',
         title: 'Scor bun, dar REM mic',
-        body: 'Dormi ok pe scor, însă REM-ul mic explică oboseala. REM-ul vine spre dimineață — somn mai lung și neîntrerupt îl crește.',
+        body: 'Walker: REM-ul vine spre dimineață, în ultimele ore. Tai din final → obosit deși scorul e ok. Somn mai lung.',
+        source: 'Walker · Why We Sleep',
       });
     }
   }
@@ -173,13 +187,15 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('duration', 2, {
         id: 'dur-low', tone: 'warn',
         title: `Media somn ${fmtDuration(round(avgDur))} · sub 7h`,
-        body: 'Sub 7h cronic taie din REM și recuperare. Țintește 7-9h — mută ora de culcare cu 30-45 min mai devreme.',
+        body: 'Walker: sub 7h cronic taie din REM și recuperare. Țintește 7-9h — culcare cu 30-45 min mai devreme.',
+        source: 'Walker · Why We Sleep',
       });
     } else if (avgDur >= 480) {
       push('duration', 22, {
         id: 'dur-good', tone: 'good',
         title: `Media somn ${fmtDuration(round(avgDur))} · în target`,
-        body: 'Durată solidă (7-9h). Exact ce vrei — protejează fereastra asta de somn.',
+        body: 'Littlehales (R90): ~5 cicluri de 90 min ≈ 7h30 — ești fix acolo. Ține ora de trezire fixă.',
+        source: 'Littlehales · Sleep (R90)',
       });
     }
   }
@@ -195,14 +211,16 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
       push('bedtime', 10, {
         id: 'bed-irregular', tone: 'tip',
         title: 'Ora de culcare variază mult',
-        body: 'Cea mai mare pârghie: culcă-te la aceeași oră ±30 min, inclusiv weekend. Ritmul circadian iubește predictibilitatea.',
+        body: 'Littlehales (R90): ancorează ora de TREZIRE; bedtime-ul se aliniază singur. Constanța bate durata.',
+        source: 'Littlehales · Sleep (R90)',
       });
     } else if (mean(bedtimes) >= 360) {
       // avg bedtime at/after 00:00 (360 min past 18:00)
       push('bedtime', 11, {
         id: 'bed-late', tone: 'tip',
         title: 'Te culci după miezul nopții',
-        body: 'Culcarea târzie scurtează somnul profund de la începutul nopții. Trage ora de culcare spre 23:00.',
+        body: 'Walker: somnul profund domină prima parte a nopții. Culcare după 00:00 → pierzi deep sleep. Trage spre 23:00.',
+        source: 'Walker · Why We Sleep',
       });
     }
   }
@@ -221,7 +239,8 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
     return [{
       id: 'snapshot', tone: 'tip',
       title: `Medie SS săpt: ${aSS} · stabil`,
-      body: 'Fără alarme. Ține ritmul și protejează-ți ora de culcare — consistența e tot.',
+      body: 'Panda: protejează orele fixe — consistența e totul. Fără alarme acum.',
+      source: 'Panda · The Circadian Code',
     }];
   }
 

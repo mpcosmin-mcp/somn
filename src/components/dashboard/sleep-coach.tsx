@@ -65,13 +65,22 @@ export function SleepCoach({ entries, user }: { entries: SleepEntry[]; user: str
               </div>
               <div className="text-sm font-medium text-[var(--color-fg)] leading-snug">{i.title}</div>
               <div className="text-xs text-[var(--color-fg-muted)] leading-snug mt-1">{i.body}</div>
+              {i.source && (
+                <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--color-fg-dim)]">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  <span>{i.source}</span>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
       <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-        Calculate local din scor, REM, HRV și RHR — fără AI. Sugestii de igienă a somnului, nu sfat medical.
+        Principii din cărțile din lista de lecturi, aplicate pe datele tale — calculate local, fără AI. Nu sfat medical.
       </p>
     </section>
   );
