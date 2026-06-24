@@ -2,8 +2,9 @@
 import { useMemo, useState } from 'react';
 import {
   type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
-  sleepDurationMin, fmtDuration, durationColor,
+  sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18,
 } from '@/lib/sleep';
+import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
 import { fmtDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -36,7 +37,7 @@ interface Row {
 export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; currentUser: string }) {
   const [period, setPeriod] = useState<Period>('today');
 
-  const { rows, latestDate, periodLabel } = useMemo(() => {
+  const { rows, latestDate, periodLabel, schedule } = useMemo(() => {
     let scoped: SleepEntry[];
     let label = '';
     if (period === 'today') {
@@ -64,6 +65,18 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         .map(e => sleepDurationMin(e.start, e.end))
         .filter((d): d is number => d != null);
       durByName.set(n, ds.length ? Math.round(ds.reduce((s, v) => s + v, 0) / ds.length) : null);
+    }
+
+    // Sleep schedule — avg bedtime/wake (minutes from 18:00) per person with times.
+    const schedule: ScheduleRow[] = [];
+    for (const n of NAMES) {
+      const es = scoped.filter(e => e.name === n && e.start && e.end);
+      const starts = es.map(e => bedtimeFrom18(e.start)).filter((v): v is number => v != null);
+      const ends = es.map(e => bedtimeFrom18(e.end)).filter((v): v is number => v != null);
+      if (starts.length && ends.length) {
+        const avg = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
+        schedule.push({ name: n, start: avg(starts), end: avg(ends) });
+      }
     }
 
     // Determine winners across the team for fun badges
@@ -105,7 +118,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       };
     }).sort((a, b) => b.ss - a.ss);
 
-    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label };
+    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label, schedule };
   }, [entries, period]);
 
   const champion = rows[0]?.hasData ? rows[0] : null;
@@ -156,6 +169,9 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
           <span className="ml-auto text-[9px] num text-[var(--color-fg-muted)]">{fmtDate(latestDate)}</span>
         )}
       </div>
+
+      {/* Sleep schedule — who sleeps from when to when, vs the sweet spot */}
+      <SleepSchedule rows={schedule} currentUser={currentUser} />
 
       {/* Rows */}
       <div className="px-3 pb-3 pt-1 space-y-1">
