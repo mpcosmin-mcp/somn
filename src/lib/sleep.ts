@@ -237,10 +237,12 @@ export function sleepDurationMin(start?: string | null, end?: string | null): nu
   return d;
 }
 
-/** "8h 49m" / "7h" / "—" */
+/** "8h 49m" / "7h" / "40m" / "—". Rounds, so fractional inputs (chart ticks) stay clean. */
 export function fmtDuration(min: number | null): string {
   if (min == null) return '—';
-  const h = Math.floor(min / 60), m = min % 60;
+  const total = Math.round(min);
+  const h = Math.floor(total / 60), m = total % 60;
+  if (h === 0) return `${m}m`;
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 

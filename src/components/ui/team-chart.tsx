@@ -23,6 +23,9 @@ interface Props {
   /** Color the line + dots by target status: green where on/above target, red where below
    *  (flipped for lowerBetter). Opt-in — keeps the multi-person team chart on per-person colors. */
   colorByTarget?: boolean;
+  /** Format a numeric value for display (axis / tooltip / legend / target). Plotting stays
+   *  numeric — used e.g. for sleep duration so the user sees "6h 40m" instead of "400". */
+  fmt?: (v: number) => string;
 }
 
 const MONTHS_SHORT = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
@@ -50,7 +53,9 @@ export function TeamChart({
   unit = '',
   lowerBetter = false,
   colorByTarget = false,
+  fmt,
 }: Props) {
+  const fmtV = (v: number) => (fmt ? fmt(v) : `${Math.round(v)}`);
   const uid = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -85,7 +90,7 @@ export function TeamChart({
   // Plot area dimensions (internal SVG viewBox units — now matched to actual pixels)
   const VW = Math.max(320, containerWidth);
   const VH = height;
-  const ML = 36; // left margin (y-axis labels)
+  const ML = fmt ? 52 : 36; // left margin (y-axis labels — wider when formatted, e.g. "6h 40m")
   const MR = 12; // right margin
   const MT = 12; // top margin
   const MB = 28; // bottom margin (x-axis labels)
@@ -299,7 +304,7 @@ export function TeamChart({
                 opacity={0.5}
                 fontFamily="monospace"
               >
-                {Math.round(t)}
+                {fmtV(t)}
               </text>
             </g>
           );
@@ -325,7 +330,7 @@ export function TeamChart({
               opacity={0.6}
               fontFamily="monospace"
             >
-              {targetLabel ?? 'target'} {target}
+              {targetLabel ?? 'target'} {fmtV(target ?? 0)}
             </text>
             {/* Target value marked on the y-axis (left), highlighted vs the gray ticks */}
             <text
@@ -336,7 +341,7 @@ export function TeamChart({
               fontFamily="monospace"
               fontWeight="bold"
             >
-              {target}
+              {fmtV(target ?? 0)}
             </text>
           </g>
         )}
@@ -438,6 +443,7 @@ export function TeamChart({
           unit={unit}
           target={target}
           lowerBetter={lowerBetter}
+          fmt={fmt}
         />
       )}
 
@@ -452,7 +458,7 @@ export function TeamChart({
             />
             <span className="font-bold text-xs" style={{ color: s.color }}>{s.name}</span>
             <span className="num text-[10px] text-[var(--color-fg-muted)]">
-              avg {s.avg ?? '—'}{unit && s.avg != null ? unit : ''}
+              avg {s.avg == null ? '—' : (fmt ? fmt(s.avg) : `${s.avg}${unit}`)}
               {target != null && s.avg != null && (() => {
                 const delta = lowerBetter ? target - s.avg : s.avg - target;
                 if (Math.abs(delta) < 1) return null;
@@ -473,7 +479,7 @@ export function TeamChart({
 /* ─── Tooltip ─────────────────────────────────────────────── */
 
 function Tooltip({
-  xPct, date, series, unit, target, lowerBetter,
+  xPct, date, series, unit, target, lowerBetter, fmt,
 }: {
   xPct: number;
   date: string;
@@ -481,6 +487,7 @@ function Tooltip({
   unit: string;
   target?: number;
   lowerBetter?: boolean;
+  fmt?: (v: number) => string;
 }) {
   const d = new Date(date + 'T12:00:00');
   const dateLabel = `${String(d.getDate()).padStart(2, '0')} ${MONTHS_SHORT[d.getMonth()]} · ${DAYS_SHORT[d.getDay()]}`;
@@ -519,14 +526,14 @@ function Tooltip({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} aria-hidden />
               <span className="font-bold" style={{ color: s.color }}>{s.name}</span>
               <span className="num font-bold ml-auto" style={{ color: present ? s.color : 'var(--color-fg-dim)' }}>
-                {present ? v : '—'}{present && unit ? unit : ''}
+                {present ? (fmt ? fmt(v) : `${v}${unit}`) : '—'}
               </span>
               {showDelta && delta != null && Math.abs(delta) >= 1 && (
                 <span
                   className="num text-[9px] font-bold"
                   style={{ color: delta > 0 ? 'var(--color-good)' : 'var(--color-bad)' }}
                 >
-                  {delta > 0 ? '↑' : '↓'}{Math.abs(Math.round(delta))}
+                  {delta > 0 ? '↑' : '↓'}{fmt ? fmt(Math.abs(Math.round(delta))) : Math.abs(Math.round(delta))}
                 </span>
               )}
             </div>
@@ -536,7 +543,7 @@ function Tooltip({
       {target != null && (
         <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border)] flex items-center gap-1.5 text-[10px] num text-[var(--color-fg-muted)]">
           <span className="inline-block w-3 border-t border-dashed border-current opacity-70" aria-hidden />
-          <span>target {lowerBetter ? '≤' : '≥'} {target}{unit}</span>
+          <span>target {lowerBetter ? '≤' : '≥'} {fmt ? fmt(target) : `${target}${unit}`}</span>
         </div>
       )}
     </div>

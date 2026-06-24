@@ -383,6 +383,7 @@ export function MetricDetailModal({
                   unit={spec.key === 'ss' ? '' : spec.unit}
                   lowerBetter={!spec.higherBetter}
                   colorByTarget
+                  fmt={spec.format}
                 />
               </div>
             </div>

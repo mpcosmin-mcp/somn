@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import {
   type SleepEntry,
   NAMES, FIRST_NAME, personColor,
-  sleepDurationMin, DUR_TARGET,
+  sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
 import { Card } from '@/components/ui/card';
@@ -109,7 +109,7 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
           </button>
         ))}
         <span className="text-[10px] text-[var(--color-fg-muted)] ml-auto num">
-          target {meta.lowerBetter ? '< ' : ''}{meta.target}{meta.unit}
+          target {metric === 'dur' ? fmtDuration(meta.target) : `${meta.lowerBetter ? '< ' : ''}${meta.target}${meta.unit}`}
         </span>
       </div>
 
@@ -145,6 +145,7 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
         targetLabel="target"
         unit={meta.unit}
         lowerBetter={meta.lowerBetter}
+        fmt={metric === 'dur' ? fmtDuration : undefined}
       />
     </Card>
   );
