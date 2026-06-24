@@ -67,8 +67,8 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
         <span className="text-[10px] num text-[var(--color-fg-dim)]">ultimele {mine.length} loguri</span>
       </div>
 
-      {/* Header row */}
-      <div className="grid grid-cols-[auto_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-3 lg:gap-4 items-center pb-2 border-b border-[var(--color-border)]">
+      {/* Header row — fixed column widths so header + rows align (shared template) */}
+      <div className="grid grid-cols-[1fr_2.75rem_5rem] sm:grid-cols-[5.5rem_1fr_2.5rem_2.75rem_3rem_2.5rem_5rem] gap-3 lg:gap-4 items-center pb-2 border-b border-[var(--color-border)]">
         <span className="label">Data</span>
         <span className="label hidden sm:inline">Trend</span>
         <span className="label text-right hidden sm:inline">RHR</span>
@@ -86,7 +86,7 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
           const pillLabel = e.ss >= 75 ? 'Optim' : e.ss >= 60 ? 'Average' : 'Poor';
           const { values, dates } = sparkSeriesFor(e.date);
           return (
-            <div key={e.date} className="grid grid-cols-[auto_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-3 lg:gap-4 items-center py-2.5">
+            <div key={e.date} className="grid grid-cols-[1fr_2.75rem_5rem] sm:grid-cols-[5.5rem_1fr_2.5rem_2.75rem_3rem_2.5rem_5rem] gap-3 lg:gap-4 items-center py-2.5">
               <div className="flex flex-col min-w-0">
                 <span className="text-xs text-[var(--color-fg)]">{fmt(e.date)}</span>
                 {(() => {
@@ -114,7 +114,7 @@ export function PersonalHistory({ entries, user, limit = 6 }: {
               <span className="num text-xs text-right hidden sm:inline" style={{ color: e.hrv != null ? hrvColor(e.hrv) : 'var(--color-fg-dim)' }}>
                 {e.hrv != null ? `${e.hrv}` : '—'}
               </span>
-              <span className={`pill ${pill}`} title={t.label}>{pillLabel}</span>
+              <span className={`pill ${pill} justify-self-end`} title={t.label}>{pillLabel}</span>
             </div>
           );
         })}

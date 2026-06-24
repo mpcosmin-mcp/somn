@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import {
   type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
+  sleepDurationMin, fmtDuration, durationColor,
 } from '@/lib/sleep';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
 import { fmtDate } from '@/lib/utils';
@@ -23,6 +24,7 @@ interface Row {
   rhr: number;
   hrv: number | null;
   rem: number | null;
+  dur: number | null;
   entries: number;
   xp: number;
   level: number;
@@ -54,11 +56,22 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
     }
     const aggRows = aggregate(scoped);
 
+    // Avg sleep duration per person — computed from start/end (aggregate doesn't).
+    const durByName = new Map<string, number | null>();
+    for (const n of NAMES) {
+      const ds = scoped
+        .filter(e => e.name === n)
+        .map(e => sleepDurationMin(e.start, e.end))
+        .filter((d): d is number => d != null);
+      durByName.set(n, ds.length ? Math.round(ds.reduce((s, v) => s + v, 0) / ds.length) : null);
+    }
+
     // Determine winners across the team for fun badges
     const remBest = bestBy(aggRows, r => r.rem ?? -1);
     const ssBest = bestBy(aggRows, r => r.ss);
     const rhrBest = bestBy(aggRows, r => -r.rhr); // lower better
     const hrvBest = bestBy(aggRows, r => r.hrv ?? -1);
+    const durBest = bestBy(NAMES.map(n => ({ name: n, val: durByName.get(n) ?? -1 })), r => r.val);
     const streakBest = bestBy(NAMES.map(n => ({ name: n, val: streakFor(entries, n) })), r => r.val);
 
     const built: Row[] = NAMES.map(n => {
@@ -68,8 +81,9 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       const streak = streakFor(entries, n);
       const badges: Row['badges'] = [];
       if (a) {
-        if (remBest?.name === n && (a.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
         if (ssBest?.name === n) badges.push({ emoji: '👑', label: 'best SS avg' });
+        if (durBest?.name === n && (durByName.get(n) ?? 0) > 0) badges.push({ emoji: '😴', label: 'cel mai mult somn' });
+        if (remBest?.name === n && (a.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
         if (rhrBest?.name === n) badges.push({ emoji: '🫀', label: 'low RHR' });
         if (hrvBest?.name === n && (a.hrv ?? 0) > 0) badges.push({ emoji: '⚡', label: 'high HRV' });
       }
@@ -81,6 +95,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         rhr: a?.rhr ?? 0,
         hrv: a?.hrv ?? null,
         rem: a?.rem ?? null,
+        dur: durByName.get(n) ?? null,
         entries: a?.entries ?? 0,
         xp,
         level: lvl,
@@ -186,7 +201,7 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
             <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
               {tier.icon} Lv{row.level}
             </span>
-            {row.badges.slice(0, 2).map((b, i) => (
+            {row.badges.slice(0, 3).map((b, i) => (
               <span key={i} className="text-[10px]" title={b.label}>{b.emoji}</span>
             ))}
           </div>
@@ -204,6 +219,12 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
                   <>
                     <span className="text-[var(--color-fg-dim)]">·</span>
                     <span className="num">REM <strong style={{ color: remColor(row.rem) }}>{row.rem}m</strong></span>
+                  </>
+                )}
+                {row.dur != null && (
+                  <>
+                    <span className="text-[var(--color-fg-dim)]">·</span>
+                    <span className="num">Somn <strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
                   </>
                 )}
                 <span className="text-[var(--color-fg-dim)] ml-auto">{row.entries}d</span>
