@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Metric } from '@/components/ui/metric';
+import { TimeRangeSlider } from '@/components/dashboard/time-range-slider';
 
 export function LogEntry({
   user,
@@ -35,7 +36,6 @@ export function LogEntry({
   // Pre-existing entry for the selected date?
   const existing = entries.find(e => e.date === date && e.name === user);
   const isToday = date === todayStr();
-  const dur = sleepDurationMin(start || null, end || null);
 
   useEffect(() => {
     if (existing) {
@@ -171,17 +171,28 @@ export function LogEntry({
         <div className="text-[10px] text-[var(--color-fg-muted)] mt-1">{fmtDate(date)}</div>
       </div>
 
-      {/* Bedtime / wake — optional, auto-computes total sleep */}
+      {/* Bedtime / wake — drag on the timeline (optional) */}
       <div className="mb-4">
-        <label className="label block mb-1.5">Ore de somn · opțional</label>
-        <div className="grid grid-cols-2 gap-3">
-          <TimeField label="Culcare" value={start} onChange={setStart} />
-          <TimeField label="Trezire" value={end} onChange={setEnd} />
-        </div>
-        {dur != null && (
-          <div className="text-[11px] num font-bold mt-1.5 text-[var(--color-accent)]">
-            ai dormit {fmtDuration(dur)}
+        <label className="label block mb-2">Ore de somn · opțional</label>
+        {start && end ? (
+          <div className="px-1 pt-5">
+            <TimeRangeSlider start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+            <button
+              type="button"
+              onClick={() => { setStart(''); setEnd(''); }}
+              className="text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg)] transition-colors mt-2"
+            >
+              × fără ore
+            </button>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setStart('23:00'); setEnd('07:00'); }}
+            className="w-full h-11 rounded-lg border border-dashed border-[var(--color-border)] text-xs font-medium text-[var(--color-fg-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-fg)] transition-colors"
+          >
+            🌙 adaugă ore de somn
+          </button>
         )}
       </div>
 
@@ -252,26 +263,6 @@ const Field = forwardRef<HTMLInputElement, { label: string; hint: string; ph: st
   ),
 );
 Field.displayName = 'Field';
-
-/* Time picker field — bedtime/wake (controlled) */
-function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="label">{label}</label>
-      <input
-        type="time"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className={cn(
-          'w-full h-10 px-3 rounded-lg num text-center',
-          'bg-[var(--color-card)] text-[var(--color-fg)]',
-          'border border-[var(--color-border)]',
-          'focus:outline-none focus:border-[var(--color-accent)]',
-        )}
-      />
-    </div>
-  );
-}
 
 /* Compact stat tile for the post-save feedback screen */
 function Stat({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {
