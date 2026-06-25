@@ -231,12 +231,9 @@ html.light .glass {
 .fade-in-left  { animation: fade-left  0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .fade-in-right { animation: fade-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
-/* Drawer panel entrance — bottom-sheet on mobile, right slide-in on desktop.
-   (Raw CSS media query: Tailwind v4 can't responsively swap @keyframes.) */
-@keyframes drawer-up    { from { transform: translateY(100%); } to { transform: none; } }
-@keyframes drawer-right { from { transform: translateX(100%); } to { transform: none; } }
-.drawer-anim { animation: drawer-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-@media (min-width: 768px) { .drawer-anim { animation: drawer-right 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards; } }
+/* Centered modal entrance — subtle pop (ShapeSquad-style player card). */
+@keyframes modal-pop { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: none; } }
+.modal-pop { animation: modal-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .backdrop-in { animation: fade-up 0.2s ease-out backwards; }
 
 /* Streak strip — soft pulse on today's bullet until it's logged */

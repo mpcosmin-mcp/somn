@@ -8,7 +8,6 @@ import {
 import { coachInsights, type InsightTone } from '@/lib/coach';
 import { tierFor, xpProgress, maxStreakFor } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
-import { Sparkline } from '@/components/ui/sparkline';
 
 /** Minimal shape the drawer needs — a Leaderboard row is structurally compatible. */
 export interface PlayerSummary {
@@ -62,15 +61,7 @@ export function PlayerDrawer({ player, entries, currentUser }: {
   const prev7 = mine.slice(-14, -7);
   const wow = (last7.length && prev7.length) ? Math.round(avg(last7.map(e => e.ss)) - avg(prev7.map(e => e.ss))) : null;
 
-  // 7-day mini-trend series.
-  const series = mine.slice(-7);
-  const dates = series.map(e => e.date);
-  const ssS = series.map(e => e.ss);
-  const hrvS = series.map(e => e.hrv);
-  const remS = series.map(e => e.rem);
-  const durS = series.map(e => sleepDurationMin(e.start, e.end));
-
-  const insights = coachInsights(entries, player.name);
+  const insights = coachInsights(entries, player.name, 1);
   const maxStreak = maxStreakFor(entries, player.name);
   const prog = xpProgress(player.xp); // 0–99 within the current level
 
@@ -99,11 +90,8 @@ export function PlayerDrawer({ player, entries, currentUser }: {
         </div>
       </div>
 
-      {/* Follow / Cheer (stub) */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <button type="button" className="h-9 rounded-xl text-xs font-bold border border-[var(--color-border)] text-[var(--color-fg)] hover:border-[var(--color-accent)] transition-colors">+ Follow</button>
-        <button type="button" className="h-9 rounded-xl text-xs font-bold transition-colors" style={{ background: 'color-mix(in srgb, var(--color-accent) 18%, transparent)', color: 'var(--color-accent)' }}>👏 Cheer</button>
-      </div>
+      {/* Cheer (stub) */}
+      <button type="button" className="h-9 w-full rounded-xl text-xs font-bold transition-colors hover:brightness-110" style={{ background: 'color-mix(in srgb, var(--color-accent) 18%, transparent)', color: 'var(--color-accent)' }}>👏 Cheer</button>
 
       {/* TODAY */}
       <section>
@@ -120,19 +108,6 @@ export function PlayerDrawer({ player, entries, currentUser }: {
           <div className="text-xs text-[var(--color-fg-muted)] italic">niciun log încă</div>
         )}
       </section>
-
-      {/* 7-day trends */}
-      {series.length >= 2 && (
-        <section>
-          <div className="label mb-2">Ultimele 7 zile</div>
-          <div className="grid grid-cols-2 gap-3">
-            <MiniTrend label="Sleep Score" values={ssS} dates={dates} color={ssColor(last?.ss ?? 0)} />
-            <MiniTrend label="Durată" values={durS} dates={dates} color={durationColor(lastDur)} fmt={(v) => fmtDuration(v)} />
-            <MiniTrend label="REM" values={remS} dates={dates} unit="m" color={remColor(last?.rem ?? null)} />
-            <MiniTrend label="HRV" values={hrvS} dates={dates} color={hrvColor(last?.hrv ?? null)} />
-          </div>
-        </section>
-      )}
 
       {/* Insights */}
       <section>
@@ -188,29 +163,6 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
     <div className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-2 py-2 text-center">
       <div className="label mb-0.5">{label}</div>
       <div className="num font-bold text-base leading-none" style={{ color }}>{value}</div>
-    </div>
-  );
-}
-
-function MiniTrend({ label, values, dates, color, unit = '', fmt }: {
-  label: string;
-  values: (number | null)[];
-  dates: string[];
-  color: string;
-  unit?: string;
-  fmt?: (v: number) => string;
-}) {
-  const present = values.filter((v): v is number => v != null);
-  const latest = present.length ? present[present.length - 1] : null;
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 px-3 py-2.5">
-      <div className="flex items-baseline justify-between mb-1">
-        <span className="label">{label}</span>
-        <span className="num text-xs font-bold" style={{ color }}>
-          {latest == null ? '—' : fmt ? fmt(latest) : `${latest}${unit}`}
-        </span>
-      </div>
-      <Sparkline values={values} dates={dates} unit={unit} width={120} height={28} color={color} />
     </div>
   );
 }

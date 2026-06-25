@@ -2,18 +2,17 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
 /**
- * Drawer — the app's overlay primitive. Bottom-sheet on mobile, right slide-in
- * on desktop. Reuses the metric-modal overlay mechanics (backdrop, Escape,
- * scroll-lock) and adds a focus-trap with focus restore on close.
+ * Modal — centered overlay (ShapeSquad-style). A contained card fixed in the
+ * middle of the screen on desktop, bottom-sheet on mobile. Backdrop dim+blur,
+ * Escape + backdrop-click to close, focus-trap with focus restore on close.
  *
- * Minimal 6-prop contract — nav / pills / titles compose inside `title`/children.
- * Single-drawer-at-a-time (no nesting in v1).
+ * Minimal 5-prop contract — header chips / titles compose inside `title`.
  */
-export function Drawer({ open, onClose, title, widthClass = 'md:w-[40rem]', children }: {
+export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', children }: {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;
-  /** Desktop panel width (md+). Mobile is always full-width sheet. */
+  /** Desktop max width (md+). Mobile is a full-width bottom sheet. */
   widthClass?: string;
   children: ReactNode;
 }) {
@@ -53,7 +52,7 @@ export function Drawer({ open, onClose, title, widthClass = 'md:w-[40rem]', chil
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-stretch md:justify-end bg-black/55 backdrop-blur-sm backdrop-in"
+      className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-6 bg-black/60 backdrop-blur-sm backdrop-in"
       onClick={onClose}
       role="presentation"
     >
@@ -63,9 +62,9 @@ export function Drawer({ open, onClose, title, widthClass = 'md:w-[40rem]', chil
         aria-modal="true"
         tabIndex={-1}
         onClick={e => e.stopPropagation()}
-        className={`drawer-anim outline-none overflow-y-auto bg-[var(--color-bg)] shadow-2xl shadow-black/50
+        className={`modal-pop outline-none overflow-y-auto bg-[var(--color-bg)] shadow-2xl shadow-black/50
           w-full max-h-[92dvh] rounded-t-3xl border-t border-[var(--color-border)]
-          md:h-dvh md:max-h-none md:rounded-t-none md:rounded-l-3xl md:border-t-0 md:border-l ${widthClass} md:max-w-[94vw] pb-safe`}
+          md:max-h-[85vh] md:rounded-2xl md:border ${widthClass} pb-safe`}
       >
         {title != null && (
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 backdrop-blur-md">

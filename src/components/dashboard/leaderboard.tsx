@@ -10,8 +10,9 @@ import { fmtDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
 import { Sparkline } from '@/components/ui/sparkline';
-import { Drawer } from '@/components/ui/drawer';
+import { Modal } from '@/components/ui/modal';
 import { PlayerDrawer, PlayerDrawerTitle } from '@/components/dashboard/player-drawer';
+import { EntryReactions } from '@/components/dashboard/entry-reactions';
 
 type Period = 'today' | 'week' | 'month' | 'all';
 const PERIODS: { id: Period; label: string }[] = [
@@ -40,7 +41,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
   const [period, setPeriod] = useState<Period>('today');
   const [openRow, setOpenRow] = useState<Row | null>(null);
 
-  const { rows, latestDate, periodLabel, schedule } = useMemo(() => {
+  const { rows, latestDate, periodLabel, schedule, scopedEntries } = useMemo(() => {
     let scoped: SleepEntry[];
     let label = '';
     if (period === 'today') {
@@ -60,7 +61,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
     }
     const aggRows = aggregate(scoped);
 
-    // Avg sleep duration per person — computed from start/end (aggregate doesn't).
     const durByName = new Map<string, number | null>();
     for (const n of NAMES) {
       const ds = scoped
@@ -70,7 +70,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       durByName.set(n, ds.length ? Math.round(ds.reduce((s, v) => s + v, 0) / ds.length) : null);
     }
 
-    // Sleep schedule — avg bedtime/wake (minutes from 18:00) per person with times.
     const schedule: ScheduleRow[] = [];
     for (const n of NAMES) {
       const es = scoped.filter(e => e.name === n && e.start && e.end);
@@ -82,10 +81,9 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       }
     }
 
-    // Determine winners across the team for fun badges
     const remBest = bestBy(aggRows, r => r.rem ?? -1);
     const ssBest = bestBy(aggRows, r => r.ss);
-    const rhrBest = bestBy(aggRows, r => -r.rhr); // lower better
+    const rhrBest = bestBy(aggRows, r => -r.rhr);
     const hrvBest = bestBy(aggRows, r => r.hrv ?? -1);
     const durBest = bestBy(NAMES.map(n => ({ name: n, val: durByName.get(n) ?? -1 })), r => r.val);
     const streakBest = bestBy(NAMES.map(n => ({ name: n, val: streakFor(entries, n) })), r => r.val);
@@ -121,7 +119,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       };
     }).sort((a, b) => b.ss - a.ss);
 
-    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label, schedule };
+    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label, schedule, scopedEntries: scoped };
   }, [entries, period]);
 
   const champion = rows[0]?.hasData ? rows[0] : null;
@@ -129,7 +127,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
   return (
     <>
     <Card className="overflow-hidden">
-      {/* Champion banner */}
       {champion && (
         <button
           type="button"
@@ -155,7 +152,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         </button>
       )}
 
-      {/* Period tabs */}
       <div className="px-5 pt-4 pb-2 flex items-center gap-1 flex-wrap">
         <span className="label mr-1">clasament</span>
         {PERIODS.map(p => (
@@ -176,34 +172,32 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         )}
       </div>
 
-      {/* Sleep schedule — who sleeps from when to when, vs the sweet spot */}
       <SleepSchedule rows={schedule} currentUser={currentUser} />
 
-      {/* Rows */}
       <div className="px-3 pb-3 pt-1 space-y-1">
         {rows.map((r, i) => (
-          <LeaderRow key={r.name} row={r} rank={i} isMe={r.name === currentUser} entries={entries} period={period} onOpen={setOpenRow} />
+          <LeaderRow key={r.name} row={r} rank={i} isMe={r.name === currentUser} entries={entries} scopedEntries={scopedEntries} currentUser={currentUser} period={period} onOpen={setOpenRow} />
         ))}
       </div>
     </Card>
 
-    <Drawer
+    <Modal
       open={!!openRow}
       onClose={() => setOpenRow(null)}
       title={openRow ? <PlayerDrawerTitle player={openRow} /> : undefined}
     >
       {openRow && <PlayerDrawer player={openRow} entries={entries} currentUser={currentUser} />}
-    </Drawer>
+    </Modal>
     </>
   );
 }
 
-function LeaderRow({ row, rank, isMe, entries, period, onOpen }: { row: Row; rank: number; isMe: boolean; entries: SleepEntry[]; period: Period; onOpen: (row: Row) => void }) {
+function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, period, onOpen }: { row: Row; rank: number; isMe: boolean; entries: SleepEntry[]; scopedEntries: SleepEntry[]; currentUser: string; period: Period; onOpen: (row: Row) => void }) {
   const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉';
   const tier = tierFor(row.level);
   const c = personColor(row.name);
 
-  // Tiny SS sparkline for last 7 days (with dates so hover shows the value+date)
+  // Tiny SS sparkline for last 7 days
   const { sparkValues, sparkDates } = useMemo(() => {
     const personEntries = entries.filter(e => e.name === row.name);
     const last7 = lastNDays(personEntries, 7);
@@ -214,72 +208,93 @@ function LeaderRow({ row, rank, isMe, entries, period, onOpen }: { row: Row; ran
     };
   }, [entries, row.name]);
 
+  const latestEntry = useMemo(() => {
+    const mine = scopedEntries.filter(e => e.name === row.name);
+    if (!mine.length) return null;
+    return mine.sort((a, b) => b.date.localeCompare(a.date))[0];
+  }, [scopedEntries, row.name]);
+
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(row)}
-      className={`block w-full text-left rounded-xl px-3 py-2.5 cursor-pointer transition-all hover:bg-[var(--color-surface)]/60 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
+    <div
+      className={`rounded-xl px-3 py-2.5 transition-all ${
         isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : ''
       }`}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-lg w-5 text-center shrink-0">{medal}</span>
-        <Avi name={row.name} size="sm" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-sm truncate" style={{ color: c }}>
-              {FIRST_NAME[row.name]}
-            </span>
-            {isMe && <span className="text-[8px] uppercase tracking-wider text-[var(--color-accent)] font-bold">tu</span>}
-            <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
-              {tier.icon} Lv{row.level}
-            </span>
-            {row.badges.slice(0, 3).map((b, i) => (
-              <span key={i} className="text-[10px]" title={b.label}>{b.emoji}</span>
-            ))}
+      <button
+        type="button"
+        onClick={() => onOpen(row)}
+        className="block w-full text-left cursor-pointer rounded-lg hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-lg w-5 text-center shrink-0">{medal}</span>
+          <Avi name={row.name} size="sm" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-sm truncate" style={{ color: c }}>
+                {FIRST_NAME[row.name]}
+              </span>
+              {isMe && <span className="text-[8px] uppercase tracking-wider text-[var(--color-accent)] font-bold">tu</span>}
+              <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
+                {tier.icon} Lv{row.level}
+              </span>
+              {row.badges.slice(0, 3).map((b, i) => (
+                <span key={i} className="text-[10px]" title={b.label}>{b.emoji}</span>
+              ))}
+            </div>
+            <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {row.hasData ? (
+                <>
+                  <span className="num">RHR <strong style={{ color: rhrColor(row.rhr) }}>{row.rhr}</strong></span>
+                  {row.hrv != null && (
+                    <>
+                      <span className="text-[var(--color-fg-dim)]">·</span>
+                      <span className="num">HRV <strong style={{ color: hrvColor(row.hrv) }}>{row.hrv}</strong></span>
+                    </>
+                  )}
+                  {row.rem != null && period !== 'today' && (
+                    <>
+                      <span className="text-[var(--color-fg-dim)]">·</span>
+                      <span className="num">REM <strong style={{ color: remColor(row.rem) }}>{row.rem}m</strong></span>
+                    </>
+                  )}
+                  {row.dur != null && (
+                    <>
+                      <span className="text-[var(--color-fg-dim)]">·</span>
+                      <span className="num">Somn <strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
+                    </>
+                  )}
+                  <span className="text-[var(--color-fg-dim)] ml-auto">{row.entries}d</span>
+                </>
+              ) : (
+                <span className="italic text-[var(--color-fg-dim)]">niciun log în interval</span>
+              )}
+            </div>
           </div>
-          <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {row.hasData ? (
-              <>
-                <span className="num">RHR <strong style={{ color: rhrColor(row.rhr) }}>{row.rhr}</strong></span>
-                {row.hrv != null && (
-                  <>
-                    <span className="text-[var(--color-fg-dim)]">·</span>
-                    <span className="num">HRV <strong style={{ color: hrvColor(row.hrv) }}>{row.hrv}</strong></span>
-                  </>
-                )}
-                {row.rem != null && period !== 'today' && (
-                  <>
-                    <span className="text-[var(--color-fg-dim)]">·</span>
-                    <span className="num">REM <strong style={{ color: remColor(row.rem) }}>{row.rem}m</strong></span>
-                  </>
-                )}
-                {row.dur != null && (
-                  <>
-                    <span className="text-[var(--color-fg-dim)]">·</span>
-                    <span className="num">Somn <strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
-                  </>
-                )}
-                <span className="text-[var(--color-fg-dim)] ml-auto">{row.entries}d</span>
-              </>
-            ) : (
-              <span className="italic text-[var(--color-fg-dim)]">niciun log în interval</span>
+          <div className="text-right shrink-0">
+            <div className="num font-bold text-2xl sm:text-3xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
+              {row.hasData ? row.ss : '—'}
+            </div>
+            {row.rem != null && period === 'today' && (
+              <div className="num text-[10px] mt-0.5" style={{ color: remColor(row.rem) }}>
+                {row.rem}m REM
+              </div>
             )}
           </div>
+          <Sparkline values={sparkValues} dates={sparkDates} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
         </div>
-        <div className="text-right shrink-0">
-          <div className="num font-bold text-2xl sm:text-3xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
-            {row.hasData ? row.ss : '—'}
-          </div>
-          {row.rem != null && period === 'today' && (
-            <div className="num text-[10px] mt-0.5" style={{ color: remColor(row.rem) }}>
-              {row.rem}m REM
-            </div>
+      </button>
+
+      {latestEntry && (
+        <>
+          {latestEntry.journal?.trim() && (
+            <p className="text-[11px] text-[var(--color-fg-muted)] leading-snug line-clamp-2 whitespace-pre-line mt-1.5">
+              {latestEntry.journal.trim()}
+            </p>
           )}
-        </div>
-        <Sparkline values={sparkValues} dates={sparkDates} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
-      </div>
-    </button>
+          <EntryReactions entry={latestEntry} currentUser={currentUser} />
+        </>
+      )}
+    </div>
   );
 }
 
