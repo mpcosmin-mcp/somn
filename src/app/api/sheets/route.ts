@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SHEETS_API, DUEL_ROW_MARKER } from '@/lib/config';
 import { type SleepEntry } from '@/lib/sleep';
 import { getCachedEntries, setCachedEntries, invalidateEntriesCache } from '@/lib/sheets-cache';
+import { fetchWithRetry } from '@/lib/fetch-retry';
 
 /**
  * GET /api/sheets — fetches all entries from the Google Sheet
@@ -127,7 +128,7 @@ export async function GET(req: NextRequest) {
     }
 
     const url = `${SHEETS_API}?v=${Date.now()}`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetchWithRetry(url, { cache: 'no-store', retries: 2, timeoutMs: 15_000 });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
     const json = (await res.json()) as { data?: RawSheetRow[] };
     const rows = json.data ?? [];

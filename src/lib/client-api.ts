@@ -2,10 +2,11 @@
 'use client';
 
 import { type SleepEntry } from '@/lib/sleep';
+import { fetchWithRetry } from '@/lib/fetch-retry';
 
 export async function fetchAllEntries(opts: { fresh?: boolean } = {}): Promise<SleepEntry[]> {
   const url = opts.fresh ? '/api/sheets?fresh=1' : '/api/sheets';
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await fetchWithRetry(url, { cache: 'no-store', retries: 2, timeoutMs: 12_000 });
   if (!res.ok) throw new Error(`/api/sheets ${res.status}`);
   const json = (await res.json()) as { entries: SleepEntry[] };
   return json.entries ?? [];

@@ -22,7 +22,7 @@ import { UserPicker } from '@/components/dashboard/user-picker';
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, hydrated, setUser } = useUser();
-  const { upsertLocal, refetch } = useEntries();
+  const { refetch } = useEntries();
 
   if (!hydrated) {
     return (
@@ -37,8 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <UserPicker
         onPick={(n) => {
           setUser(n);
-          refetch().catch(() => {});
-          void upsertLocal;
+          refetch();
         }}
       />
     );
