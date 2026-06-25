@@ -10,6 +10,8 @@ import { fmtDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
 import { Sparkline } from '@/components/ui/sparkline';
+import { Drawer } from '@/components/ui/drawer';
+import { PlayerDrawer, PlayerDrawerTitle } from '@/components/dashboard/player-drawer';
 
 type Period = 'today' | 'week' | 'month' | 'all';
 const PERIODS: { id: Period; label: string }[] = [
@@ -36,6 +38,7 @@ interface Row {
 
 export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; currentUser: string }) {
   const [period, setPeriod] = useState<Period>('today');
+  const [openRow, setOpenRow] = useState<Row | null>(null);
 
   const { rows, latestDate, periodLabel, schedule } = useMemo(() => {
     let scoped: SleepEntry[];
@@ -124,11 +127,14 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
   const champion = rows[0]?.hasData ? rows[0] : null;
 
   return (
+    <>
     <Card className="overflow-hidden">
       {/* Champion banner */}
       {champion && (
-        <div
-          className="px-4 sm:px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-3"
+        <button
+          type="button"
+          onClick={() => setOpenRow(champion)}
+          className="w-full text-left px-4 sm:px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-3 hover:bg-[var(--color-surface)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
           style={{ background: `linear-gradient(90deg, ${personColor(champion.name)}18, transparent 70%)` }}
         >
           <span className="text-2xl shrink-0">🏆</span>
@@ -146,7 +152,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
               <div className="num font-bold text-sm" style={{ color: remColor(champion.rem) }}>{champion.rem}m</div>
             </div>
           )}
-        </div>
+        </button>
       )}
 
       {/* Period tabs */}
@@ -176,14 +182,23 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       {/* Rows */}
       <div className="px-3 pb-3 pt-1 space-y-1">
         {rows.map((r, i) => (
-          <LeaderRow key={r.name} row={r} rank={i} isMe={r.name === currentUser} entries={entries} period={period} />
+          <LeaderRow key={r.name} row={r} rank={i} isMe={r.name === currentUser} entries={entries} period={period} onOpen={setOpenRow} />
         ))}
       </div>
     </Card>
+
+    <Drawer
+      open={!!openRow}
+      onClose={() => setOpenRow(null)}
+      title={openRow ? <PlayerDrawerTitle player={openRow} /> : undefined}
+    >
+      {openRow && <PlayerDrawer player={openRow} entries={entries} currentUser={currentUser} />}
+    </Drawer>
+    </>
   );
 }
 
-function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: number; isMe: boolean; entries: SleepEntry[]; period: Period }) {
+function LeaderRow({ row, rank, isMe, entries, period, onOpen }: { row: Row; rank: number; isMe: boolean; entries: SleepEntry[]; period: Period; onOpen: (row: Row) => void }) {
   const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉';
   const tier = tierFor(row.level);
   const c = personColor(row.name);
@@ -200,8 +215,10 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
   }, [entries, row.name]);
 
   return (
-    <div
-      className={`block rounded-xl px-3 py-2.5 ${
+    <button
+      type="button"
+      onClick={() => onOpen(row)}
+      className={`block w-full text-left rounded-xl px-3 py-2.5 cursor-pointer transition-all hover:bg-[var(--color-surface)]/60 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
         isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : ''
       }`}
     >
@@ -262,7 +279,7 @@ function LeaderRow({ row, rank, isMe, entries, period }: { row: Row; rank: numbe
         </div>
         <Sparkline values={sparkValues} dates={sparkDates} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
       </div>
-    </div>
+    </button>
   );
 }
 
