@@ -4,26 +4,25 @@ import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { TeamFeed } from '@/components/dashboard/team-feed';
-import { PersonalHistory } from '@/components/dashboard/personal-history';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { TeamChartPane } from '@/components/dashboard/team-chart-pane';
 import { MetricDetailModal, type MetricKey } from '@/components/dashboard/metric-detail-modal';
 import { LogEntryButton } from '@/components/dashboard/log-entry-button';
-import { StreakStrip } from '@/components/dashboard/streak-strip';
-import { SleepCoach } from '@/components/dashboard/sleep-coach';
 import { ReadingList } from '@/components/dashboard/reading-list';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 
 /**
- * Main dashboard — X-style 3-column on xl+, single column below.
+ * Main dashboard — X / Twitter 3-column on xl+ (20% · 60% · 20%):
  *
- *   LEFT gutter  : Sleep Coach (sticky)
- *   CENTER feed  : streak · KPIs · leaderboard · feed · history · chart
- *   RIGHT gutter : Reading list (sticky)
+ *   LEFT gutter  (20%) : Activity feed   (sticky)
+ *   CENTER      (60%)  : score · champions · team pulse   ← the scroll
+ *   RIGHT gutter (20%) : Reading list    (sticky)
  *
- * Below xl the gutters collapse: Coach renders inline after the KPIs and the
- * Reading list at the bottom (both hidden in the center on xl, shown in the
- * gutters instead — rendered in both places, toggled by breakpoint).
+ * The feed and the books live in the gutters, OUT of the center scroll. Below
+ * xl the gutters can't fit, so both fold back into the center scroll (rendered
+ * a second time, toggled by breakpoint). Anything deeper opens in a drawer:
+ * a champion row → Player Drawer; a KPI card → per-metric modal. The streak
+ * strip, standalone coach and tabular history now live inside the Player Drawer.
  */
 export default function Home() {
   const { user } = useUser();
@@ -44,45 +43,34 @@ export default function Home() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[94rem] xl:grid xl:grid-cols-[16rem_minmax(0,1fr)_16rem] xl:gap-5 xl:items-start">
-        {/* LEFT gutter — Sleep Coach (xl+ only, sticky) */}
+      <div className="mx-auto w-full max-w-[88rem] xl:grid xl:grid-cols-[1fr_3fr_1fr] xl:gap-5 xl:items-start">
+        {/* LEFT gutter — Activity feed (xl+ only, sticky) */}
         <aside className="hidden xl:block sticky top-20 fade-in-left delay-2">
-          <SleepCoach entries={entries} user={user} />
+          <TeamFeed entries={entries} currentUser={user} limit={6} />
         </aside>
 
-        {/* CENTER — the feed */}
+        {/* CENTER — score · champions · team pulse */}
         <div className="flex flex-col gap-3 lg:gap-4 min-w-0">
-          <div className="fade-in-up delay-0">
-            <StreakStrip entries={entries} user={user} />
-          </div>
-
+          {/* 1 · Today's score */}
           <div className="fade-in-up delay-0">
             <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
           </div>
 
-          {/* Coach inline below xl (gutter takes over on xl) */}
-          <div className="xl:hidden fade-in-up delay-1">
-            <SleepCoach entries={entries} user={user} />
-          </div>
-
+          {/* 2 · Champions — the central element. Tap a row → Player Drawer. */}
           <div className="fade-in-up delay-1">
             <Leaderboard entries={entries} currentUser={user} />
           </div>
 
+          {/* 3 · Team Pulse */}
           <div className="fade-in-up delay-2">
-            <TeamFeed entries={entries} currentUser={user} limit={5} />
-          </div>
-
-          <div className="fade-in-up delay-3">
-            <PersonalHistory entries={entries} user={user} limit={6} />
-          </div>
-
-          <div className="fade-in-up delay-4">
             <TeamChartPane entries={entries} />
           </div>
 
-          {/* Reading list inline below xl (gutter takes over on xl) */}
-          <div className="xl:hidden fade-in-up delay-5">
+          {/* Below xl — feed + books fold into the scroll (no room for gutters) */}
+          <div className="xl:hidden fade-in-up delay-3">
+            <TeamFeed entries={entries} currentUser={user} limit={5} />
+          </div>
+          <div className="xl:hidden fade-in-up delay-4">
             <ReadingList />
           </div>
         </div>
