@@ -6,7 +6,7 @@ import {
   sleepDurationMin, fmtDuration,
 } from '@/lib/sleep';
 import { coachInsights, type InsightTone } from '@/lib/coach';
-import { tierFor, xpProgress, maxStreakFor } from '@/lib/gamify';
+import { tierFor, xpProgress, xpBreakdown, XP_PER_LEVEL, TIERS, maxStreakFor } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 
 /** Minimal shape the drawer needs — a Leaderboard row is structurally compatible. */
@@ -90,9 +90,6 @@ export function PlayerDrawer({ player, entries, currentUser }: {
         </div>
       </div>
 
-      {/* Cheer (stub) */}
-      <button type="button" className="h-9 w-full rounded-xl text-xs font-bold transition-colors hover:brightness-110" style={{ background: 'color-mix(in srgb, var(--color-accent) 18%, transparent)', color: 'var(--color-accent)' }}>👏 Cheer</button>
-
       {/* TODAY */}
       <section>
         <div className="label mb-2">{last && last.date === todayISO() ? 'Azi' : 'Ultimul log'}</div>
@@ -123,32 +120,8 @@ export function PlayerDrawer({ player, entries, currentUser }: {
         </div>
       </section>
 
-      {/* Achievements */}
-      <section>
-        <div className="label mb-2">Achievements</div>
-        {/* XP / level progress */}
-        <div className="mb-3">
-          <div className="flex items-baseline justify-between text-[10px] num text-[var(--color-fg-muted)] mb-1">
-            <span>Lv {player.level}</span>
-            <span>{prog}/100 XP</span>
-          </div>
-          <div className="h-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${prog}%`, background: 'var(--color-accent)' }} />
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {player.badges.length ? player.badges.map((b, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
-              <span aria-hidden>{b.emoji}</span> {b.label}
-            </span>
-          )) : <span className="text-xs text-[var(--color-fg-dim)] italic">niciun badge încă</span>}
-          {maxStreak >= 2 && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
-              <span aria-hidden>🏅</span> record {maxStreak}z streak
-            </span>
-          )}
-        </div>
-      </section>
+      {/* XP & Level Explained */}
+      <XPExplained player={player} entries={entries} prog={prog} maxStreak={maxStreak} />
     </div>
   );
 }
@@ -164,5 +137,115 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
       <div className="label mb-0.5">{label}</div>
       <div className="num font-bold text-base leading-none" style={{ color }}>{value}</div>
     </div>
+  );
+}
+
+function XPExplained({ player, entries, prog, maxStreak }: {
+  player: PlayerSummary;
+  entries: SleepEntry[];
+  prog: number;
+  maxStreak: number;
+}) {
+  const bd = xpBreakdown(entries, player.name);
+  const tier = tierFor(player.level);
+  const nextTier = TIERS.find(t => t.minLevel > player.level);
+  const xpToNext = XP_PER_LEVEL - prog;
+
+  return (
+    <section>
+      <div className="label mb-2">XP & Level</div>
+
+      {/* Level + progress bar */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] num font-bold px-1.5 py-0.5 rounded" style={{ color: tier.color, background: tier.color + '18' }}>
+              {tier.icon} {tier.name}
+            </span>
+            <span className="text-[10px] num text-[var(--color-fg-muted)]">Lv {player.level}</span>
+          </div>
+          <span className="text-[10px] num text-[var(--color-fg-muted)]">{prog}/{XP_PER_LEVEL} XP</span>
+        </div>
+        <div className="h-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${prog}%`, background: 'var(--color-accent)' }} />
+        </div>
+        <div className="text-[10px] text-[var(--color-fg-dim)] mt-1">
+          {xpToNext} XP până la Lv {player.level + 1}
+          {nextTier && <> · {nextTier.icon} {nextTier.name} la Lv {nextTier.minLevel}</>}
+        </div>
+      </div>
+
+      {/* XP Breakdown */}
+      <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] px-3 py-2.5 mb-3">
+        <div className="text-[10px] font-bold text-[var(--color-fg-muted)] uppercase tracking-wider mb-2">Cum se calculează</div>
+        <div className="space-y-1.5 text-[11px]">
+          <div className="flex justify-between">
+            <span className="text-[var(--color-fg-muted)]">{bd.logs} loguri × 10</span>
+            <span className="num font-bold text-[var(--color-fg)]">+{bd.base}</span>
+          </div>
+          {bd.count90 > 0 && (
+            <div className="flex justify-between">
+              <span className="text-[var(--color-fg-muted)]">{bd.count90} nopți cu SS ≥ 90 × 10</span>
+              <span className="num font-bold text-[var(--color-good)]">+{bd.bonus90}</span>
+            </div>
+          )}
+          {bd.count80 > 0 && (
+            <div className="flex justify-between">
+              <span className="text-[var(--color-fg-muted)]">{bd.count80} nopți cu SS ≥ 80 × 5</span>
+              <span className="num font-bold text-[var(--color-accent)]">+{bd.bonus80}</span>
+            </div>
+          )}
+          <div className="flex justify-between pt-1.5 border-t border-[var(--color-border)]">
+            <span className="font-bold text-[var(--color-fg)]">Total XP</span>
+            <span className="num font-bold text-[var(--color-fg)]">{bd.total}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Tier thresholds */}
+      <div className="flex gap-1.5 mb-3">
+        {TIERS.map(t => (
+          <div
+            key={t.name}
+            className="flex-1 rounded-lg px-2 py-1.5 text-center border"
+            style={{
+              borderColor: player.level >= t.minLevel ? t.color + '40' : 'var(--color-border)',
+              background: player.level >= t.minLevel ? t.color + '12' : 'transparent',
+              opacity: player.level >= t.minLevel ? 1 : 0.5,
+            }}
+          >
+            <div className="text-[10px] font-bold" style={{ color: t.color }}>{t.icon} {t.name}</div>
+            <div className="text-[9px] num text-[var(--color-fg-dim)]">Lv {t.minLevel}+</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tips */}
+      <div className="rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 px-3 py-2.5 mb-3">
+        <div className="text-[10px] font-bold text-[var(--color-accent)] mb-1.5">Cum câștigi XP</div>
+        <ul className="text-[11px] text-[var(--color-fg-muted)] space-y-1">
+          <li>• Loghează o noapte → <span className="num font-bold text-[var(--color-fg)]">+10 XP</span></li>
+          <li>• Sleep Score ≥ 80 → bonus <span className="num font-bold text-[var(--color-accent)]">+5 XP</span></li>
+          <li>• Sleep Score ≥ 90 → bonus <span className="num font-bold text-[var(--color-good)]">+10 XP</span></li>
+        </ul>
+        <div className="text-[9px] text-[var(--color-fg-dim)] mt-2 leading-snug">
+          XP reflectă logurile distincte curente. Dacă nopți duplicate au fost curățate, XP-ul se recalculează automat.
+        </div>
+      </div>
+
+      {/* Badges */}
+      <div className="flex flex-wrap gap-2">
+        {player.badges.length ? player.badges.map((b, i) => (
+          <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
+            <span aria-hidden>{b.emoji}</span> {b.label}
+          </span>
+        )) : <span className="text-xs text-[var(--color-fg-dim)] italic">niciun badge încă</span>}
+        {maxStreak >= 2 && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
+            <span aria-hidden>🏅</span> record {maxStreak}z streak
+          </span>
+        )}
+      </div>
+    </section>
   );
 }

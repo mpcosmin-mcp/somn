@@ -5,7 +5,7 @@ import {
   sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18,
 } from '@/lib/sleep';
 import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
-import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
+import { calcXP, xpLevel, xpBreakdown, tierFor, streakFor } from '@/lib/gamify';
 import { fmtDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
@@ -33,6 +33,8 @@ interface Row {
   xp: number;
   level: number;
   streak: number;
+  nights90: number;
+  nights80: number;
   badges: { emoji: string; label: string }[];
   hasData: boolean;
 }
@@ -90,9 +92,12 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
 
     const built: Row[] = NAMES.map(n => {
       const a = aggRows.find(x => x.name === n);
-      const xp = calcXP(entries, n);
+      const bd = xpBreakdown(entries, n);
+      const xp = bd.total;
       const lvl = xpLevel(xp);
       const streak = streakFor(entries, n);
+      const nights90 = bd.count90;
+      const nights80 = bd.count80;
       const badges: Row['badges'] = [];
       if (a) {
         if (ssBest?.name === n) badges.push({ emoji: '👑', label: 'best SS avg' });
@@ -114,6 +119,8 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         xp,
         level: lvl,
         streak,
+        nights90,
+        nights80,
         badges,
         hasData: !!a,
       };
@@ -216,7 +223,7 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
 
   return (
     <div
-      className={`rounded-xl px-3 py-2.5 transition-all ${
+      className={`rounded-xl px-3 py-1.5 transition-all ${
         isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : ''
       }`}
     >
@@ -225,8 +232,8 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
         onClick={() => onOpen(row)}
         className="block w-full text-left cursor-pointer rounded-lg hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
       >
-        <div className="flex items-center gap-3">
-          <span className="text-lg w-5 text-center shrink-0">{medal}</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-base w-5 text-center shrink-0">{medal}</span>
           <Avi name={row.name} size="sm" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -244,6 +251,20 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
             <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5 flex-wrap">
               {row.hasData ? (
                 <>
+                  <span className="num font-bold" style={{ color: 'var(--color-accent)' }}>{row.xp} XP</span>
+                  {row.nights90 > 0 && (
+                    <>
+                      <span className="text-[var(--color-fg-dim)]">·</span>
+                      <span className="num"><strong style={{ color: 'var(--color-good)' }}>{row.nights90}</strong>×90+</span>
+                    </>
+                  )}
+                  {row.nights80 > 0 && (
+                    <>
+                      <span className="text-[var(--color-fg-dim)]">·</span>
+                      <span className="num"><strong style={{ color: 'var(--color-accent)' }}>{row.nights80}</strong>×80+</span>
+                    </>
+                  )}
+                  <span className="text-[var(--color-fg-dim)]">·</span>
                   <span className="num">RHR <strong style={{ color: rhrColor(row.rhr) }}>{row.rhr}</strong></span>
                   {row.hrv != null && (
                     <>
@@ -251,16 +272,10 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
                       <span className="num">HRV <strong style={{ color: hrvColor(row.hrv) }}>{row.hrv}</strong></span>
                     </>
                   )}
-                  {row.rem != null && period !== 'today' && (
-                    <>
-                      <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num">REM <strong style={{ color: remColor(row.rem) }}>{row.rem}m</strong></span>
-                    </>
-                  )}
                   {row.dur != null && (
                     <>
                       <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num">Somn <strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
+                      <span className="num"><strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
                     </>
                   )}
                   <span className="text-[var(--color-fg-dim)] ml-auto">{row.entries}d</span>
@@ -271,28 +286,23 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
             </div>
           </div>
           <div className="text-right shrink-0">
-            <div className="num font-bold text-2xl sm:text-3xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
+            <div className="num font-bold text-xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
               {row.hasData ? row.ss : '—'}
             </div>
             {row.rem != null && period === 'today' && (
-              <div className="num text-[10px] mt-0.5" style={{ color: remColor(row.rem) }}>
+              <div className="num text-[9px] mt-0.5" style={{ color: remColor(row.rem) }}>
                 {row.rem}m REM
               </div>
             )}
           </div>
-          <Sparkline values={sparkValues} dates={sparkDates} width={40} height={20} color={c} className="shrink-0 hidden sm:block" />
+          <Sparkline values={sparkValues} dates={sparkDates} width={36} height={18} color={c} className="shrink-0 hidden sm:block" />
         </div>
       </button>
 
       {latestEntry && (
-        <>
-          {latestEntry.journal?.trim() && (
-            <p className="text-[11px] text-[var(--color-fg-muted)] leading-snug line-clamp-2 whitespace-pre-line mt-1.5">
-              {latestEntry.journal.trim()}
-            </p>
-          )}
+        <div className="mt-0.5 ml-[34px]">
           <EntryReactions entry={latestEntry} currentUser={currentUser} />
-        </>
+        </div>
       )}
     </div>
   );

@@ -51,7 +51,7 @@ export function EntryReactions({ entry, currentUser }: {
     comments.length + comments.reduce((sum, c) => sum + c.replies.length, 0);
 
   return (
-    <div className="mt-2.5 pt-2 border-t border-[var(--color-border)]/60">
+    <div className="mt-1">
       {/* Action row */}
       <div className="flex items-center gap-3 flex-wrap">
         <ReactionBar

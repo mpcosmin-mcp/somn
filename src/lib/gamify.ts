@@ -15,15 +15,39 @@ export function xpProgress(xp: number): number {
   return xp % XP_PER_LEVEL;
 }
 
-export function calcXP(data: SleepEntry[], name: string): number {
+export interface XPBreakdown {
+  logs: number;
+  base: number;
+  count90: number;
+  bonus90: number;
+  count80: number;
+  bonus80: number;
+  total: number;
+}
+
+export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
   const entries = data.filter(d => d.name === name);
-  const base = entries.length * 10;
-  let bonus = 0;
+  const logs = entries.length;
+  const base = logs * 10;
+  let count90 = 0;
+  let count80 = 0;
   for (const e of entries) {
-    if (e.ss >= 90) bonus += 10;
-    else if (e.ss >= 80) bonus += 5;
+    if (e.ss >= 90) count90++;
+    else if (e.ss >= 80) count80++;
   }
-  return base + bonus;
+  return {
+    logs,
+    base,
+    count90,
+    bonus90: count90 * 10,
+    count80,
+    bonus80: count80 * 5,
+    total: base + count90 * 10 + count80 * 5,
+  };
+}
+
+export function calcXP(data: SleepEntry[], name: string): number {
+  return xpBreakdown(data, name).total;
 }
 
 /* 3-tier system — no nonsense */
@@ -34,7 +58,7 @@ export interface Tier {
   minLevel: number;
 }
 
-const TIERS: Tier[] = [
+export const TIERS: Tier[] = [
   { name: 'Începător', color: '#a1a1aa', icon: '·', minLevel: 1 },
   { name: 'Pro',       color: '#60a5fa', icon: '◆', minLevel: 5 },
   { name: 'Maestru',   color: '#a3e635', icon: '◇', minLevel: 15 },
