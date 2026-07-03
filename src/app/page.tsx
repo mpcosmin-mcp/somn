@@ -18,10 +18,10 @@ export default function Home() {
 
   if (loading) return <DashboardSkeleton />;
 
-  if (error) {
+  if (error && !entries.length) {
     return (
-      <div className="px-4 py-3 rounded-xl bg-[var(--color-bad)]/10 border border-[var(--color-bad)]/30 text-[var(--color-bad)] text-sm">
-        {error} <button onClick={() => refetch({ fresh: true })} className="underline">retry</button>
+      <div className="mx-auto w-full max-w-3xl px-4 py-3 rounded-xl bg-[var(--color-bad)]/10 border border-[var(--color-bad)]/30 text-[var(--color-bad)] text-sm">
+        {error} <button onClick={() => refetch({ fresh: true })} className="underline ml-1">retry</button>
       </div>
     );
   }
@@ -29,6 +29,12 @@ export default function Home() {
   return (
     <>
       <div className="mx-auto w-full max-w-3xl flex flex-col gap-3 lg:gap-4">
+        {error && (
+          <div className="px-4 py-2 rounded-xl bg-[var(--color-warn)]/10 border border-[var(--color-warn)]/30 text-[var(--color-warn)] text-xs flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => refetch({ fresh: true })} className="underline font-bold ml-2 shrink-0">retry</button>
+          </div>
+        )}
         <div className="fade-in-up delay-0">
           <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
         </div>

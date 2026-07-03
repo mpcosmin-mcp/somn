@@ -68,7 +68,9 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       setEntries(data);
       writeCache(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'eroare la sync');
+      const msg = e instanceof Error ? e.message : String(e);
+      const isTimeout = msg.includes('abort') || msg.includes('timeout') || msg.includes('TimeoutError');
+      setError(isTimeout ? 'Serverul răspunde greu. Datele afișate pot fi vechi.' : 'Eroare la sincronizare. Verifică conexiunea.');
     } finally {
       setLoading(false);
     }
