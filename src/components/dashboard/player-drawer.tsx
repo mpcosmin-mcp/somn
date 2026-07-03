@@ -195,6 +195,18 @@ function XPExplained({ player, entries, prog, maxStreak }: {
               <span className="num font-bold text-[var(--color-accent)]">+{bd.bonus80}</span>
             </div>
           )}
+          {bd.earlyBirdCount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-[var(--color-fg-muted)]">🌙 {bd.earlyBirdCount} nopți culcare &lt;23:00 × 5</span>
+              <span className="num font-bold text-[var(--color-good)]">+{bd.earlyBirdBonus}</span>
+            </div>
+          )}
+          {bd.streakBonus > 0 && (
+            <div className="flex justify-between">
+              <span className="text-[var(--color-fg-muted)]">🔥 streak record {bd.streakMax}z</span>
+              <span className="num font-bold" style={{ color: '#f59e0b' }}>+{bd.streakBonus}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-1.5 border-t border-[var(--color-border)]">
             <span className="font-bold text-[var(--color-fg)]">Total XP</span>
             <span className="num font-bold text-[var(--color-fg)]">{bd.total}</span>
@@ -227,6 +239,8 @@ function XPExplained({ player, entries, prog, maxStreak }: {
           <li>• Loghează o noapte → <span className="num font-bold text-[var(--color-fg)]">+10 XP</span></li>
           <li>• Sleep Score ≥ 80 → bonus <span className="num font-bold text-[var(--color-accent)]">+5 XP</span></li>
           <li>• Sleep Score ≥ 90 → bonus <span className="num font-bold text-[var(--color-good)]">+10 XP</span></li>
+          <li>• 🌙 Culcare înainte de 23:00 → bonus <span className="num font-bold text-[var(--color-good)]">+5 XP</span></li>
+          <li>• 🔥 Streak 7z → <span className="num font-bold" style={{ color: '#f59e0b' }}>+50</span> · 14z → <span className="num font-bold" style={{ color: '#f59e0b' }}>+100</span> · 30z → <span className="num font-bold" style={{ color: '#f59e0b' }}>+200</span></li>
         </ul>
         <div className="text-[9px] text-[var(--color-fg-dim)] mt-2 leading-snug">
           XP reflectă logurile distincte curente. Dacă nopți duplicate au fost curățate, XP-ul se recalculează automat.

@@ -3,7 +3,7 @@
    XP = logs × 10 + SS quality bonus
    3 tiers (no flowery 30-name level system)
    ───────────────────────────────────────────────────────── */
-import { type SleepEntry } from '@/lib/sleep';
+import { type SleepEntry, bedtimeFrom18 } from '@/lib/sleep';
 
 export const XP_PER_LEVEL = 100;
 
@@ -15,6 +15,14 @@ export function xpProgress(xp: number): number {
   return xp % XP_PER_LEVEL;
 }
 
+const STREAK_MILESTONES = [
+  { days: 7, bonus: 50 },
+  { days: 14, bonus: 100 },
+  { days: 30, bonus: 200 },
+] as const;
+
+const EARLY_BIRD_CUTOFF = 300; // 23:00 = 300 min past 18:00
+
 export interface XPBreakdown {
   logs: number;
   base: number;
@@ -22,6 +30,10 @@ export interface XPBreakdown {
   bonus90: number;
   count80: number;
   bonus80: number;
+  earlyBirdCount: number;
+  earlyBirdBonus: number;
+  streakMax: number;
+  streakBonus: number;
   total: number;
 }
 
@@ -31,10 +43,21 @@ export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
   const base = logs * 10;
   let count90 = 0;
   let count80 = 0;
+  let earlyBirdCount = 0;
   for (const e of entries) {
     if (e.ss >= 90) count90++;
     else if (e.ss >= 80) count80++;
+    const bt = bedtimeFrom18(e.start);
+    if (bt != null && bt < EARLY_BIRD_CUTOFF) earlyBirdCount++;
   }
+  const earlyBirdBonus = earlyBirdCount * 5;
+
+  const streakMax = maxStreakFor(data, name);
+  let streakBonus = 0;
+  for (const m of STREAK_MILESTONES) {
+    if (streakMax >= m.days) streakBonus += m.bonus;
+  }
+
   return {
     logs,
     base,
@@ -42,7 +65,11 @@ export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
     bonus90: count90 * 10,
     count80,
     bonus80: count80 * 5,
-    total: base + count90 * 10 + count80 * 5,
+    earlyBirdCount,
+    earlyBirdBonus,
+    streakMax,
+    streakBonus,
+    total: base + count90 * 10 + count80 * 5 + earlyBirdBonus + streakBonus,
   };
 }
 
