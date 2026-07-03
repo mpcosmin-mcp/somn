@@ -22,6 +22,13 @@ export function TopBar() {
         </Link>
 
         <div className="flex items-center gap-1.5">
+          <Link
+            href="/ideas"
+            className="text-[10px] font-bold px-2 py-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+            title="Idei de îmbunătățire"
+          >
+            💡 idei
+          </Link>
           <InstallButton />
           <ThemeToggle />
           <ProfilePopover />
