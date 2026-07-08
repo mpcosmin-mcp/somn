@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronUp, ChevronDown, X, ArrowLeft } from 'lucide-react';
+import { ChevronUp, ChevronDown, X, ArrowLeft, Pencil, Check, ChevronDown as ChevronDownArrow } from 'lucide-react';
 import { useUser } from '@/lib/user';
 import { FIRST_NAME, personColor } from '@/lib/sleep';
 import { Card } from '@/components/ui/card';
@@ -94,6 +94,22 @@ export default function IdeasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'status', id, status }),
       });
+    } catch { load(); }
+  };
+
+  const editIdea = async (id: string, newTitle: string, newBody: string) => {
+    if (!user) return;
+    const t = newTitle.trim();
+    if (!t) return;
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, title: t, body: newBody.trim() } : i));
+    try {
+      const res = await fetch('/api/ideas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'edit', id, user, title: t, body: newBody.trim() }),
+      });
+      const json = await res.json();
+      if (json.idea) setIdeas(prev => prev.map(i => i.id === id ? json.idea : i));
     } catch { load(); }
   };
 
@@ -229,6 +245,7 @@ export default function IdeasPage() {
               onVote={vote}
               onStatus={setStatus}
               onDelete={remove}
+              onEdit={editIdea}
             />
           ))}
         </div>
@@ -237,13 +254,17 @@ export default function IdeasPage() {
   );
 }
 
-function IdeaCard({ idea, currentUser, onVote, onStatus, onDelete }: {
+function IdeaCard({ idea, currentUser, onVote, onStatus, onDelete, onEdit }: {
   idea: Idea;
   currentUser: string;
   onVote: (id: string, dir: 'up' | 'down') => void;
   onStatus: (id: string, status: IdeaStatus) => void;
   onDelete: (id: string) => void;
+  onEdit: (id: string, title: string, body: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(idea.title);
+  const [editBody, setEditBody] = useState(idea.body);
   const score = idea.up.length - idea.down.length;
   const upvoted = idea.up.includes(currentUser);
   const downvoted = idea.down.includes(currentUser);
@@ -252,6 +273,19 @@ function IdeaCard({ idea, currentUser, onVote, onStatus, onDelete }: {
   const meta = STATUS_META[idea.status];
   const authorColor = personColor(idea.from);
   const authorName = FIRST_NAME[idea.from] ?? idea.from.split(' ')[0];
+
+  const startEdit = () => {
+    setEditTitle(idea.title);
+    setEditBody(idea.body);
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    const t = editTitle.trim();
+    if (!t) return;
+    onEdit(idea.id, t, editBody);
+    setEditing(false);
+  };
 
   return (
     <Card className={`px-3 py-3 transition-opacity ${closed ? 'opacity-70' : ''}`}>
@@ -279,41 +313,92 @@ function IdeaCard({ idea, currentUser, onVote, onStatus, onDelete }: {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 flex-wrap mb-1">
-            <span className="font-bold text-sm text-[var(--color-fg)] leading-snug">{idea.title}</span>
-            <StatusChip status={idea.status} onChange={s => onStatus(idea.id, s)} meta={meta} />
-          </div>
-          {idea.body && (
-            <p className="text-xs text-[var(--color-fg-muted)] leading-snug whitespace-pre-line mb-2">{idea.body}</p>
+          {editing ? (
+            <div className="mb-1.5">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') setEditing(false); }}
+                maxLength={80}
+                autoFocus
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)]/40 rounded-lg px-2 py-1 text-sm font-bold text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)] mb-1.5"
+              />
+              <textarea
+                value={editBody}
+                onChange={e => setEditBody(e.target.value)}
+                maxLength={500}
+                rows={2}
+                placeholder="descriere · opțional"
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-2 py-1 text-xs text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] focus:outline-none focus:border-[var(--color-accent)]/60 resize-none mb-1.5"
+              />
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={saveEdit}
+                  disabled={!editTitle.trim()}
+                  className="text-[10px] font-bold px-2 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-bg)] disabled:opacity-30 flex items-center gap-1"
+                >
+                  <Check size={10} strokeWidth={3} /> salvează
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="text-[10px] font-bold px-2 py-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]"
+                >
+                  anulează
+                </button>
+                <span className="ml-auto text-[9px] num text-[var(--color-fg-dim)]">{editTitle.length}/80 · {editBody.length}/500</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-2 flex-wrap mb-1">
+                <span className="font-bold text-sm text-[var(--color-fg)] leading-snug">{idea.title}</span>
+                <StatusChip status={idea.status} onChange={s => onStatus(idea.id, s)} meta={meta} />
+              </div>
+              {idea.body && (
+                <p className="text-xs text-[var(--color-fg-muted)] leading-snug whitespace-pre-line mb-2">{idea.body}</p>
+              )}
+              <div className="flex items-center gap-2 text-[10px] text-[var(--color-fg-dim)]">
+                <span className="font-bold" style={{ color: authorColor }}>{authorName}</span>
+                <span>·</span>
+                <span className="num">{relativeTime(idea.ts)}</span>
+                {idea.up.length > 0 && (
+                  <>
+                    <span>·</span>
+                    <span className="num">👍 {idea.up.length}</span>
+                  </>
+                )}
+                {idea.down.length > 0 && (
+                  <>
+                    <span>·</span>
+                    <span className="num">👎 {idea.down.length}</span>
+                  </>
+                )}
+              </div>
+            </>
           )}
-          <div className="flex items-center gap-2 text-[10px] text-[var(--color-fg-dim)]">
-            <span className="font-bold" style={{ color: authorColor }}>{authorName}</span>
-            <span>·</span>
-            <span className="num">{relativeTime(idea.ts)}</span>
-            {idea.up.length > 0 && (
-              <>
-                <span>·</span>
-                <span className="num">👍 {idea.up.length}</span>
-              </>
-            )}
-            {idea.down.length > 0 && (
-              <>
-                <span>·</span>
-                <span className="num">👎 {idea.down.length}</span>
-              </>
-            )}
-          </div>
         </div>
 
-        {/* Delete (only for owner) */}
-        {isMine && (
-          <button
-            onClick={() => onDelete(idea.id)}
-            className="text-[var(--color-fg-dim)] hover:text-[var(--color-bad)] transition-colors p-1 shrink-0"
-            aria-label="Șterge"
-          >
-            <X size={12} strokeWidth={2.5} />
-          </button>
+        {/* Actions (only for owner) */}
+        {isMine && !editing && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={startEdit}
+              className="text-[var(--color-fg-dim)] hover:text-[var(--color-accent)] transition-colors p-1"
+              aria-label="Editează"
+              title="Editează"
+            >
+              <Pencil size={12} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => onDelete(idea.id)}
+              className="text-[var(--color-fg-dim)] hover:text-[var(--color-bad)] transition-colors p-1"
+              aria-label="Șterge"
+              title="Șterge"
+            >
+              <X size={12} strokeWidth={2.5} />
+            </button>
+          </div>
         )}
       </div>
     </Card>
@@ -330,10 +415,12 @@ function StatusChip({ status, onChange, meta }: {
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-transform active:scale-95"
-        style={{ color: meta.color, background: meta.color + '18' }}
+        className="text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all active:scale-95 hover:brightness-125 flex items-center gap-0.5"
+        style={{ color: meta.color, background: meta.color + '18', border: `1px solid ${meta.color}40` }}
+        title="Schimbă status"
       >
         {meta.icon} {meta.label}
+        <ChevronDownArrow size={9} strokeWidth={2.5} className="opacity-70" />
       </button>
       {open && (
         <>

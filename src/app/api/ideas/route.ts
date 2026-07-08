@@ -116,6 +116,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ idea: cur });
     }
 
+    if (body.action === 'edit') {
+      const { id, user } = body;
+      const title = (body.title ?? '').trim();
+      const bd = (body.body ?? '').trim();
+      if (!id || !user || !title) return NextResponse.json({ error: 'missing id, user or title' }, { status: 400 });
+      const cur = decode(await kv.hget(HASH_KEY, id));
+      if (!cur) return NextResponse.json({ error: 'not found' }, { status: 404 });
+      if (cur.from !== user) return NextResponse.json({ error: 'not owner' }, { status: 403 });
+      cur.title = title.slice(0, 80);
+      cur.body = bd.slice(0, 500);
+      await kv.hset(HASH_KEY, { [id]: JSON.stringify(cur) });
+      return NextResponse.json({ idea: cur });
+    }
+
     return NextResponse.json({ error: 'unknown action' }, { status: 400 });
   } catch (err) {
     return kvUnavailable(err);
