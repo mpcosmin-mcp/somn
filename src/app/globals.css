@@ -212,6 +212,33 @@ html.light .glass {
   }
 }
 
+/* ── Perfect-night flair — GOD MODE (SS 100) + ELITE (SS ≥95) ── */
+@keyframes god-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.god-aura {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+    linear-gradient(90deg, #f472b6, #a78bfa, #38bdf8, #34d399, #fbbf24, #f472b6) border-box;
+  background-size: 200% 100%;
+  animation: god-shimmer 4s linear infinite;
+  box-shadow: 0 0 26px rgba(167, 139, 250, 0.30);
+}
+.god-text {
+  background: linear-gradient(90deg, #f472b6, #a78bfa, #38bdf8, #34d399, #fbbf24, #f472b6);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: god-shimmer 3s linear infinite;
+}
+.elite-glow {
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  box-shadow: 0 0 18px rgba(251, 191, 36, 0.16);
+}
+
 /* Stagger fade-up for dashboard cards on initial load */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(8px); }

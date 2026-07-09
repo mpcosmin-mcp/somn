@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, ssTier, FIRST_NAME, sleepDurationMin, fmtDuration } from '@/lib/sleep';
+import { type SleepEntry, ssColor, rhrColor, hrvColor, remColor, ssTier, FIRST_NAME, sleepDurationMin, fmtDuration, personSex } from '@/lib/sleep';
 import { todayStr, fmtDate, cn } from '@/lib/utils';
 import { submitEntry } from '@/lib/client-api';
 import { Card } from '@/components/ui/card';
@@ -122,7 +122,7 @@ export function LogEntry({
         {/* REM / RHR / HRV grid */}
         <div className="grid grid-cols-3 gap-2 mb-3 sm:mb-4">
           <Stat label="REM" value={savedEntry.rem}  unit="min"  color={savedEntry.rem != null ? remColor(savedEntry.rem) : '#52525b'} />
-          <Stat label="RHR" value={savedEntry.rhr}  unit="bpm"  color={rhrColor(savedEntry.rhr)} />
+          <Stat label="RHR" value={savedEntry.rhr}  unit="bpm"  color={rhrColor(savedEntry.rhr, personSex(savedEntry.name))} />
           <Stat label="HRV" value={savedEntry.hrv}  unit="ms"   color={hrvColor(savedEntry.hrv)} />
         </div>
 
@@ -276,7 +276,7 @@ export function SavedSummary({ entry }: { entry: SleepEntry }) {
     <div className="flex flex-wrap gap-3 mt-3">
       <Metric label="SS"  value={entry.ss}  unit="/100" color={ssColor(entry.ss)}   size="md" />
       <Metric label="REM" value={entry.rem} unit="min"  color={remColor(entry.rem)} size="md" />
-      <Metric label="RHR" value={entry.rhr} unit="bpm"  color={rhrColor(entry.rhr)} size="md" />
+      <Metric label="RHR" value={entry.rhr} unit="bpm"  color={rhrColor(entry.rhr, personSex(entry.name))} size="md" />
       <Metric label="HRV" value={entry.hrv} unit="ms"   color={hrvColor(entry.hrv)} size="md" />
       <div className="ml-auto self-end text-xs font-bold" style={{ color: tier.color }}>{tier.label}</div>
     </div>

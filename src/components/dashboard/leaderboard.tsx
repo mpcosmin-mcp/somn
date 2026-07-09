@@ -2,10 +2,10 @@
 import { useMemo, useState } from 'react';
 import {
   type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
-  sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18,
+  sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18, personSex,
 } from '@/lib/sleep';
 import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
-import { calcXP, xpLevel, xpBreakdown, tierFor, streakFor } from '@/lib/gamify';
+import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor, godMode } from '@/lib/gamify';
 import { fmtDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
@@ -36,6 +36,8 @@ interface Row {
   nights90: number;
   nights80: number;
   badges: { emoji: string; label: string }[];
+  godMode: boolean;   // logged a flawless SS 100 in the period
+  elite: boolean;     // logged a near-perfect SS 95+ (but not 100)
   hasData: boolean;
 }
 
@@ -83,12 +85,20 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       }
     }
 
-    const remBest = bestBy(aggRows, r => r.rem ?? -1);
-    const ssBest = bestBy(aggRows, r => r.ss);
-    const rhrBest = bestBy(aggRows, r => -r.rhr);
-    const hrvBest = bestBy(aggRows, r => r.hrv ?? -1);
-    const durBest = bestBy(NAMES.map(n => ({ name: n, val: durByName.get(n) ?? -1 })), r => r.val);
-    const streakBest = bestBy(NAMES.map(n => ({ name: n, val: streakFor(entries, n) })), r => r.val);
+    // ── Permanent (ALL-TIME) distinctions — computed on the full history so
+    // they never flip when you switch the Azi/7z/30z/Total tab. Once earned, kept.
+    const allAgg = aggregate(entries);
+    const allDur = new Map<string, number>();
+    for (const n of NAMES) {
+      const ds = entries.filter(e => e.name === n).map(e => sleepDurationMin(e.start, e.end)).filter((d): d is number => d != null);
+      allDur.set(n, ds.length ? ds.reduce((s, v) => s + v, 0) / ds.length : -1);
+    }
+    const remBest = bestBy(allAgg, r => r.rem ?? -1);
+    const ssBest = bestBy(allAgg, r => r.ss);
+    const rhrBest = bestBy(allAgg, r => -r.rhr);
+    const hrvBest = bestBy(allAgg, r => r.hrv ?? -1);
+    const durBest = bestBy(NAMES.map(n => ({ name: n, val: allDur.get(n) ?? -1 })), r => r.val);
+    const streakBest = bestBy(NAMES.map(n => ({ name: n, val: maxStreakFor(entries, n) })), r => r.val);
 
     const built: Row[] = NAMES.map(n => {
       const a = aggRows.find(x => x.name === n);
@@ -98,15 +108,24 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       const streak = streakFor(entries, n);
       const nights90 = bd.count90;
       const nights80 = bd.count80;
+      // God Mode flair follows the real mechanic (SS 100 in the last 7 days),
+      // not the selected tab — so it doesn't flip when you switch periods.
+      const godActive = godMode(entries, n).active;
+      const my7 = lastNDays(entries.filter(e => e.name === n), 7).map(e => e.ss);
+      const elite = !godActive && (my7.length ? Math.max(...my7) : 0) >= 95;
+
+      // Permanent all-time distinctions — independent of the scoped period.
+      const aAll = allAgg.find(x => x.name === n);
+      const recordStreak = maxStreakFor(entries, n);
       const badges: Row['badges'] = [];
-      if (a) {
-        if (ssBest?.name === n) badges.push({ emoji: '👑', label: 'best SS avg' });
-        if (durBest?.name === n && (durByName.get(n) ?? 0) > 0) badges.push({ emoji: '😴', label: 'cel mai mult somn' });
-        if (remBest?.name === n && (a.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
+      if (aAll) {
+        if (ssBest?.name === n) badges.push({ emoji: '👑', label: 'best SS (total)' });
+        if (durBest?.name === n && (allDur.get(n) ?? 0) > 0) badges.push({ emoji: '😴', label: 'cel mai mult somn' });
+        if (remBest?.name === n && (aAll.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
         if (rhrBest?.name === n) badges.push({ emoji: '🫀', label: 'low RHR' });
-        if (hrvBest?.name === n && (a.hrv ?? 0) > 0) badges.push({ emoji: '⚡', label: 'high HRV' });
+        if (hrvBest?.name === n && (aAll.hrv ?? 0) > 0) badges.push({ emoji: '⚡', label: 'high HRV' });
       }
-      if (streakBest?.name === n && streak >= 3) badges.push({ emoji: '🔥', label: `${streak}d streak` });
+      if (streakBest?.name === n && recordStreak >= 3) badges.push({ emoji: '🔥', label: `record ${recordStreak}z` });
 
       return {
         name: n,
@@ -122,6 +141,8 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         nights90,
         nights80,
         badges,
+        godMode: godActive,
+        elite,
         hasData: !!a,
       };
     }).sort((a, b) => b.ss - a.ss);
@@ -224,7 +245,9 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
   return (
     <div
       className={`rounded-xl px-3 py-1.5 transition-all ${
-        isMe ? 'bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/30' : ''
+        row.godMode ? 'god-aura' : row.elite ? 'elite-glow' : ''
+      } ${isMe ? 'ring-1 ring-[var(--color-accent)]/30' : ''} ${
+        isMe && !row.godMode && !row.elite ? 'bg-[var(--color-accent)]/8' : ''
       }`}
     >
       <button
@@ -244,6 +267,12 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
               <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
                 {tier.icon} Lv{row.level}
               </span>
+              {row.godMode && (
+                <span className="god-text text-[9px] font-black tracking-wider" title="Scor perfect — 100!">💯 GOD</span>
+              )}
+              {row.elite && (
+                <span className="text-[9px] font-bold" style={{ color: '#fbbf24' }} title="Aproape perfect — 95+">🌟</span>
+              )}
               {row.badges.slice(0, 3).map((b, i) => (
                 <span key={i} className="text-[10px]" title={b.label}>{b.emoji}</span>
               ))}
@@ -265,7 +294,7 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
                     </>
                   )}
                   <span className="text-[var(--color-fg-dim)]">·</span>
-                  <span className="num">RHR <strong style={{ color: rhrColor(row.rhr) }}>{row.rhr}</strong></span>
+                  <span className="num">RHR <strong style={{ color: rhrColor(row.rhr, personSex(row.name)) }}>{row.rhr}</strong></span>
                   {row.hrv != null && (
                     <>
                       <span className="text-[var(--color-fg-dim)]">·</span>

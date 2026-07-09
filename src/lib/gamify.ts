@@ -78,6 +78,22 @@ export const ACHIEVEMENTS: Achievement[] = [
     count: (data) => data.length,
   },
   {
+    id: 'god-mode',
+    icon: '💯',
+    name: 'God Mode',
+    hint: 'nopți cu SS = 100 (perfect)',
+    tiers: ladder(1, 3, 7, 15),
+    count: (data) => data.filter(e => e.ss >= 100).length,
+  },
+  {
+    id: 'near-perfect',
+    icon: '👑',
+    name: 'Aproape Perfect',
+    hint: 'nopți cu SS ≥ 95',
+    tiers: ladder(1, 5, 15, 40),
+    count: (data) => data.filter(e => e.ss >= 95).length,
+  },
+  {
     id: 'elite',
     icon: '🌟',
     name: 'Noapte Elită',
@@ -190,15 +206,57 @@ export function achievementsXP(data: SleepEntry[], name: string): number {
   return computeAchievements(data, name).reduce((s, p) => s + p.xpEarned, 0);
 }
 
+/* ─── God Mode ───
+ * A flawless night (SS = 100) turns on GOD MODE for the next 7 days:
+ * every night logged in that window earns +20% XP. Logging another 100
+ * refreshes the window. The 100-night itself is NOT boosted — it already
+ * banks a big flat +50 (see the SS bands below). */
+export const GOD_BONUS_XP = 500;     // per SS=100 night — the jackpot
+export const NEAR_BONUS_XP = 200;    // per SS 95–99 night
+export const GOD_WINDOW_DAYS = 7;
+export const GOD_BOOST = 0.20;       // +20% XP inside the window
+
+const DAY_MS = 86400000;
+const dayNum = (d: string) => Math.round(new Date(d + 'T12:00:00').getTime() / DAY_MS);
+
+/** Per-night flat SS bonus (exclusive bands). */
+function ssBandBonus(ss: number): number {
+  if (ss >= 100) return GOD_BONUS_XP;
+  if (ss >= 95) return NEAR_BONUS_XP;
+  if (ss >= 90) return 10;
+  if (ss >= 80) return 5;
+  return 0;
+}
+
+/** Is God Mode active for this user RIGHT NOW, and how many days remain?
+ *  Active while today is within GOD_WINDOW_DAYS of a logged SS=100 night. */
+export function godMode(data: SleepEntry[], name: string): { active: boolean; daysLeft: number } {
+  const today = dayNum(new Date().toISOString().slice(0, 10));
+  let daysLeft = 0;
+  for (const e of data) {
+    if (e.name !== name || e.ss < 100) continue;
+    const since = today - dayNum(e.date);
+    if (since >= 0 && since <= GOD_WINDOW_DAYS) daysLeft = Math.max(daysLeft, GOD_WINDOW_DAYS - since);
+  }
+  return { active: daysLeft > 0, daysLeft };
+}
+
 export interface XPBreakdown {
   logs: number;
   base: number;
+  count100: number;
+  bonus100: number;
+  count95: number;
+  bonus95: number;
   count90: number;
   bonus90: number;
   count80: number;
   bonus80: number;
   earlyBirdCount: number;
   earlyBirdBonus: number;
+  godBoost: number;             // extra XP from the +20% God Mode window
+  godActive: boolean;           // God Mode live right now
+  godDaysLeft: number;
   streakMax: number;
   streakBonus: number;
   achievementsCount: number;    // total tiers reached across all badges
@@ -207,19 +265,42 @@ export interface XPBreakdown {
 }
 
 export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
-  const entries = data.filter(d => d.name === name);
+  const entries = data.filter(d => d.name === name).sort((a, b) => a.date.localeCompare(b.date));
   const logs = entries.length;
   const base = logs * 10;
-  let count90 = 0;
-  let count80 = 0;
-  let earlyBirdCount = 0;
+
+  // Days that opened a God Mode window (SS = 100)
+  const godDays = entries.filter(e => e.ss >= 100).map(e => dayNum(e.date));
+  const inGodWindow = (d: string) => {
+    const t = dayNum(d);
+    return godDays.some(g => { const diff = t - g; return diff >= 1 && diff <= GOD_WINDOW_DAYS; });
+  };
+
+  let count100 = 0, count95 = 0, count90 = 0, count80 = 0, earlyBirdCount = 0;
+  let godBoost = 0;
   for (const e of entries) {
-    if (e.ss >= 90) count90++;
+    if (e.ss >= 100) count100++;
+    else if (e.ss >= 95) count95++;
+    else if (e.ss >= 90) count90++;
     else if (e.ss >= 80) count80++;
+
+    let eb = 0;
     const bt = bedtimeFrom18(e.start);
-    if (bt != null && bt < EARLY_BIRD_CUTOFF) earlyBirdCount++;
+    if (bt != null && bt < EARLY_BIRD_CUTOFF) { earlyBirdCount++; eb = 5; }
+
+    if (inGodWindow(e.date)) {
+      const nightXP = 10 + ssBandBonus(e.ss) + eb;
+      godBoost += nightXP * GOD_BOOST;
+    }
   }
+  godBoost = Math.round(godBoost);
   const earlyBirdBonus = earlyBirdCount * 5;
+  const bonus100 = count100 * GOD_BONUS_XP;
+  const bonus95 = count95 * NEAR_BONUS_XP;
+  const bonus90 = count90 * 10;
+  const bonus80 = count80 * 5;
+
+  const { active: godActive, daysLeft: godDaysLeft } = godMode(data, name);
 
   const streakMax = maxStreakFor(data, name);
   let streakBonus = 0;
@@ -231,20 +312,19 @@ export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
   const achievementsCount = achievements.reduce((s, p) => s + p.tiersReached, 0);
   const achievementsBonus = achievements.reduce((s, p) => s + p.xpEarned, 0);
 
+  const total = base + bonus100 + bonus95 + bonus90 + bonus80 + earlyBirdBonus + godBoost + streakBonus + achievementsBonus;
+
   return {
-    logs,
-    base,
-    count90,
-    bonus90: count90 * 10,
-    count80,
-    bonus80: count80 * 5,
-    earlyBirdCount,
-    earlyBirdBonus,
-    streakMax,
-    streakBonus,
-    achievementsCount,
-    achievementsBonus,
-    total: base + count90 * 10 + count80 * 5 + earlyBirdBonus + streakBonus + achievementsBonus,
+    logs, base,
+    count100, bonus100,
+    count95, bonus95,
+    count90, bonus90,
+    count80, bonus80,
+    earlyBirdCount, earlyBirdBonus,
+    godBoost, godActive, godDaysLeft,
+    streakMax, streakBonus,
+    achievementsCount, achievementsBonus,
+    total,
   };
 }
 

@@ -44,6 +44,24 @@ export function personColor(name: string): string {
   return PERSON_COLOR[name] ?? '#a1a1aa';
 }
 
+/* Biological sex — calibrates HR thresholds. Women run a higher RHR baseline
+ * than men by ~3-7 bpm, so their "good" bands sit ~5 bpm higher. Age/fitness
+ * matter more long-term; a personal-baseline model would supersede this. */
+export type Sex = 'F' | 'M';
+export const PERSON_SEX: Record<string, Sex> = {
+  'Clara-Ileana Cirpatorea': 'F',
+  'Petrica Cosmin Moga': 'M',
+  'Cornel-Gabriel Meleru': 'M',
+};
+export function personSex(name: string): Sex {
+  return PERSON_SEX[name] ?? 'M';
+}
+
+/** RHR band cutoffs [elite, good, under] by sex — women shifted +5 bpm. */
+export function rhrCutoffs(sex: Sex = 'M'): [number, number, number] {
+  return sex === 'F' ? [60, 65, 75] : [55, 60, 70];
+}
+
 /* ── Color scales ──
  *
  * BINARY semantic: above target → GREEN, below target → RED.
@@ -73,11 +91,12 @@ export function ssColor(ss: number): string {
   return C.bad;
 }
 
-/** RHR (LOWER is better). Target <60. */
-export function rhrColor(rhr: number): string {
-  if (rhr < 55) return C.elite;
-  if (rhr < 60) return C.good;
-  if (rhr < 70) return C.under;
+/** RHR (LOWER is better). Sex-aware — women's bands sit ~5 bpm higher. */
+export function rhrColor(rhr: number, sex: Sex = 'M'): string {
+  const [elite, good, under] = rhrCutoffs(sex);
+  if (rhr < elite) return C.elite;
+  if (rhr < good) return C.good;
+  if (rhr < under) return C.under;
   return C.bad;
 }
 
@@ -108,10 +127,11 @@ export function ssTier(ss: number): { label: string; color: string } {
   return { label: 'Slab', color: C.bad };
 }
 
-export function rhrTier(rhr: number): { label: string; color: string } {
-  if (rhr < 55) return { label: 'Excelent', color: C.elite };
-  if (rhr < 60) return { label: 'Bun', color: C.good };
-  if (rhr < 70) return { label: 'Peste target', color: C.under };
+export function rhrTier(rhr: number, sex: Sex = 'M'): { label: string; color: string } {
+  const [elite, good, under] = rhrCutoffs(sex);
+  if (rhr < elite) return { label: 'Excelent', color: C.elite };
+  if (rhr < good) return { label: 'Bun', color: C.good };
+  if (rhr < under) return { label: 'Peste target', color: C.under };
   return { label: 'Slab', color: C.bad };
 }
 
@@ -150,11 +170,12 @@ export function ssStatus(ss: number): MetricStatus {
   return { arrow: '→', label: 'aproape de target', color: c };
 }
 
-export function rhrStatus(rhr: number): MetricStatus {
-  const c = rhrColor(rhr);
-  const delta = 60 - rhr;     // higher = better since RHR lower is better
-  if (delta > 3) return { arrow: '↓', label: `${rhr - 60} sub target`, color: c };
-  if (delta < -3) return { arrow: '↑', label: `+${rhr - 60} peste target`, color: c };
+export function rhrStatus(rhr: number, sex: Sex = 'M'): MetricStatus {
+  const c = rhrColor(rhr, sex);
+  const target = rhrCutoffs(sex)[1];   // 60 (M) / 65 (F)
+  const delta = target - rhr;          // higher = better since RHR lower is better
+  if (delta > 3) return { arrow: '↓', label: `${rhr - target} sub target`, color: c };
+  if (delta < -3) return { arrow: '↑', label: `+${rhr - target} peste target`, color: c };
   return { arrow: '→', label: 'aproape de target', color: c };
 }
 

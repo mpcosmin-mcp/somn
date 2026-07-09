@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   type SleepEntry,
-  ssColor, hrvColor, remColor, rhrColor, durationColor,
+  ssColor, hrvColor, remColor, rhrColor, durationColor, personSex,
   sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
@@ -120,7 +120,7 @@ export function KpiCards({ entries, user, onMetricClick }: {
         target={60}
         series={rhrSeries}
         dates={dates}
-        color={last.rhr > 0 ? rhrColor(last.rhr) : 'var(--color-fg-dim)'}
+        color={last.rhr > 0 ? rhrColor(last.rhr, personSex(user)) : 'var(--color-fg-dim)'}
         accentVar="#fb7185"
         onClick={onMetricClick ? () => onMetricClick('rhr') : undefined}
       />

@@ -5,7 +5,7 @@ import {
   ssColor, remColor, hrvColor, rhrColor, durationColor,
   ssTier, remTier, hrvTier, rhrTier, durTier,
   sleepDurationMin, fmtDuration, DUR_TARGET,
-  lastNDays,
+  lastNDays, personSex, rhrCutoffs,
 } from '@/lib/sleep';
 import { personalTrendNote } from '@/lib/coach';
 import { fmtDate } from '@/lib/utils';
@@ -119,7 +119,18 @@ export function MetricDetailModal({
     };
   }, [metric, onClose, onNavigate]);
 
-  const spec = metric ? SPECS[metric] : null;
+  // RHR thresholds are sex-calibrated — women's bands sit ~5 bpm higher.
+  const sex = personSex(user);
+  const spec = metric
+    ? (metric === 'rhr'
+        ? {
+            ...SPECS.rhr,
+            target: rhrCutoffs(sex)[1],
+            color: (v: number | null) => (v == null || v <= 0 ? 'var(--color-fg-dim)' : rhrColor(v, sex)),
+            tier: (v: number | null) => (v == null || v <= 0 ? { label: '—', color: '#52525b' } : rhrTier(v, sex)),
+          }
+        : SPECS[metric])
+    : null;
 
   const stats = useMemo(() => {
     if (!spec) return null;

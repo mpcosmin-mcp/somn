@@ -85,7 +85,7 @@ function AchievementCard({ p }: { p: AchievementProgress }) {
         )}
         {next ? (
           <span className="num text-[var(--color-fg-dim)]">
-            {p.count}/{next.threshold}
+            {p.count}/{next.threshold} · <span style={{ color: next.color }}>+{next.xp}xp</span>
           </span>
         ) : (
           <span className="num font-bold" style={{ color: '#22d3ee' }}>MAX</span>

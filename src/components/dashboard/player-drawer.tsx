@@ -1,15 +1,16 @@
 'use client';
 import {
   type SleepEntry,
-  FIRST_NAME, personColor,
+  FIRST_NAME, personColor, personSex,
   ssColor, remColor, hrvColor, rhrColor, durationColor,
   sleepDurationMin, fmtDuration,
 } from '@/lib/sleep';
 import { coachInsights, type InsightTone } from '@/lib/coach';
-import { tierFor, xpProgress, maxStreakFor } from '@/lib/gamify';
+import { tierFor, maxStreakFor } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
-import { PlayerXPExplained } from '@/components/dashboard/player-xp-explained';
 import { PlayerAchievements } from '@/components/dashboard/player-achievements';
+import Link from 'next/link';
+import { BookOpen } from 'lucide-react';
 
 /** Minimal shape the drawer needs — a Leaderboard row is structurally compatible. */
 export interface PlayerSummary {
@@ -65,7 +66,6 @@ export function PlayerDrawer({ player, entries, currentUser }: {
 
   const insights = coachInsights(entries, player.name, 1);
   const maxStreak = maxStreakFor(entries, player.name);
-  const prog = xpProgress(player.xp);
 
   return (
     <div className="px-5 py-4 flex flex-col gap-5">
@@ -101,7 +101,7 @@ export function PlayerDrawer({ player, entries, currentUser }: {
             <Stat label="Somn" value={lastDur != null ? fmtDuration(lastDur) : '—'} color={durationColor(lastDur)} />
             <Stat label="REM" value={last.rem != null ? `${last.rem}m` : '—'} color={remColor(last.rem)} />
             <Stat label="HRV" value={last.hrv != null ? last.hrv : '—'} color={hrvColor(last.hrv)} />
-            <Stat label="RHR" value={last.rhr > 0 ? last.rhr : '—'} color={last.rhr > 0 ? rhrColor(last.rhr) : 'var(--color-fg-dim)'} />
+            <Stat label="RHR" value={last.rhr > 0 ? last.rhr : '—'} color={last.rhr > 0 ? rhrColor(last.rhr, personSex(player.name)) : 'var(--color-fg-dim)'} />
           </div>
         ) : (
           <div className="text-xs text-[var(--color-fg-muted)] italic">niciun log încă</div>
@@ -122,8 +122,34 @@ export function PlayerDrawer({ player, entries, currentUser }: {
         </div>
       </section>
 
-      <PlayerXPExplained player={player} entries={entries} prog={prog} maxStreak={maxStreak} />
+      {/* Distincții — cine e #1 în echipă pe fiecare metrică (rămân în modal) */}
+      {(player.badges.length > 0 || maxStreak >= 2) && (
+        <section>
+          <div className="label mb-2">Distincții</div>
+          <div className="flex flex-wrap gap-1.5">
+            {player.badges.map((b, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
+                <span aria-hidden>{b.emoji}</span> {b.label}
+              </span>
+            ))}
+            {maxStreak >= 2 && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
+                <span aria-hidden>🏅</span> record {maxStreak}z streak
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
       <PlayerAchievements entries={entries} name={player.name} />
+
+      {/* XP logic moved out of the modal → the rulebook page */}
+      <Link
+        href="/ghid"
+        className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs font-bold text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-accent)]/40 transition-colors"
+      >
+        <BookOpen size={15} /> Cum câștigi XP · reguli & categorii →
+      </Link>
     </div>
   );
 }
