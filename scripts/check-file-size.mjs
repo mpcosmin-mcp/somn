@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * Poka-yoke file-size gate (ARCHITECTURE.md §1: 300 target / 500 gate).
+ * File-length AWARENESS nudge (ARCHITECTURE.md §1: aim small — ~300, notice ~500).
+ * ADVISORY ONLY — it prints, it never blocks a commit. The goal is efficient,
+ * clear, modular code, not a rigid cap. (Owner 2026-07-10.)
  *
  * Pre-commit: for each STAGED .ts/.tsx file, count effective lines (skip blank +
- * comment-only). Then:
- *   - ≥ 500 AND grew vs HEAD  → FAIL the commit ("split before extending").
- *   - ≥ 500 but shrank/equal  → pass (refactor commits must flow through).
- *   - 300–499                 → warn only (kaizen target, never blocks).
- *   - untouched legacy files  → never checked (the gate ratchets debt DOWN,
- *                                it never blocks work on code you didn't touch).
+ * comment-only). Then it just PRINTS:
+ *   - ≥ 500 AND grew vs HEAD  → a "heads-up, good split candidate" note.
+ *   - 300–499                 → a soft "aim under 300" nudge.
+ *   - untouched legacy files  → never mentioned (only what you actually touched).
+ * Always exits 0. Run `--all` for a full-repo audit any time.
  *
  * Exemptions (data / generated / vendored — length is inherent, not a smell):
  *   lib/db/schema.ts, **­/demo.ts, fixtures*, *labResults*, .agents/**, scripts/seed*.
@@ -96,12 +97,13 @@ if (AUDIT) {
   process.exit(0)
 }
 
-for (const [n, f] of warnings) console.warn(`  ⚠️  ${f} — ${n} lines (target ${TARGET}; split soon)`)
+// Advisory only — this NEVER blocks a commit. It's a nudge to stay modular,
+// not a rule. (Owner 2026-07-10: "not rigid — just attentive to length.")
+for (const [n, f] of warnings) console.warn(`  ⚠️  ${f} — ${n} lines (aim under ${TARGET}; consider splitting when you next touch it)`)
 
 if (failures.length) {
-  console.error(`\n❌ File-size gate (ARCHITECTURE.md §1 — 500 line gate):`)
-  for (const [n, f] of failures) console.error(`   ${f} — ${n} lines and growing. Split at its seams before extending.`)
-  console.error(`\n   (Refactor that SHRINKS a big file passes. Genuine exception: add \`// eslint-disable max-lines -- reason\`.)\n`)
-  process.exit(1)
+  console.warn(`\n👀 Heads-up — a couple of files are getting big and growing:`)
+  for (const [n, f] of failures) console.warn(`   ${f} — ${n} lines. Good candidate to split at its seams. (No rush, not a blocker.)`)
+  console.warn('')
 }
 process.exit(0)
