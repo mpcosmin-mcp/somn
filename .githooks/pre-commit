@@ -1,0 +1,4 @@
+#!/bin/sh
+# File-size poka-yoke gate — ARCHITECTURE.md §1 (300 target / 500 gate).
+# Activate once per clone:  git config core.hooksPath .githooks
+node scripts/check-file-size.mjs || exit 1
