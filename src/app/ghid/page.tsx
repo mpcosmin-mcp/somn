@@ -146,11 +146,12 @@ export default function GhidPage() {
           poți fi pe locul 1 din inerție, în timp ce altcineva te depășește în viteză.
         </p>
         <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed mt-2">
-          <strong className="text-[var(--color-fg)]">1.00×</strong> = ai logat noaptea și atât. Tot ce e peste vine din calitatea somnului,
-          culcarea devreme și God Mode. Se măsoară pe <strong className="text-[var(--color-fg)]">{MOMENTUM_WINDOW} de zile calendaristice</strong>,
+          <strong className="text-[var(--color-fg)]">1.00×</strong> = ai logat noaptea și atât, fără niciun badge. Tot ce e peste vine din calitatea somnului,
+          culcarea devreme, God Mode și <strong className="text-[var(--color-fg)]">Măiestrie</strong>. Se măsoară pe <strong className="text-[var(--color-fg)]">{MOMENTUM_WINDOW} de zile calendaristice</strong>,
           deci nopțile nelogate îl trag în jos — un singur număr prinde și consistența, și calitatea.
         </p>
-        <div className="grid grid-cols-2 gap-1.5 mt-3 text-[10px]">
+        <div className="text-[10px] text-[var(--color-fg-dim)] mt-3 mb-1">Scala de mai jos e la <strong>măiestrie 0</strong> — badge-urile tale se înmulțesc peste ea.</div>
+        <div className="grid grid-cols-2 gap-1.5 text-[10px]">
           <MomentumEx what="loghezi zilnic, sub 80" v="1.0×" />
           <MomentumEx what="zilnic, nopți de 80-84" v="2.0×" />
           <MomentumEx what="zilnic, 85-89 + devreme" v="4.0×" />
@@ -159,10 +160,11 @@ export default function GhidPage() {
           <MomentumEx what="o zi din două, 80-84" v="1.0×" />
         </div>
         <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-          <strong>Important:</strong> momentumul numără doar XP-ul <strong>care se repetă</strong> în fiecare noapte. Pragurile de badge și
-          milestone-urile de streak sunt bonusuri <strong>unice</strong> — se plătesc o dată și nu se mai repetă, deci nu sunt „viteză".
-          Le vezi separat, ca rezervă rămasă. Și ține minte: nivelele costă tot mai mult, deci <strong>același XP/zi îți dă tot mai puține nivele</strong>
-          pe măsură ce urci — de-aia îți arătăm și în câte zile prinzi următorul nivel, nu doar multiplicatorul.
+          <strong>Important:</strong> momentumul numără doar XP-ul <strong>care se repetă</strong> în fiecare noapte — iar Măiestria intră aici,
+          fiindcă un badge îți dă un procent pe <em>fiecare</em> noapte, la nesfârșit. Singurul lucru lăsat pe dinafară sunt milestone-urile de streak:
+          alea se plătesc o dată și nu se mai repetă, deci nu sunt „viteză".
+          Și ține minte: nivelele costă tot mai mult, deci <strong>același XP/zi îți dă tot mai puține nivele</strong> pe măsură ce urci — de-aia îți
+          arătăm și în câte zile prinzi următorul nivel, nu doar multiplicatorul.
         </p>
       </Card>
 

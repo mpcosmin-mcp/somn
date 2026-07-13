@@ -109,8 +109,8 @@ function MomentumModal({ open, onClose, m }: { open: boolean; onClose: () => voi
             în timp ce altcineva te depășește în viteză.
           </p>
           <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed mt-1.5">
-            <strong className="num text-[var(--color-fg)]">1.00×</strong> = ai logat noaptea și atât ({BASELINE_XP_PER_DAY} XP/zi).
-            Tot ce e peste vine din calitatea somnului, culcarea devreme, God Mode și Ascensiune.
+            <strong className="num text-[var(--color-fg)]">1.00×</strong> = ai logat noaptea și atât, fără niciun badge ({BASELINE_XP_PER_DAY} XP/zi).
+            Tot ce e peste vine din calitatea somnului, culcarea devreme, God Mode, <strong className="text-[var(--color-fg)]">Măiestrie</strong> și Ascensiune.
           </p>
           <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed mt-1.5">
             Se împarte la <strong className="text-[var(--color-fg)]">zile calendaristice</strong>, nu la nopți logate — deci nopțile sărite îl trag în jos.
@@ -142,7 +142,7 @@ function MomentumModal({ open, onClose, m }: { open: boolean; onClose: () => voi
 
         {/* The scale */}
         <section>
-          <div className="label mb-2">Scala</div>
+          <div className="label mb-2">Scala <span className="normal-case tracking-normal font-normal text-[var(--color-fg-dim)]">· la măiestrie 0</span></div>
           <div className="flex flex-col gap-1 text-[10px]">
             <ScaleRow what="loghezi zilnic, scoruri sub 80" v="1.0×" />
             <ScaleRow what="zilnic, nopți de 80–84" v="2.0×" />
@@ -152,7 +152,9 @@ function MomentumModal({ open, onClose, m }: { open: boolean; onClose: () => voi
             <ScaleRow what="o zi din două, chiar cu nopți bune" v="1.0×" />
           </div>
           <p className="text-[10px] text-[var(--color-fg-dim)] mt-2 leading-snug">
-            💯 <strong>Ascensiunea</strong> (o noapte de 100) e în afara scalei: îți dă un <strong>nivel întreg</strong>, nu un multiplicator.
+            Cifrele de mai sus sunt <strong>fără badge-uri</strong>. Măiestria ta (<strong className="num" style={{ color: '#a3e635' }}>+{Math.round(m.mastery * 100)}%</strong>) se
+            înmulțește peste tot ce e în tabel — de-aia tu ești la {m.multiplier.toFixed(2)}×.
+            {' '}💯 <strong>Ascensiunea</strong> e în afara scalei complet: îți dă un <strong>nivel întreg</strong>, nu un multiplicator.
           </p>
         </section>
 
