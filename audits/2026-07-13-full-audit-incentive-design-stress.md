@@ -1,9 +1,8 @@
 # Full audit — incentivare, design, dimensiuni module + stress test masiv
 
-> **STATUS: REZOLVAT** (2026-07-13, commits `e5078b8` + `27e1781`, local — *nepushuite*).
-> P0–P3 implementate integral, cu **o singură excepție deliberată**: persistența sesiunii.
-> Login-ul obligatoriu a fost o decizie explicită anterioară („Make login mandatory", 2026-05-19) —
-> nu o revocăm fără acordul lui Cosmin. Bug-urile din jurul ei (flash-ul „Lv 1") **sunt** rezolvate.
+> **STATUS: REZOLVAT INTEGRAL** (2026-07-13 — `e5078b8`, `27e1781`, `05a2334`, `11c7719`).
+> P0–P3 implementate. Persistența sesiunii a fost inițial amânată (revoca o decizie explicită
+> din 2026-05-19, „Make login mandatory") — Cosmin a aprobat-o și e livrată în `11c7719`.
 > Stress test post-fix: **92/92 invarianți** trec. Vezi §6 pentru starea finală.
 
 **Data:** 2026-07-13 · **Scope:** `gamify.ts` + `sleep.ts` (logică), dashboard + modal + /ghid + chat (vizual, live pe dev @1920×855), stress test sintetic (scratchpad `stress.ts`, 60 invarianți + fairness + economie + exploits + perf).
@@ -105,7 +104,7 @@ La scara echipei de 3 — **non-problemă**. De reținut doar dacă Sleep Tracke
 
 **UX.** Click pe badge / pe nivel → modal peste, cu fundalul blurat (exact cerința). Modalul jucătorului: de la **455px de overflow la ~15px** (grilă 4×3). Crown-uri competitive pe perioade (7z/30z/3 luni/An), distincte vizual de cele permanente. `confirm()`-ul nativ din chat înlocuit. Flash-ul „Lv 1" la login → shimmer. Al 5-lea KPI nu mai rămâne orfan pe mobil. `/ghid` rescris — nu mai minte despre reguli.
 
-**Nerezolvat, intenționat:** persistența sesiunii (vezi header). Necesită decizia lui Cosmin.
+**Persistența sesiunii** (`11c7719`): pick-ul supraviețuiește reload-urilor și restart-urilor. Logout explicit prin „Schimbă utilizator". Pe PWA, re-login-ul obligatoriu costa 2 tap-uri pe zi și nu proteja nimic (tracker privat, 3 persoane, fără secrete).
 
 ---
 *Stress test reproductibil: scratchpad `stress.ts` (seeded RNG, `node stress.ts`, Node 25). Pre-fix: 60/60. Post-fix: **92/92**, incluzând aserțiuni noi de fairness, curbă de nivel și regresie pe cele 3 exploits.*
