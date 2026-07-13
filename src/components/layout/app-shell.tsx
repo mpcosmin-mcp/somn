@@ -18,8 +18,8 @@ import { ChatPanel } from '@/components/chat/chat-panel';
  *   └─────────────────────────────────────────────────────┘
  *
  * Login screen: UserPicker takes the whole viewport (no TopBar).
- * Auth is intentionally session-only — closing the tab clears the
- * picked user, so the next open lands back on the login page.
+ * The pick persists across opens (see lib/user.ts); signing out is explicit,
+ * via "Schimbă utilizator" in the profile popover.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, hydrated, setUser } = useUser();
