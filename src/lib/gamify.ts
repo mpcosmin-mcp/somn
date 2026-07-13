@@ -76,7 +76,9 @@ export const STREAK_MILESTONES = [
   { days: 365, bonus: 2000 },
 ] as const;
 
-const EARLY_BIRD_CUTOFF = 300; // 23:00 = 300 min past 18:00
+export const EARLY_BIRD_CUTOFF = 300; // 23:00 = 300 min past 18:00
+export const EARLY_BIRD_XP = 5;
+export const BASE_XP_PER_LOG = 10;
 
 /* ─── Achievement system ───
  *
@@ -351,6 +353,39 @@ export function ssBandBonus(ss: number): number {
 const DAY_MS = 86400000;
 const dayNum = (d: string) => Math.round(new Date(d + 'T12:00:00').getTime() / DAY_MS);
 
+/** The RECURRING XP a single night pays, split by source.
+ *
+ *  This is the engine's one definition of "what a night is worth" — the XP
+ *  breakdown and the Momentum meter both read it, so the headline rate can
+ *  never drift from the XP actually banked.
+ *
+ *  Deliberately excludes badge tiers and streak milestones: those are one-time
+ *  unlocks, not a rate. Folding them in would inflate a "speed" number that
+ *  then silently decays as the tiers run out. */
+export function nightParts(e: SleepEntry): { base: number; quality: number; earlyBird: number; total: number } {
+  const bt = bedtimeFrom18(e.start);
+  const base = BASE_XP_PER_LOG;
+  const quality = ssBandBonus(e.ss);
+  const earlyBird = bt != null && bt < EARLY_BIRD_CUTOFF ? EARLY_BIRD_XP : 0;
+  return { base, quality, earlyBird, total: base + quality + earlyBird };
+}
+
+/** The dates on which this person's nights are God-boosted (+20%) — i.e. that
+ *  fall 1..7 days after one of their own God nights. */
+export function boostedDates(data: SleepEntry[], name: string): Set<string> {
+  const mine = data.filter(d => d.name === name);
+  const godDays = new Set(mine.filter(e => e.ss >= GOD_TRIGGER_SS).map(e => dayNum(e.date)));
+  const out = new Set<string>();
+  if (!godDays.size) return out;
+  for (const e of mine) {
+    const t = dayNum(e.date);
+    for (let back = 1; back <= GOD_WINDOW_DAYS; back++) {
+      if (godDays.has(t - back)) { out.add(e.date); break; }
+    }
+  }
+  return out;
+}
+
 /** Today as YYYY-MM-DD in LOCAL time. `toISOString()` would report the UTC day,
  *  which is the previous calendar day between 00:00 and 03:00 in Romania — that
  *  made streaks and God windows look a day off overnight. */
@@ -400,16 +435,11 @@ export interface XPBreakdown {
 export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
   const entries = data.filter(d => d.name === name).sort((a, b) => a.date.localeCompare(b.date));
   const logs = entries.length;
-  const base = logs * 10;
+  const base = logs * BASE_XP_PER_LOG;
 
-  // Days that opened a God Mode window. A Set keeps the window test O(1) per
-  // night — a linear scan turned quadratic when most nights were God nights.
-  const godDays = new Set(entries.filter(e => e.ss >= GOD_TRIGGER_SS).map(e => dayNum(e.date)));
-  const inGodWindow = (d: string) => {
-    const t = dayNum(d);
-    for (let back = 1; back <= GOD_WINDOW_DAYS; back++) if (godDays.has(t - back)) return true;
-    return false;
-  };
+  // Set-based: a linear scan per night turned quadratic when most nights were
+  // God nights (15k entries went from 1.2s to 0.2s).
+  const boosted = boostedDates(data, name);
 
   let count100 = 0, count95 = 0, count90 = 0, count85 = 0, count80 = 0, earlyBirdCount = 0;
   let godBoost = 0;
@@ -420,17 +450,12 @@ export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
     else if (e.ss >= 85) count85++;
     else if (e.ss >= 80) count80++;
 
-    let eb = 0;
-    const bt = bedtimeFrom18(e.start);
-    if (bt != null && bt < EARLY_BIRD_CUTOFF) { earlyBirdCount++; eb = 5; }
-
-    if (inGodWindow(e.date)) {
-      const nightXP = 10 + ssBandBonus(e.ss) + eb;
-      godBoost += nightXP * GOD_BOOST;
-    }
+    const parts = nightParts(e);
+    if (parts.earlyBird) earlyBirdCount++;
+    if (boosted.has(e.date)) godBoost += parts.total * GOD_BOOST;
   }
   godBoost = Math.round(godBoost);
-  const earlyBirdBonus = earlyBirdCount * 5;
+  const earlyBirdBonus = earlyBirdCount * EARLY_BIRD_XP;
   const bonus100 = count100 * 300;
   const bonus95 = count95 * 150;
   const bonus90 = count90 * 60;

@@ -10,6 +10,7 @@ import { coachInsights, type InsightTone } from '@/lib/coach';
 import { tierFor, maxStreakFor, todayISO } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 import { PlayerAchievements } from '@/components/dashboard/player-achievements';
+import { PlayerMomentum } from '@/components/dashboard/player-momentum';
 import { TierLadderModal } from '@/components/dashboard/achievement-detail';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
@@ -112,6 +113,8 @@ export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
           </div>
         </div>
       </div>
+
+      <PlayerMomentum entries={entries} name={player.name} />
 
       {/* TODAY — one compact row of five */}
       <section>

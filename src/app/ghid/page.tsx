@@ -10,6 +10,7 @@ import {
   ACHIEVEMENTS, TIERS, GOD_WINDOW_DAYS, GOD_TRIGGER_SS, STREAK_MILESTONES,
   xpForLevel, xpToNextLevel,
 } from '@/lib/gamify';
+import { MOMENTUM_WINDOW, MOMENTUM_CEILING } from '@/lib/momentum';
 import { Card } from '@/components/ui/card';
 
 /**
@@ -108,6 +109,34 @@ export default function GhidPage() {
         </p>
       </Card>
 
+      {/* Momentum */}
+      <Card className="p-4">
+        <SectionTitle icon="🚀" title="Momentum — cât de repede progresezi" />
+        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
+          Clasamentul arată cine a <em>adunat</em> cel mai mult. Momentumul arată cine <em>merge</em> cel mai repede acum —
+          poți fi pe locul 1 din inerție, în timp ce altcineva te depășește în viteză.
+        </p>
+        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed mt-2">
+          <strong className="text-[var(--color-fg)]">1.00×</strong> = ai logat noaptea și atât. Tot ce e peste vine din calitatea somnului,
+          culcarea devreme și God Mode. Se măsoară pe <strong className="text-[var(--color-fg)]">{MOMENTUM_WINDOW} de zile calendaristice</strong>,
+          deci nopțile nelogate îl trag în jos — un singur număr prinde și consistența, și calitatea.
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 mt-3 text-[10px]">
+          <MomentumEx what="loghezi zilnic, sub 80" v="1.0×" />
+          <MomentumEx what="zilnic, nopți de 80-84" v="2.0×" />
+          <MomentumEx what="zilnic, 85-89 + devreme" v="4.0×" />
+          <MomentumEx what="zilnic, 90-94 + devreme" v="7.5×" />
+          <MomentumEx what="zilnic, 95+ (God Mode)" v={`${MOMENTUM_CEILING.toFixed(1)}×`} hot />
+          <MomentumEx what="o zi din două, 80-84" v="1.0×" />
+        </div>
+        <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
+          <strong>Important:</strong> momentumul numără doar XP-ul <strong>care se repetă</strong> în fiecare noapte. Pragurile de badge și
+          milestone-urile de streak sunt bonusuri <strong>unice</strong> — se plătesc o dată și nu se mai repetă, deci nu sunt „viteză".
+          Le vezi separat, ca rezervă rămasă. Și ține minte: nivelele costă tot mai mult, deci <strong>același XP/zi îți dă tot mai puține nivele</strong>
+          pe măsură ce urci — de-aia îți arătăm și în câte zile prinzi următorul nivel, nu doar multiplicatorul.
+        </p>
+      </Card>
+
       {/* Achievement categories */}
       <Card className="p-4">
         <SectionTitle icon="🏅" title="Realizări (cumulative, personale)" />
@@ -178,6 +207,21 @@ function Rule({ children }: { children: ReactNode }) {
 
 function Xp({ v, c = 'var(--color-fg)' }: { v: string; c?: string }) {
   return <span className="num font-bold ml-2 shrink-0" style={{ color: c }}>{v}</span>;
+}
+
+function MomentumEx({ what, v, hot = false }: { what: string; v: string; hot?: boolean }) {
+  return (
+    <div
+      className="rounded-lg border px-2 py-1.5 flex items-center justify-between gap-1"
+      style={{
+        borderColor: hot ? '#fbbf2455' : 'var(--color-border)',
+        background: hot ? '#fbbf240d' : 'var(--color-surface)',
+      }}
+    >
+      <span className="text-[var(--color-fg-muted)] truncate">{what}</span>
+      <span className="num font-bold shrink-0" style={{ color: hot ? '#fbbf24' : 'var(--color-fg)' }}>{v}</span>
+    </div>
+  );
 }
 
 function Metric({ name, better, bands }: { name: string; better: string; bands: string }) {
