@@ -46,7 +46,7 @@ export function ProfilePopover() {
   const lvl = xpLevel(xp);
   const tier = tierFor(lvl);
   const streak = streakFor(entries, user);
-  const { into, need, pct } = levelProgress(xp);
+  const { into, need, pct, maxed } = levelProgress(xp);
 
   // Personal lifetime records — read straight from the user's entries.
   const mine = entries.filter(e => e.name === user);
@@ -117,8 +117,11 @@ export function ProfilePopover() {
               />
             </div>
             <div className="flex justify-between text-[9px] num text-[var(--color-fg-dim)] mt-1">
-              <span>spre Lv {lvl + 1}</span>
-              <span>{into}/{need}</span>
+              {maxed ? (
+                <><span className="font-bold" style={{ color: tier.color }}>NIVEL MAXIM</span><span>Lv {lvl}</span></>
+              ) : (
+                <><span>spre Lv {lvl + 1}</span><span>{into}/{need}</span></>
+              )}
             </div>
           </div>
 

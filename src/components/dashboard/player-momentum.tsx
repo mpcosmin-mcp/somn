@@ -5,6 +5,7 @@ import {
   momentumFor, momentumColor, momentumVerdict,
   MOMENTUM_WINDOW, MOMENTUM_CEILING, BASELINE_XP_PER_DAY, type Momentum,
 } from '@/lib/momentum';
+import { MAX_LEVEL } from '@/lib/gamify';
 import { Modal } from '@/components/ui/modal';
 
 /**
@@ -49,7 +50,8 @@ export function PlayerMomentum({ entries, name }: { entries: SleepEntry[]; name:
           )}
           <span className="num text-[10px] text-[var(--color-fg-muted)] ml-auto">
             {m.perDay.toFixed(1)} XP/zi
-            {m.daysToLevel != null && <> · Lv {m.level + 1} în {m.daysToLevel}z</>}
+            {m.maxed ? <> · <strong style={{ color: '#22d3ee' }}>NIVEL MAXIM</strong></>
+              : m.daysToLevel != null && <> · Lv {m.level + 1} în {m.daysToLevel}z</>}
           </span>
           <span aria-hidden className="text-[var(--color-fg-dim)] text-xs">›</span>
         </div>
@@ -162,17 +164,32 @@ function MomentumModal({ open, onClose, m }: { open: boolean; onClose: () => voi
         <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
           <div className="label mb-1.5">La ritmul ăsta</div>
           <div className="flex flex-col gap-1 text-[11px]">
-            {m.daysToLevel != null && (
-              <div className="flex items-center justify-between">
-                <span className="text-[var(--color-fg-muted)]">Lv {m.level + 1}</span>
-                <span className="num font-bold text-[var(--color-fg)]">{m.xpToLevel} XP · {m.daysToLevel} zile</span>
+            {m.maxed ? (
+              <div className="text-center py-1">
+                <span className="num font-bold text-sm" style={{ color: '#22d3ee' }}>✺ NIVEL MAXIM · Lv {MAX_LEVEL}</span>
+                <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">Ai terminat scara. Momentumul e acum doar pentru mândrie.</div>
               </div>
-            )}
-            {m.nextTier && m.daysToTier != null && m.xpToTier != null && (
-              <div className="flex items-center justify-between">
-                <span style={{ color: m.nextTier.color }} className="font-bold">{m.nextTier.name}</span>
-                <span className="num font-bold text-[var(--color-fg)]">{m.xpToTier} XP · {fmtDays(m.daysToTier)}</span>
-              </div>
+            ) : (
+              <>
+                {m.daysToLevel != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[var(--color-fg-muted)]">Lv {m.level + 1}</span>
+                    <span className="num font-bold text-[var(--color-fg)]">{m.xpToLevel} XP · {m.daysToLevel} zile</span>
+                  </div>
+                )}
+                {m.nextTier && m.daysToTier != null && m.xpToTier != null && (
+                  <div className="flex items-center justify-between">
+                    <span style={{ color: m.nextTier.color }} className="font-bold">{m.nextTier.name}</span>
+                    <span className="num font-bold text-[var(--color-fg)]">{m.xpToTier} XP · {fmtDays(m.daysToTier)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border)]">
+                  <span className="text-[var(--color-fg-muted)]">✺ Lv {MAX_LEVEL} (maximul)</span>
+                  <span className="num font-bold text-[var(--color-fg)]">
+                    {m.xpToMax} XP{m.daysToMax != null && ` · ${fmtDays(m.daysToMax)}`}
+                  </span>
+                </div>
+              </>
             )}
           </div>
           <p className="text-[10px] text-[var(--color-fg-dim)] mt-2 leading-snug">

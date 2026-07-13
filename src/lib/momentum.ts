@@ -24,7 +24,7 @@ import {
   type Tier,
   ACHIEVEMENTS, BASE_XP_PER_LOG, GOD_BOOST,
   ascensionsFor, boostedDates, computeAchievements, masteryFor, nextTierFor, nightParts,
-  todayISO, xpBreakdown, xpForLevel, xpLevel, xpToNextLevel,
+  todayISO, xpBreakdown, xpForLevel, xpLevel, xpToNextLevel, MAX_LEVEL, XP_FOR_MAX_LEVEL,
 } from '@/lib/gamify';
 
 /** The window Momentum is measured over. 30 days: long enough that one bad
@@ -67,6 +67,11 @@ export interface Momentum {
   /** Observed total rate, incl. one-offs — what the projections below use. */
   realizedPerDay: number;
   level: number;
+  /** True at Lv 46 — the cap. Nothing left to climb. */
+  maxed: boolean;
+  /** XP still owed to the Lv 46 cap — the finish line. */
+  xpToMax: number;
+  daysToMax: number | null;
   xpToLevel: number;
   daysToLevel: number | null;
   nextTier: Tier | null;
@@ -151,10 +156,12 @@ export function momentumFor(
 
   const realizedPerDay = (cur.xp + oneOffXP) / windowDays;
   const level = xpLevel(bd.total);
-  const xpToLevel = xpToNextLevel(level) - (bd.total - xpForLevel(level));
+  const maxed = level >= MAX_LEVEL;
+  const xpToMax = Math.max(0, XP_FOR_MAX_LEVEL - bd.total);
+  const xpToLevel = maxed ? 0 : xpToNextLevel(level) - (bd.total - xpForLevel(level));
   const nextTier = nextTierFor(level);
   const xpToTier = nextTier ? Math.max(0, xpForLevel(nextTier.minLevel) - bd.total) : null;
-  const days = (xp: number) => (realizedPerDay > 0 ? Math.ceil(xp / realizedPerDay) : null);
+  const days = (xp: number) => (realizedPerDay > 0 && xp > 0 ? Math.ceil(xp / realizedPerDay) : null);
 
   return {
     nights: cur.nights,
@@ -169,6 +176,9 @@ export function momentumFor(
     tiersTotal,
     realizedPerDay,
     level,
+    maxed,
+    xpToMax,
+    daysToMax: days(xpToMax),
     xpToLevel,
     daysToLevel: days(xpToLevel),
     nextTier,

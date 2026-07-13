@@ -2,7 +2,7 @@
 import { type SleepEntry, FIRST_NAME, personColor } from '@/lib/sleep';
 import {
   type AchievementProgress, achievementHint, levelProgress, tierFor, nextTierFor,
-  xpForLevel, TIERS, xpBreakdown,
+  xpForLevel, TIERS, xpBreakdown, MAX_LEVEL, XP_FOR_MAX_LEVEL,
 } from '@/lib/gamify';
 import { Modal } from '@/components/ui/modal';
 
@@ -132,7 +132,7 @@ export function TierLadderModal({ open, onClose, entries, name }: {
   name: string;
 }) {
   const bd = xpBreakdown(entries, name);
-  const { level, into, need, pct } = levelProgress(bd.total);
+  const { level, into, need, pct, maxed } = levelProgress(bd.total);
   const cur = tierFor(level);
   const next = nextTierFor(level);
   const c = personColor(name);
@@ -160,8 +160,14 @@ export function TierLadderModal({ open, onClose, entries, name }: {
             <span className="text-xs text-[var(--color-fg-muted)]">XP total</span>
           </div>
           <div className="text-[11px] text-[var(--color-fg-muted)] mt-1">
-            <span className="num font-bold text-[var(--color-fg)]">{into}</span>/<span className="num">{need}</span> până la Lv {level + 1}
-            {next && <> · <span className="num font-bold text-[var(--color-fg)]">{Math.max(0, xpForLevel(next.minLevel) - bd.total)}</span> XP până la <strong style={{ color: next.color }}>{next.name}</strong></>}
+            {maxed ? (
+              <span className="font-bold" style={{ color: cur.color }}>NIVEL MAXIM — Lv {MAX_LEVEL}. Capătul drumului.</span>
+            ) : (
+              <>
+                <span className="num font-bold text-[var(--color-fg)]">{into}</span>/<span className="num">{need}</span> până la Lv {level + 1}
+                {next && <> · <span className="num font-bold text-[var(--color-fg)]">{Math.max(0, xpForLevel(next.minLevel) - bd.total)}</span> XP până la <strong style={{ color: next.color }}>{next.name}</strong></>}
+              </>
+            )}
           </div>
           <div className="h-1.5 mt-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cur.color }} />
@@ -204,7 +210,8 @@ export function TierLadderModal({ open, onClose, entries, name }: {
         </section>
 
         <p className="text-[10px] text-[var(--color-fg-dim)] leading-snug">
-          Fiecare nivel costă mai mult decât cel dinainte (Lv {level} → {level + 1} costă {need} XP). Paliere înalte = ani de consistență, nu o săptămână norocoasă.
+          Fiecare nivel costă mai mult decât cel dinainte{!maxed && <> (Lv {level} → {level + 1} costă {need} XP)</>}.
+          {' '}<strong className="text-[var(--color-fg-muted)]">Lv {MAX_LEVEL} e maximul</strong> — {XP_FOR_MAX_LEVEL} XP, adică vreo doi ani de somn bun. Nu e o cursă de sprint.
         </p>
       </div>
     </Modal>

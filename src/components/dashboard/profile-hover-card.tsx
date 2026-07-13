@@ -26,7 +26,7 @@ export function ProfileHoverCard({
   const xp = calcXP(entries, name);
   const lvl = xpLevel(xp);
   const tier = tierFor(lvl);
-  const { into, need, pct } = levelProgress(xp);
+  const { into, need, pct, maxed } = levelProgress(xp);
   const streak = streakFor(entries, name);
   const best = bestAtFor(entries, name);
   const myEntries = entries.filter((e) => e.name === name);
@@ -61,7 +61,7 @@ export function ProfileHoverCard({
           <div className="flex items-center justify-between text-[10px] mb-1">
             <span className="num font-bold text-[var(--color-accent)]">{xp} XP</span>
             <span className="num text-[var(--color-fg-dim)]">
-              {into}/{need}
+              {maxed ? 'MAX' : `${into}/${need}`}
             </span>
           </div>
           <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">

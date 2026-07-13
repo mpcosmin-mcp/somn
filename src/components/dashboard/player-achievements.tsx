@@ -39,9 +39,9 @@ export function PlayerAchievements({ entries, name }: { entries: SleepEntry[]; n
         </span>
       </div>
 
-      {/* 12 badges in a 4-up grid = exactly 3 rows, so the whole set clears the
-          fold inside the player modal without scrolling. */}
-      <div className="grid grid-cols-4 gap-1.5">
+      {/* 13 badges, 5-up = 3 rows. The whole set has to clear the fold inside the
+          player modal — the detail lives one tap away, not in this grid. */}
+      <div className="grid grid-cols-5 gap-1">
         {progress.map(p => (
           <AchievementCard key={p.achievement.id} p={p} name={name} onOpen={() => setOpen(p)} />
         ))}

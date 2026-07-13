@@ -8,7 +8,7 @@ import { FIRST_NAME } from '@/lib/sleep';
 import {
   xpBreakdown, levelProgress, tierFor, godMode, achievementHint,
   ACHIEVEMENTS, TIERS, GOD_WINDOW_DAYS, GOD_TRIGGER_SS, STREAK_MILESTONES,
-  TIER_PCT, MASTERY_MAX, masteryFor, xpForLevel, xpToNextLevel,
+  TIER_PCT, MASTERY_MAX, masteryFor, xpForLevel, xpToNextLevel, MAX_LEVEL, XP_FOR_MAX_LEVEL,
 } from '@/lib/gamify';
 import { MOMENTUM_WINDOW, MOMENTUM_CEILING } from '@/lib/momentum';
 import { Card } from '@/components/ui/card';
@@ -23,7 +23,7 @@ export default function GhidPage() {
   const { entries } = useEntries();
 
   const bd = user ? xpBreakdown(entries, user) : null;
-  const { level, into, need, pct } = levelProgress(bd?.total ?? 0);
+  const { level, into, need, pct, maxed } = levelProgress(bd?.total ?? 0);
   const tier = tierFor(level);
   const god = user ? godMode(entries, user) : { active: false, daysLeft: 0 };
 
@@ -47,7 +47,9 @@ export default function GhidPage() {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="num font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>{bd.total}</span>
-            <span className="text-xs text-[var(--color-fg-muted)]">XP · {into}/{need} până la Lv {level + 1}</span>
+            <span className="text-xs text-[var(--color-fg-muted)]">
+              {maxed ? `XP · NIVEL MAXIM (Lv ${MAX_LEVEL})` : `XP · ${into}/${need} până la Lv ${level + 1}`}
+            </span>
           </div>
           <div className="h-1.5 mt-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--color-accent)' }} />
@@ -129,13 +131,23 @@ export default function GhidPage() {
 
       {/* Levels */}
       <Card className="p-4">
-        <SectionTitle icon="📈" title="Cum funcționează nivelele" />
+        <SectionTitle icon="📈" title={`Nivelele — și de ce se opresc la ${MAX_LEVEL}`} />
         <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
           Fiecare nivel costă mai mult decât cel dinainte: <strong className="text-[var(--color-fg)]">Lv 1 → 2</strong> cere {xpToNextLevel(1)} XP,{' '}
-          <strong className="text-[var(--color-fg)]">Lv 20 → 21</strong> cere {xpToNextLevel(20)} XP. Un vârf de formă de o săptămână nu te mai catapultează
+          <strong className="text-[var(--color-fg)]">Lv 30 → 31</strong> cere {xpToNextLevel(30)} XP. Un vârf de formă de o săptămână nu te catapultează
           în capul clasamentului — palierele înalte cer ani de consistență.
-          {bd && <> Tu ești la <strong className="text-[var(--color-fg)]">Lv {level}</strong>, iar următorul nivel costă <strong className="text-[var(--color-fg)]">{need} XP</strong>.</>}
+          {bd && !maxed && <> Tu ești la <strong className="text-[var(--color-fg)]">Lv {level}</strong>, iar următorul nivel costă <strong className="text-[var(--color-fg)]">{need} XP</strong>.</>}
         </p>
+        <div className="rounded-xl border px-3 py-2.5 mt-3" style={{ borderColor: '#22d3ee55', background: '#22d3ee0d' }}>
+          <div className="text-xs font-bold text-[var(--color-fg)] mb-1">
+            ✺ Lv {MAX_LEVEL} e MAXIMUL. Capătul drumului.
+          </div>
+          <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed">
+            <strong className="num text-[var(--color-fg)]">{XP_FOR_MAX_LEVEL} XP</strong> — calibrat pe ritmul vostru real de somn ca să fie
+            <strong className="text-[var(--color-fg)]"> aproximativ doi ani</strong> de logat constant. Nu e o cursă de sprint și nu e nici imposibil.
+            Cine ajunge acolo e <strong style={{ color: '#22d3ee' }}>Zeu al Somnului</strong> și n-are ce demonstra nimănui.
+          </p>
+        </div>
       </Card>
 
       {/* Momentum */}

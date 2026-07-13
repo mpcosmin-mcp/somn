@@ -24,43 +24,63 @@ import {
  *   totalFor(L)   = Σ cost(1..L−1)
  */
 export const LEVEL_BASE = 100;
-export const LEVEL_STEP = 25;
+
+/**
+ * MAX_LEVEL = 46. The ceiling, and the end of the ladder — an inside joke.
+ *
+ * LEVEL_STEP is calibrated, not guessed: resampling each player's OWN real
+ * sleep distribution over 730 days puts them at 16.5k–25k XP after two years.
+ * A step of 16 prices Lv 46 at 20,340 XP, so the two consistent loggers top out
+ * right around the two-year mark and the third arrives a few months later.
+ * Reaching the cap should take being good, not merely showing up.
+ */
+export const LEVEL_STEP = 16;
+export const MAX_LEVEL = 46;
 
 /** Cumulative XP required to BE at `level`. Level 1 starts at 0. */
 export function xpForLevel(level: number): number {
-  const n = Math.max(1, Math.floor(level)) - 1;
+  const n = Math.min(MAX_LEVEL, Math.max(1, Math.floor(level))) - 1;
   return LEVEL_BASE * n + (LEVEL_STEP * n * (n - 1)) / 2;
 }
 
-/** XP cost of the single step `level` → `level + 1`. */
+/** XP cost of the single step `level` → `level + 1`. 0 at the cap. */
 export function xpToNextLevel(level: number): number {
+  if (level >= MAX_LEVEL) return 0;
   return LEVEL_BASE + LEVEL_STEP * (Math.max(1, level) - 1);
 }
 
+/** XP needed to reach the cap — the finish line. */
+export const XP_FOR_MAX_LEVEL = xpForLevel(MAX_LEVEL);
+
 export function xpLevel(xp: number): number {
   if (xp <= 0) return 1;
+  if (xp >= XP_FOR_MAX_LEVEL) return MAX_LEVEL;
   // Invert totalFor(L) ≤ xp analytically, then correct for float drift.
   const a = LEVEL_STEP / 2;
   const b = LEVEL_BASE - LEVEL_STEP / 2;
   let n = Math.floor((-b + Math.sqrt(b * b + 4 * a * xp)) / (2 * a));
   while (xpForLevel(n + 2) <= xp) n++;
   while (n > 0 && xpForLevel(n + 1) > xp) n--;
-  return n + 1;
+  return Math.min(MAX_LEVEL, n + 1);
 }
 
 export interface LevelProgress {
   level: number;
   into: number;   // XP earned inside the current level
-  need: number;   // XP the current level costs in total
+  need: number;   // XP the current level costs in total (0 at the cap)
   pct: number;    // 0–100
+  maxed: boolean;
 }
 
 /** Everything the UI needs to draw an XP bar. */
 export function levelProgress(xp: number): LevelProgress {
   const level = xpLevel(xp);
+  if (level >= MAX_LEVEL) {
+    return { level: MAX_LEVEL, into: 0, need: 0, pct: 100, maxed: true };
+  }
   const need = xpToNextLevel(level);
   const into = Math.max(0, xp - xpForLevel(level));
-  return { level, into, need, pct: need ? Math.min(100, (into / need) * 100) : 0 };
+  return { level, into, need, pct: need ? Math.min(100, (into / need) * 100) : 0, maxed: false };
 }
 
 /* ─── Streaks ───
@@ -633,15 +653,15 @@ export interface Tier {
 
 export const TIERS: Tier[] = [
   { name: 'Somnoros',           color: '#a1a1aa', icon: '·', minLevel: 1,  blurb: 'Ai deschis aplicația. E un început.' },
-  { name: 'Visător',            color: '#94a3b8', icon: '˚', minLevel: 5,  blurb: 'Loghezi constant. Datele încep să spună ceva.' },
-  { name: 'Somnambul',          color: '#60a5fa', icon: '◆', minLevel: 10, blurb: 'Ai un obicei, nu un experiment.' },
-  { name: 'Ursulețul de Pat',   color: '#a78bfa', icon: '◇', minLevel: 15, blurb: 'Nopțile bune nu mai sunt accident.' },
-  { name: 'Guru de Pernă',      color: '#c084fc', icon: '★', minLevel: 20, blurb: 'Îți știi tiparele mai bine decât ceasul.' },
-  { name: 'Maestru al Nopții',  color: '#a3e635', icon: '☾', minLevel: 26, blurb: 'Orar de fier. Scoruri pe măsură.' },
-  { name: 'Sensei REM',         color: '#facc15', icon: '❈', minLevel: 32, blurb: 'Somnul tău e o disciplină, nu o întâmplare.' },
-  { name: 'Legendă a Somnului', color: '#fb923c', icon: '✦', minLevel: 38, blurb: 'Ani de consistență. Se vede.' },
-  { name: 'Semizeu Hipnos',     color: '#f472b6', icon: '❋', minLevel: 44, blurb: 'Aproape nimeni nu ajunge aici.' },
-  { name: 'Zeu al Somnului',    color: '#22d3ee', icon: '✺', minLevel: 50, blurb: 'Vârful. Nu mai ai ce demonstra nimănui.' },
+  { name: 'Visător',            color: '#94a3b8', icon: '˚', minLevel: 4,  blurb: 'Loghezi constant. Datele încep să spună ceva.' },
+  { name: 'Somnambul',          color: '#60a5fa', icon: '◆', minLevel: 8,  blurb: 'Ai un obicei, nu un experiment.' },
+  { name: 'Ursulețul de Pat',   color: '#a78bfa', icon: '◇', minLevel: 12, blurb: 'Nopțile bune nu mai sunt accident.' },
+  { name: 'Guru de Pernă',      color: '#c084fc', icon: '★', minLevel: 16, blurb: 'Îți știi tiparele mai bine decât ceasul.' },
+  { name: 'Maestru al Nopții',  color: '#a3e635', icon: '☾', minLevel: 21, blurb: 'Orar de fier. Scoruri pe măsură.' },
+  { name: 'Sensei REM',         color: '#facc15', icon: '❈', minLevel: 26, blurb: 'Somnul tău e o disciplină, nu o întâmplare.' },
+  { name: 'Legendă a Somnului', color: '#fb923c', icon: '✦', minLevel: 32, blurb: 'Ani de consistență. Se vede.' },
+  { name: 'Semizeu Hipnos',     color: '#f472b6', icon: '❋', minLevel: 39, blurb: 'Aproape nimeni nu ajunge aici.' },
+  { name: 'Zeu al Somnului',    color: '#22d3ee', icon: '✺', minLevel: MAX_LEVEL, blurb: 'Nivelul 46. Capătul drumului. Nu mai ai ce demonstra nimănui.' },
 ];
 
 export function tierFor(level: number): Tier {
