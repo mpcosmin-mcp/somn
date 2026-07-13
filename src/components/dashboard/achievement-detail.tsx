@@ -73,7 +73,7 @@ export function AchievementDetailModal({ progress, name, onClose }: {
                     </span>
                     <span className="num text-[11px] text-[var(--color-fg-muted)]">{t.threshold}+</span>
                     <span className="num text-[11px] font-bold ml-auto shrink-0" style={{ color: reached ? '#a3e635' : 'var(--color-fg-dim)' }}>
-                      {reached ? `+${t.xp} XP ✓` : `+${t.xp} XP`}
+                      +{Math.round(t.pct * 100)}% XP{reached ? ' ✓' : ''}
                     </span>
                   </div>
                 );
@@ -89,7 +89,9 @@ export function AchievementDetailModal({ progress, name, onClose }: {
                   Încă <strong className="num text-[var(--color-fg)]">{progress.nextTier.threshold - progress.count}</strong> până la{' '}
                   <strong style={{ color: progress.nextTier.color }}>{progress.nextTier.label}</strong>
                 </span>
-                <span className="num text-[11px] font-bold" style={{ color: progress.nextTier.color }}>+{progress.nextTier.xp} XP</span>
+                <span className="num text-[11px] font-bold" style={{ color: progress.nextTier.color }}>
+                  {progress.pct > 0 ? `+${Math.round(progress.nextTier.pct * 100)}%` : `+${Math.round(progress.nextTier.pct * 100)}% XP`}
+                </span>
               </div>
               <div className="h-1.5 rounded-full bg-[var(--color-surface)] overflow-hidden">
                 <div
@@ -107,9 +109,15 @@ export function AchievementDetailModal({ progress, name, onClose }: {
             </div>
           )}
 
-          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[var(--color-border)]">
-            <span className="text-[var(--color-fg-muted)]">XP câștigat din acest badge</span>
-            <span className="num font-bold" style={{ color: '#a3e635' }}>+{progress.xpEarned} XP</span>
+          <div className="rounded-lg border border-[#a3e635]/30 bg-[#a3e635]/5 px-3 py-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-[var(--color-fg-muted)]">Ce îți dă badge-ul ăsta ACUM</span>
+              <span className="num font-bold" style={{ color: '#a3e635' }}>+{Math.round(progress.pct * 100)}% XP</span>
+            </div>
+            <p className="text-[10px] text-[var(--color-fg-dim)] mt-1 leading-snug">
+              Nu e un bonus unic — e un <strong>procent permanent</strong> adăugat la XP-ul fiecărei nopți pe care o loghezi, pentru totdeauna.
+              Contează doar tier-ul cel mai înalt (Aur nu se adună peste Bronz). Toate badge-urile la un loc formează <strong>Măiestria</strong> ta.
+            </p>
           </div>
         </div>
       )}

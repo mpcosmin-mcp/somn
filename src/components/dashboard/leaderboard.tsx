@@ -148,7 +148,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         if (durBest?.name === n && (allDur.get(n) ?? 0) > 0) badges.push({ emoji: '😴', label: 'cel mai mult somn' });
         if (remBest?.name === n && (aAll.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
         if (rhrBest?.name === n && aAll.rhr > 0) badges.push({ emoji: '🫀', label: 'cel mai bun RHR (vs. baseline)' });
-        if (hrvBest?.name === n && (aAll.hrv ?? 0) > 0) badges.push({ emoji: '⚡', label: 'high HRV' });
+        if (hrvBest?.name === n && (aAll.hrv ?? 0) > 0) badges.push({ emoji: '💓', label: 'high HRV' });
       }
       if (streakBest?.name === n && recordStreak >= 3) badges.push({ emoji: '🔥', label: `record ${recordStreak}z` });
 
@@ -158,7 +158,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         if (pSsBest?.name === n) periodBadges.push({ emoji: '👑', label: 'cel mai bun SS' });
         if (pRemBest?.name === n && (a.rem ?? 0) > 0) periodBadges.push({ emoji: '🌙', label: 'cel mai mult REM' });
         if (pRhrBest?.name === n && a.rhr > 0) periodBadges.push({ emoji: '🫀', label: 'cel mai bun RHR' });
-        if (pHrvBest?.name === n && (a.hrv ?? 0) > 0) periodBadges.push({ emoji: '⚡', label: 'cel mai mare HRV' });
+        if (pHrvBest?.name === n && (a.hrv ?? 0) > 0) periodBadges.push({ emoji: '💓', label: 'cel mai mare HRV' });
         if (pDurBest?.name === n && (perDur.get(n) ?? 0) > 0) periodBadges.push({ emoji: '😴', label: 'cel mai mult somn' });
         if (pLogBest?.name === n) periodBadges.push({ emoji: '📝', label: 'cele mai multe loguri' });
       }

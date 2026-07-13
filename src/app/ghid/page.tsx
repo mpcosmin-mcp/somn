@@ -8,7 +8,7 @@ import { FIRST_NAME } from '@/lib/sleep';
 import {
   xpBreakdown, levelProgress, tierFor, godMode, achievementHint,
   ACHIEVEMENTS, TIERS, GOD_WINDOW_DAYS, GOD_TRIGGER_SS, STREAK_MILESTONES,
-  xpForLevel, xpToNextLevel,
+  TIER_PCT, MASTERY_MAX, masteryFor, xpForLevel, xpToNextLevel,
 } from '@/lib/gamify';
 import { MOMENTUM_WINDOW, MOMENTUM_CEILING } from '@/lib/momentum';
 import { Card } from '@/components/ui/card';
@@ -52,6 +52,10 @@ export default function GhidPage() {
           <div className="h-1.5 mt-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--color-accent)' }} />
           </div>
+          <div className="flex items-center justify-between mt-2 text-[11px]">
+            <span className="text-[var(--color-fg-muted)]">Măiestrie (din badge-uri)</span>
+            <span className="num font-bold" style={{ color: '#a3e635' }}>+{Math.round(masteryFor(entries, user) * 100)}% la fiecare noapte</span>
+          </div>
           {god.active && (
             <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 god-aura">
               <Zap size={16} className="shrink-0" style={{ color: '#fbbf24' }} />
@@ -61,6 +65,30 @@ export default function GhidPage() {
           )}
         </Card>
       )}
+
+      {/* Ascension — the headline reward */}
+      <Card className="p-4" style={{ borderColor: '#f472b655', background: '#f472b60a' }}>
+        <SectionTitle icon="💯" title="Ascensiune — o noapte perfectă = un nivel" />
+        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
+          Un <strong className="text-[var(--color-fg)]">Sleep Score de 100</strong> îți dă <strong style={{ color: '#f472b6' }}>UN NIVEL ÎNTREG, garantat</strong> —
+          indiferent la ce nivel ești. Nu primești o sumă fixă de XP, ci <strong className="text-[var(--color-fg)]">exact cât costă nivelul tău curent</strong>,
+          deci treci pragul oriunde te-ai afla în interiorul lui.
+        </p>
+        <div className="grid grid-cols-3 gap-1.5 mt-3">
+          {[5, 20, 50].map(l => (
+            <div key={l} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-center">
+              <div className="text-[9px] text-[var(--color-fg-dim)]">la Lv {l}</div>
+              <div className="num font-bold text-xs" style={{ color: '#f472b6' }}>+{xpToNextLevel(l)} XP</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
+          De ce nu o sumă fixă: 1000 XP ar însemna <strong>cinci nivele</strong> la Lv 5 și <strong>nici măcar unul</strong> la Lv 50 — exact loteria pe care
+          am eliminat-o. Legând premiul de costul nivelului, recompensa crește odată cu tine și nu se devalorizează niciodată.
+          Promisiunea rămâne simplă: <strong className="text-[var(--color-fg)]">un 100 e un nivel. Întotdeauna.</strong>
+          {' '}(Și fiind ≥ 95, îți pornește și God Mode.)
+        </p>
+      </Card>
 
       {/* God Mode explainer */}
       <Card className="p-4">
@@ -72,6 +100,7 @@ export default function GhidPage() {
         </p>
         <p className="text-[10px] text-[var(--color-fg-dim)] mt-2 leading-snug">
           Pragul era <strong>100</strong> — un scor pe care ceasurile echipei nu l-au produs niciodată, deci mecanica era literalmente moartă. Acum e rar, dar posibil.
+          Suta rămâne specială: e <strong>Ascensiune</strong> (vezi mai sus).
         </p>
       </Card>
 
@@ -83,8 +112,8 @@ export default function GhidPage() {
         </p>
         <ul className="text-xs text-[var(--color-fg-muted)] space-y-1.5">
           <Rule>Loghezi o noapte <Xp v="+10" /></Rule>
-          <Rule>💯 Sleep Score = 100 (perfect) <Xp v="+300" c="#fbbf24" /></Rule>
-          <Rule>⚡ Sleep Score 95–99 (God Mode) <Xp v="+150" c="#fbbf24" /></Rule>
+          <Rule>💯 Sleep Score = 100 <Xp v="UN NIVEL ÎNTREG" c="#f472b6" /></Rule>
+          <Rule>⚡ Sleep Score 95+ (God Mode) <Xp v="+150" c="#fbbf24" /></Rule>
           <Rule>👑 Sleep Score 90–94 <Xp v="+60" c="var(--color-good)" /></Rule>
           <Rule>🌟 Sleep Score 85–89 <Xp v="+25" c="var(--color-good)" /></Rule>
           <Rule>✨ Sleep Score 80–84 <Xp v="+10" c="var(--color-accent)" /></Rule>
@@ -93,7 +122,7 @@ export default function GhidPage() {
             🔥 Streak {STREAK_MILESTONES.map(m => `${m.days}z`).join(' / ')}
             <Xp v={STREAK_MILESTONES.map(m => `+${m.bonus}`).join(' · ')} c="#f59e0b" />
           </Rule>
-          <Rule>🏅 Fiecare tier de realizare <Xp v="+25 · +50 · +100 · +200" c="#a3e635" /></Rule>
+          <Rule>🏅 Măiestrie (badge-uri) <Xp v="+5% … +20% PERMANENT" c="#a3e635" /></Rule>
           <Rule>⚡ God Mode (fereastră de {GOD_WINDOW_DAYS}z) <Xp v="+20% la tot" c="#fbbf24" /></Rule>
         </ul>
       </Card>
@@ -140,8 +169,27 @@ export default function GhidPage() {
       {/* Achievement categories */}
       <Card className="p-4">
         <SectionTitle icon="🏅" title="Realizări (cumulative, personale)" />
+        <div className="rounded-xl border px-3 py-2.5 mb-3" style={{ borderColor: '#a3e63555', background: '#a3e6350d' }}>
+          <div className="text-xs font-bold text-[var(--color-fg)] mb-1">Badge-urile nu-ți dau XP. Îți dau un PROCENT permanent.</div>
+          <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed">
+            Fiecare badge îți adaugă un boost <strong className="text-[var(--color-fg)]">permanent</strong> la XP-ul <strong className="text-[var(--color-fg)]">fiecărei nopți</strong> pe care o loghezi:
+            {' '}<strong style={{ color: '#b45309' }}>Bronz +{Math.round(TIER_PCT.bronze * 100)}%</strong> ·{' '}
+            <strong style={{ color: '#94a3b8' }}>Argint +{Math.round(TIER_PCT.silver * 100)}%</strong> ·{' '}
+            <strong style={{ color: '#eab308' }}>Aur +{Math.round(TIER_PCT.gold * 100)}%</strong> ·{' '}
+            <strong style={{ color: '#22d3ee' }}>Platină +{Math.round(TIER_PCT.platinum * 100)}%</strong>.
+            Contează doar tier-ul cel mai înalt de pe fiecare badge (Aur nu se adună peste Bronz).
+          </p>
+          <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed mt-1.5">
+            Toate la un loc formează <strong className="text-[var(--color-fg)]">Măiestria</strong> ta — maximum <strong className="num text-[var(--color-fg)]">+{Math.round(MASTERY_MAX * 100)}%</strong> dacă
+            duci toate cele {ACHIEVEMENTS.length} badge-uri la Platină. Cine e cu adevărat bun câștigă mai mult din <em>fiecare</em> noapte.
+          </p>
+          <p className="text-[10px] text-[var(--color-fg-dim)] mt-1.5 leading-snug">
+            De ce nu XP fix: un bonus unic e o <strong>rezervă finită</strong> — o consumi și ritmul tău scade degeaba, deși dormi la fel de bine.
+            Ca procent, badge-urile nu se termină niciodată și se compun cu tot restul. Sunt un <strong>motor</strong>, nu o grămadă.
+          </p>
+        </div>
         <p className="text-[11px] text-[var(--color-fg-dim)] mb-3 leading-snug">
-          Fiecare se numără o dată pentru fiecare noapte care se califică. Praguri: Bronz → Argint → Aur → Platină. Nimeni nu ți le poate „fura" — sunt ale tale.
+          Fiecare se numără o dată pentru fiecare noapte care se califică. Nimeni nu ți le poate „fura" — sunt ale tale.
         </p>
         <div className="flex flex-col gap-2">
           {ACHIEVEMENTS.map(a => (

@@ -15,15 +15,28 @@ export function PlayerAchievements({ entries, name }: { entries: SleepEntry[]; n
   const progress = computeAchievements(entries, name);
   const [open, setOpen] = useState<AchievementProgress | null>(null);
   const totalTiers = progress.reduce((s, p) => s + p.tiersReached, 0);
-  const totalXP = progress.reduce((s, p) => s + p.xpEarned, 0);
+  const mastery = progress.reduce((s, p) => s + p.pct, 0);
 
   return (
     <section>
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-baseline justify-between mb-1">
         <div className="label">Realizări <span className="text-[var(--color-fg-dim)] normal-case tracking-normal font-normal">· apasă pentru detalii</span></div>
         <div className="text-[10px] num text-[var(--color-fg-muted)]">
-          <span className="font-bold text-[var(--color-fg)]">{totalTiers}</span> tieruri · <span className="num font-bold" style={{ color: '#a3e635' }}>+{totalXP} XP</span>
+          <span className="font-bold text-[var(--color-fg)]">{totalTiers}</span> tieruri
         </div>
+      </div>
+
+      {/* Mastery — the whole point of badges now. Not a pile of XP: a permanent
+          percentage on every night, forever. */}
+      <div
+        className="rounded-lg border px-2.5 py-1.5 mb-2 flex items-center gap-2"
+        style={{ borderColor: '#a3e63555', background: '#a3e6350d' }}
+      >
+        <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--color-fg-muted)]">Măiestrie</span>
+        <span className="num font-bold text-sm" style={{ color: '#a3e635' }}>+{Math.round(mastery * 100)}%</span>
+        <span className="text-[9px] text-[var(--color-fg-dim)] ml-auto text-right leading-tight">
+          la XP-ul fiecărei nopți · permanent
+        </span>
       </div>
 
       {/* 12 badges in a 4-up grid = exactly 3 rows, so the whole set clears the
@@ -55,7 +68,7 @@ function AchievementCard({ p, name, onOpen }: { p: AchievementProgress; name: st
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`${a.name} — ${achievementHint(a, name)}. ${tier ? tier.label : 'neînceput'}, ${p.count} nopți.`}
+      aria-label={`${a.name} — ${achievementHint(a, name)}. ${tier ? `${tier.label}, +${Math.round(tier.pct * 100)}% XP permanent` : 'neînceput'}, ${p.count} nopți.`}
       className="rounded-lg border px-1.5 py-1.5 flex flex-col gap-1 text-left transition-all hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
       style={{
         borderColor: locked ? 'var(--color-border)' : tint + '55',
@@ -85,7 +98,7 @@ function AchievementCard({ p, name, onOpen }: { p: AchievementProgress; name: st
 
       <div className="flex items-center justify-between text-[8px] gap-0.5">
         {tier ? (
-          <span className="font-bold truncate" style={{ color: tint }}>{tier.label}</span>
+          <span className="num font-bold shrink-0" style={{ color: tint }}>+{Math.round(tier.pct * 100)}%</span>
         ) : (
           <span className="text-[var(--color-fg-dim)] italic truncate">—</span>
         )}
