@@ -248,14 +248,20 @@ export function hhmmToMin(t?: string | null): number | null {
   return h * 60 + mm;
 }
 
+/** Longest sleep we treat as real. Anything above is a typo, not a night —
+ *  most often `start == end`, which the midnight-wrap below turns into 1440
+ *  minutes and which used to hand out the "Somn Lung" badge for free. */
+export const MAX_PLAUSIBLE_SLEEP_MIN = 16 * 60;
+
 /** Minutes slept from bedtime→wake. Adds a day when the clock wraps past
- *  midnight (e.g. 22:36 → 07:25 = 529 min). null if either time is missing. */
+ *  midnight (e.g. 22:36 → 07:25 = 529 min). null if either time is missing
+ *  or the result is implausible (> 16h). */
 export function sleepDurationMin(start?: string | null, end?: string | null): number | null {
   const s = hhmmToMin(start), e = hhmmToMin(end);
   if (s == null || e == null) return null;
   let d = e - s;
   if (d <= 0) d += 24 * 60;
-  return d;
+  return d > MAX_PLAUSIBLE_SLEEP_MIN ? null : d;
 }
 
 /** "8h 49m" / "7h" / "40m" / "—". Rounds, so fractional inputs (chart ticks) stay clean. */

@@ -40,6 +40,26 @@ function parseNum(v: Cell): number | null {
   return isNaN(n) ? null : n;
 }
 
+/**
+ * Physiological sanity bounds. The Sheet is hand-edited, so a fat-fingered
+ * "999" used to sail straight through into the XP engine and cash the top
+ * score band. Out-of-range values are dropped (null), not clamped to the
+ * nearest bound — a clamp would silently invent a plausible-looking number.
+ */
+const RANGES = {
+  ss:  [0, 100],
+  rhr: [25, 150],
+  hrv: [1, 300],
+  rem: [0, 600],
+} as const;
+
+function parseInRange(v: Cell, key: keyof typeof RANGES): number | null {
+  const n = parseNum(v);
+  if (n == null) return null;
+  const [lo, hi] = RANGES[key];
+  return n >= lo && n <= hi ? n : null;
+}
+
 function parseStr(v: Cell): string | null {
   if (v == null) return null;
   const s = String(v).trim();
@@ -141,10 +161,10 @@ export async function GET(req: NextRequest) {
       .filter(r => !String(r.name ?? '').startsWith(DUEL_ROW_MARKER))
       .map(r => {
         // REM: try rem → score: rem → journal (if it's numeric, REM was misplaced)
-        let rem: number | null = parseNum(pickFirst(r, ['rem', 'score: rem']));
+        let rem: number | null = parseInRange(pickFirst(r, ['rem', 'score: rem']), 'rem');
         const journalCandidate = pickFirst(r, ['journal']);
         if (rem == null && journalCandidate != null && /^\d+(\.\d+)?$/.test(String(journalCandidate))) {
-          rem = parseNum(journalCandidate);
+          rem = parseInRange(journalCandidate, 'rem');
         }
         // Journal: try journal (only if not numeric) → '' → '_' → any string column past index 5
         let journal: string | null = null;
@@ -155,9 +175,9 @@ export async function GET(req: NextRequest) {
         return {
           date: normalizeDate(r.date),
           name: String(r.name ?? '').trim(),
-          ss: parseNum(r.sleep_score) ?? 0,
-          rhr: parseNum(r.rhr) ?? 0,
-          hrv: parseNum(r.hrv),
+          ss: parseInRange(r.sleep_score, 'ss') ?? 0,
+          rhr: parseInRange(r.rhr, 'rhr') ?? 0,
+          hrv: parseInRange(r.hrv, 'hrv'),
           rem,
           journal,
           start: parseTime(r.start),
@@ -206,6 +226,19 @@ export async function POST(req: NextRequest) {
     const { date, name, ss, rhr, hrv, rem, journal, start, end } = body as Partial<SleepEntry>;
     if (!date || !name || ss == null || rhr == null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    // Reject out-of-range values at the door rather than storing them and
+    // filtering on read — a bad row in the Sheet is a bad row forever.
+    const offender = ([
+      ['ss', ss], ['rhr', rhr], ['hrv', hrv], ['rem', rem],
+    ] as [keyof typeof RANGES, number | null | undefined][])
+      .find(([k, v]) => v != null && parseInRange(v, k) == null);
+    if (offender) {
+      const [k, v] = offender;
+      return NextResponse.json(
+        { error: `${k}=${v} în afara intervalului permis (${RANGES[k][0]}–${RANGES[k][1]})` },
+        { status: 400 },
+      );
     }
     const params = new URLSearchParams({
       action: 'write',
