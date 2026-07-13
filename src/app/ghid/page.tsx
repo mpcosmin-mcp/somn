@@ -6,8 +6,9 @@ import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { FIRST_NAME } from '@/lib/sleep';
 import {
-  xpBreakdown, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, godMode,
-  ACHIEVEMENTS, TIERS, GOD_WINDOW_DAYS,
+  xpBreakdown, levelProgress, tierFor, godMode, achievementHint,
+  ACHIEVEMENTS, TIERS, GOD_WINDOW_DAYS, GOD_TRIGGER_SS, STREAK_MILESTONES,
+  xpForLevel, xpToNextLevel,
 } from '@/lib/gamify';
 import { Card } from '@/components/ui/card';
 
@@ -21,8 +22,7 @@ export default function GhidPage() {
   const { entries } = useEntries();
 
   const bd = user ? xpBreakdown(entries, user) : null;
-  const level = bd ? xpLevel(bd.total) : 1;
-  const prog = bd ? xpProgress(bd.total) : 0;
+  const { level, into, need, pct } = levelProgress(bd?.total ?? 0);
   const tier = tierFor(level);
   const god = user ? godMode(entries, user) : { active: false, daysLeft: 0 };
 
@@ -46,10 +46,10 @@ export default function GhidPage() {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="num font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>{bd.total}</span>
-            <span className="text-xs text-[var(--color-fg-muted)]">XP · {prog}/{XP_PER_LEVEL} până la Lv {level + 1}</span>
+            <span className="text-xs text-[var(--color-fg-muted)]">XP · {into}/{need} până la Lv {level + 1}</span>
           </div>
           <div className="h-1.5 mt-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${prog}%`, background: 'var(--color-accent)' }} />
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--color-accent)' }} />
           </div>
           {god.active && (
             <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 god-aura">
@@ -65,27 +65,47 @@ export default function GhidPage() {
       <Card className="p-4">
         <SectionTitle icon="⚡" title="God Mode" />
         <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
-          O noapte cu <strong className="text-[var(--color-fg)]">Sleep Score = 100</strong> (perfectă) îți pornește <span className="god-text font-bold">God Mode</span> pentru
+          O noapte cu <strong className="text-[var(--color-fg)]">Sleep Score ≥ {GOD_TRIGGER_SS}</strong> îți pornește <span className="god-text font-bold">God Mode</span> pentru
           următoarele <strong className="text-[var(--color-fg)]">{GOD_WINDOW_DAYS} zile</strong>: tot XP-ul câștigat în acea fereastră primește un
-          <strong className="text-[var(--color-fg)]"> boost de +20%</strong>. O nouă noapte de 100 reîmprospătează fereastra.
-          Noaptea de 100 în sine îți dă deja <strong className="text-[var(--color-fg)]">+500 XP</strong> direct.
+          <strong className="text-[var(--color-fg)]"> boost de +20%</strong>. O nouă noapte de {GOD_TRIGGER_SS}+ reîmprospătează fereastra (ferestrele nu se cumulează).
+        </p>
+        <p className="text-[10px] text-[var(--color-fg-dim)] mt-2 leading-snug">
+          Pragul era <strong>100</strong> — un scor pe care ceasurile echipei nu l-au produs niciodată, deci mecanica era literalmente moartă. Acum e rar, dar posibil.
         </p>
       </Card>
 
       {/* XP rules */}
       <Card className="p-4">
         <SectionTitle icon="✨" title="Cum câștigi XP" />
+        <p className="text-[10px] text-[var(--color-fg-dim)] mb-2 leading-snug">
+          Benzile de scor sunt <strong>exclusive</strong> — o noapte intră într-o singură bandă, cea mai mare pe care o atinge.
+        </p>
         <ul className="text-xs text-[var(--color-fg-muted)] space-y-1.5">
           <Rule>Loghezi o noapte <Xp v="+10" /></Rule>
-          <Rule>Sleep Score = 100 (perfect) <Xp v="+500" c="#fbbf24" /></Rule>
-          <Rule>Sleep Score ≥ 95 <Xp v="+200" c="#fbbf24" /></Rule>
-          <Rule>Sleep Score ≥ 90 <Xp v="+10" c="var(--color-good)" /></Rule>
-          <Rule>Sleep Score ≥ 80 <Xp v="+5" c="var(--color-accent)" /></Rule>
+          <Rule>💯 Sleep Score = 100 (perfect) <Xp v="+300" c="#fbbf24" /></Rule>
+          <Rule>⚡ Sleep Score 95–99 (God Mode) <Xp v="+150" c="#fbbf24" /></Rule>
+          <Rule>👑 Sleep Score 90–94 <Xp v="+60" c="var(--color-good)" /></Rule>
+          <Rule>🌟 Sleep Score 85–89 <Xp v="+25" c="var(--color-good)" /></Rule>
+          <Rule>✨ Sleep Score 80–84 <Xp v="+10" c="var(--color-accent)" /></Rule>
           <Rule>🌙 Culcare înainte de 23:00 <Xp v="+5" c="var(--color-good)" /></Rule>
-          <Rule>🔥 Streak 7z / 14z / 30z <Xp v="+50 · +100 · +200" c="#f59e0b" /></Rule>
+          <Rule>
+            🔥 Streak {STREAK_MILESTONES.map(m => `${m.days}z`).join(' / ')}
+            <Xp v={STREAK_MILESTONES.map(m => `+${m.bonus}`).join(' · ')} c="#f59e0b" />
+          </Rule>
           <Rule>🏅 Fiecare tier de realizare <Xp v="+25 · +50 · +100 · +200" c="#a3e635" /></Rule>
           <Rule>⚡ God Mode (fereastră de {GOD_WINDOW_DAYS}z) <Xp v="+20% la tot" c="#fbbf24" /></Rule>
         </ul>
+      </Card>
+
+      {/* Levels */}
+      <Card className="p-4">
+        <SectionTitle icon="📈" title="Cum funcționează nivelele" />
+        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
+          Fiecare nivel costă mai mult decât cel dinainte: <strong className="text-[var(--color-fg)]">Lv 1 → 2</strong> cere {xpToNextLevel(1)} XP,{' '}
+          <strong className="text-[var(--color-fg)]">Lv 20 → 21</strong> cere {xpToNextLevel(20)} XP. Un vârf de formă de o săptămână nu te mai catapultează
+          în capul clasamentului — palierele înalte cer ani de consistență.
+          {bd && <> Tu ești la <strong className="text-[var(--color-fg)]">Lv {level}</strong>, iar următorul nivel costă <strong className="text-[var(--color-fg)]">{need} XP</strong>.</>}
+        </p>
       </Card>
 
       {/* Achievement categories */}
@@ -100,7 +120,7 @@ export default function GhidPage() {
               <span className="text-lg shrink-0" aria-hidden>{a.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-[var(--color-fg)]">{a.name}</div>
-                <div className="text-[10px] text-[var(--color-fg-muted)]">{a.hint}</div>
+                <div className="text-[10px] text-[var(--color-fg-muted)]">{user ? achievementHint(a, user) : a.hint}</div>
               </div>
               <div className="num text-[10px] text-[var(--color-fg-dim)] shrink-0 text-right">
                 {a.tiers.map(t => t.threshold).join(' · ')}
@@ -108,6 +128,9 @@ export default function GhidPage() {
             </div>
           ))}
         </div>
+        <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
+          🫀 <strong>Puls Odihnit</strong> are pragul calibrat pe sex (&lt; 55 bpm bărbați, &lt; 60 femei) — la aceeași condiție fizică, același badge. Apasă orice badge din profil pentru explicația completă.
+        </p>
       </Card>
 
       {/* Metric targets */}
@@ -135,7 +158,7 @@ export default function GhidPage() {
               <span className="text-sm shrink-0" style={{ color: t.color }}>{t.icon}</span>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-bold truncate" style={{ color: t.color }}>{t.name}</div>
-                <div className="text-[9px] num text-[var(--color-fg-dim)] leading-none">Lv {t.minLevel}+</div>
+                <div className="text-[9px] num text-[var(--color-fg-dim)] leading-none">Lv {t.minLevel}+ · {xpForLevel(t.minLevel)} XP</div>
               </div>
             </div>
           ))}

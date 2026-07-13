@@ -20,6 +20,7 @@ export function ChatBubble({ message, isMine, showAvatar, onReact, onDelete, cur
   currentUser: string;
 }) {
   const [showPicker, setShowPicker] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const c = personColor(message.from);
   const fn = FIRST_NAME[message.from] ?? message.from.split(' ')[0];
   const reactions = message.reactions ?? {};
@@ -55,7 +56,7 @@ export function ChatBubble({ message, isMine, showAvatar, onReact, onDelete, cur
             </button>
             {isMine && (
               <button
-                onClick={() => onDelete(message.id)}
+                onClick={() => setConfirmDelete(true)}
                 className="text-[var(--color-fg-muted)] hover:text-[var(--color-bad)] transition-colors p-0.5"
                 aria-label="Șterge mesaj"
               >
@@ -64,6 +65,24 @@ export function ChatBubble({ message, isMine, showAvatar, onReact, onDelete, cur
             )}
           </div>
         </div>
+
+        {confirmDelete && (
+          <div className={`mt-1 flex items-center gap-1.5 rounded-lg border border-[var(--color-bad)]/40 bg-[var(--color-bad)]/10 px-2 py-1 ${isMine ? 'flex-row-reverse' : ''}`}>
+            <span className="text-[10px] text-[var(--color-fg-muted)]">Ștergi mesajul?</span>
+            <button
+              onClick={() => { setConfirmDelete(false); onDelete(message.id); }}
+              className="text-[10px] font-bold text-[var(--color-bad)] hover:underline"
+            >
+              șterge
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg)]"
+            >
+              anulează
+            </button>
+          </div>
+        )}
 
         {showPicker && (
           <>

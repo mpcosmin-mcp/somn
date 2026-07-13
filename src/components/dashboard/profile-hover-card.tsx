@@ -1,6 +1,6 @@
 'use client';
 import { type SleepEntry, type AggEntry, NAMES, FIRST_NAME, personColor, aggregate } from '@/lib/sleep';
-import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor } from '@/lib/gamify';
+import { calcXP, xpLevel, levelProgress, tierFor, streakFor } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 
 /**
@@ -26,7 +26,7 @@ export function ProfileHoverCard({
   const xp = calcXP(entries, name);
   const lvl = xpLevel(xp);
   const tier = tierFor(lvl);
-  const progress = xpProgress(xp);
+  const { into, need, pct } = levelProgress(xp);
   const streak = streakFor(entries, name);
   const best = bestAtFor(entries, name);
   const myEntries = entries.filter((e) => e.name === name);
@@ -61,14 +61,14 @@ export function ProfileHoverCard({
           <div className="flex items-center justify-between text-[10px] mb-1">
             <span className="num font-bold text-[var(--color-accent)]">{xp} XP</span>
             <span className="num text-[var(--color-fg-dim)]">
-              {progress}/{XP_PER_LEVEL}
+              {into}/{need}
             </span>
           </div>
           <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
             <div
               className="h-full transition-all"
               style={{
-                width: `${(progress / XP_PER_LEVEL) * 100}%`,
+                width: `${pct}%`,
                 background: `linear-gradient(90deg, ${c}80, ${c})`,
               }}
             />

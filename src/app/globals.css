@@ -212,7 +212,24 @@ html.light .glass {
   }
 }
 
-/* ── Perfect-night flair — GOD MODE (SS 100) + ELITE (SS ≥95) ── */
+/* ── Loading placeholder — used where showing a real-looking zero would lie
+      (e.g. "Lv 1" on the login cards before the sheet has loaded). ── */
+@keyframes shimmer-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    color-mix(in srgb, var(--color-fg-dim) 22%, var(--color-surface)) 50%,
+    var(--color-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+/* ── Perfect-night flair — GOD MODE (SS ≥95) + ELITE (SS ≥90) ── */
 @keyframes god-shimmer {
   0%   { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }

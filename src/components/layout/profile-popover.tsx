@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { FIRST_NAME, personColor } from '@/lib/sleep';
-import { calcXP, xpLevel, xpProgress, XP_PER_LEVEL, tierFor, streakFor, maxStreakFor } from '@/lib/gamify';
+import { calcXP, xpLevel, levelProgress, tierFor, streakFor, maxStreakFor } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 
 /**
@@ -46,7 +46,7 @@ export function ProfilePopover() {
   const lvl = xpLevel(xp);
   const tier = tierFor(lvl);
   const streak = streakFor(entries, user);
-  const progress = xpProgress(xp);
+  const { into, need, pct } = levelProgress(xp);
 
   // Personal lifetime records — read straight from the user's entries.
   const mine = entries.filter(e => e.name === user);
@@ -111,14 +111,14 @@ export function ProfilePopover() {
               <div
                 className="h-full transition-all duration-500"
                 style={{
-                  width: `${(progress / XP_PER_LEVEL) * 100}%`,
+                  width: `${pct}%`,
                   background: 'linear-gradient(90deg, var(--color-accent-soft), var(--color-accent))',
                 }}
               />
             </div>
             <div className="flex justify-between text-[9px] num text-[var(--color-fg-dim)] mt-1">
               <span>spre Lv {lvl + 1}</span>
-              <span>{progress}/{XP_PER_LEVEL}</span>
+              <span>{into}/{need}</span>
             </div>
           </div>
 

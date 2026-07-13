@@ -149,9 +149,10 @@ export function ChatPanel() {
     } catch { load(); }
   };
 
+  // Deleting is confirmed inline on the bubble itself — a native confirm()
+  // dialog breaks out of the app's visual language and blocks the page.
   const remove = async (id: string) => {
     if (!user) return;
-    if (!confirm('Ștergi mesajul?')) return;
     setMessages(prev => prev.filter(m => m.id !== id));
     try {
       await fetch('/api/chat', {

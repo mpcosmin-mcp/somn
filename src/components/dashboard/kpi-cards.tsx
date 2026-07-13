@@ -64,7 +64,10 @@ export function KpiCards({ entries, user, onMetricClick }: {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      {/* Sleep Score takes the full width on mobile: with five cards in a 2-up
+          grid the last one would otherwise sit alone on a half-empty row. */}
       <KpiCard
+        className="col-span-2 lg:col-span-1"
         label="Sleep Score"
         value={last.ss}
         unit="/100"
@@ -146,8 +149,9 @@ export function KpiCards({ entries, user, onMetricClick }: {
 
 function KpiCard({
   label, value, displayValue, unit, sparkUnit, delta, deltaUnit,
-  higherBetter, target, series, dates, color, accentVar, onClick,
+  higherBetter, target, series, dates, color, accentVar, onClick, className = '',
 }: {
+  className?: string;
   label: string;
   value: number | null;
   /** Override for the headline render — used when the metric isn't a plain
@@ -217,7 +221,7 @@ function KpiCard({
       onClick={onClick}
       type={onClick ? 'button' : undefined}
       aria-label={onClick ? `Vezi detalii ${label}` : undefined}
-      className={`kpi card w-full px-4 lg:px-5 py-4 lg:py-5 flex flex-col text-left ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] active:scale-[0.99] transition-all' : ''}`}
+      className={`kpi card w-full px-4 lg:px-5 py-4 lg:py-5 flex flex-col text-left ${className} ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] active:scale-[0.99] transition-all' : ''}`}
       style={{ ['--kpi-accent' as string]: accentVar }}
     >
       {/* Top row — label + target pill */}

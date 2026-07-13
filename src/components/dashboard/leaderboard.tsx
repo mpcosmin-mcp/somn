@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import {
   type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
-  sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18, personSex,
+  sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18, personSex, rhrCutoffs,
 } from '@/lib/sleep';
 import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
 import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor, godMode } from '@/lib/gamify';
@@ -14,12 +14,14 @@ import { Modal } from '@/components/ui/modal';
 import { PlayerDrawer, PlayerDrawerTitle } from '@/components/dashboard/player-drawer';
 import { EntryReactions } from '@/components/dashboard/entry-reactions';
 
-type Period = 'today' | 'week' | 'month' | 'all';
-const PERIODS: { id: Period; label: string }[] = [
-  { id: 'today', label: 'Azi' },
-  { id: 'week', label: '7 zile' },
-  { id: 'month', label: '30 zile' },
-  { id: 'all', label: 'Total' },
+type Period = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all';
+const PERIODS: { id: Period; label: string; days: number | null }[] = [
+  { id: 'today', label: 'Azi', days: null },
+  { id: 'week', label: '7 zile', days: 7 },
+  { id: 'month', label: '30 zile', days: 30 },
+  { id: 'quarter', label: '3 luni', days: 90 },
+  { id: 'year', label: 'An', days: 365 },
+  { id: 'all', label: 'Total', days: null },
 ];
 
 interface Row {
@@ -35,9 +37,12 @@ interface Row {
   streak: number;
   nights90: number;
   nights80: number;
+  /** Permanent, all-time distinctions — never flip when you switch tabs. */
   badges: { emoji: string; label: string }[];
-  godMode: boolean;   // logged a flawless SS 100 in the period
-  elite: boolean;     // logged a near-perfect SS 95+ (but not 100)
+  /** Crowns for the SELECTED period — the competitive layer, meant to change hands. */
+  periodBadges: { emoji: string; label: string }[];
+  godMode: boolean;   // God night (SS ≥ 95) in the last 7 days
+  elite: boolean;     // SS ≥ 90 in the last 7 days (but no God night)
   hasData: boolean;
 }
 
@@ -46,6 +51,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
   const [openRow, setOpenRow] = useState<Row | null>(null);
 
   const { rows, latestDate, periodLabel, schedule, scopedEntries } = useMemo(() => {
+    const spec = PERIODS.find(p => p.id === period)!;
     let scoped: SleepEntry[];
     let label = '';
     if (period === 'today') {
@@ -53,12 +59,9 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       const last = dates[dates.length - 1] || '';
       scoped = entries.filter(e => e.date === last);
       label = last ? fmtDate(last) : '—';
-    } else if (period === 'week') {
-      scoped = lastNDays(entries, 7);
-      label = 'ultimele 7 zile';
-    } else if (period === 'month') {
-      scoped = lastNDays(entries, 30);
-      label = 'ultimele 30 zile';
+    } else if (spec.days != null) {
+      scoped = lastNDays(entries, spec.days);
+      label = `ultimele ${spec.days} zile`;
     } else {
       scoped = entries;
       label = 'tot istoricul';
@@ -95,10 +98,30 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
     }
     const remBest = bestBy(allAgg, r => r.rem ?? -1);
     const ssBest = bestBy(allAgg, r => r.ss);
-    const rhrBest = bestBy(allAgg, r => -r.rhr);
+    // RHR is compared against each person's own sex baseline, not raw. Women run
+    // ~5 bpm higher at identical fitness, so a raw comparison handed this badge
+    // to a man every single time regardless of who was actually fitter.
+    const rhrBest = bestBy(allAgg, r => (r.rhr > 0 ? rhrCutoffs(personSex(r.name))[1] - r.rhr : -Infinity));
     const hrvBest = bestBy(allAgg, r => r.hrv ?? -1);
     const durBest = bestBy(NAMES.map(n => ({ name: n, val: allDur.get(n) ?? -1 })), r => r.val);
     const streakBest = bestBy(NAMES.map(n => ({ name: n, val: maxStreakFor(entries, n) })), r => r.val);
+
+    // ── Period leaders — the COMPETITIVE layer, recomputed for the selected tab.
+    // Deliberately separate from the permanent all-time distinctions above: those
+    // never move, these are this week's / month's crown and are meant to be taken.
+    const perDur = new Map<string, number>();
+    for (const n of NAMES) {
+      const ds = scoped.filter(e => e.name === n).map(e => sleepDurationMin(e.start, e.end)).filter((d): d is number => d != null);
+      perDur.set(n, ds.length ? ds.reduce((s, v) => s + v, 0) / ds.length : -1);
+    }
+    const pSsBest = bestBy(aggRows, r => r.ss);
+    const pRemBest = bestBy(aggRows, r => r.rem ?? -1);
+    const pHrvBest = bestBy(aggRows, r => r.hrv ?? -1);
+    const pRhrBest = bestBy(aggRows, r => (r.rhr > 0 ? rhrCutoffs(personSex(r.name))[1] - r.rhr : -Infinity));
+    const pDurBest = bestBy(NAMES.map(n => ({ name: n, val: perDur.get(n) ?? -1 })), r => r.val);
+    const pLogBest = bestBy(aggRows, r => r.entries);
+    // With one logger there is no contest — a crown nobody competed for is noise.
+    const contested = aggRows.length >= 2;
 
     const built: Row[] = NAMES.map(n => {
       const a = aggRows.find(x => x.name === n);
@@ -106,13 +129,15 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       const xp = bd.total;
       const lvl = xpLevel(xp);
       const streak = streakFor(entries, n);
-      const nights90 = bd.count90;
-      const nights80 = bd.count80;
-      // God Mode flair follows the real mechanic (SS 100 in the last 7 days),
+      // The XP bands are exclusive; the row chips read "×90+" / "×80+", so show
+      // them cumulatively or the numbers contradict their own label.
+      const nights90 = bd.count100 + bd.count95 + bd.count90;
+      const nights80 = nights90 + bd.count85 + bd.count80;
+      // God Mode flair follows the real mechanic (a God night in the last 7 days),
       // not the selected tab — so it doesn't flip when you switch periods.
       const godActive = godMode(entries, n).active;
       const my7 = lastNDays(entries.filter(e => e.name === n), 7).map(e => e.ss);
-      const elite = !godActive && (my7.length ? Math.max(...my7) : 0) >= 95;
+      const elite = !godActive && (my7.length ? Math.max(...my7) : 0) >= 90;
 
       // Permanent all-time distinctions — independent of the scoped period.
       const aAll = allAgg.find(x => x.name === n);
@@ -122,10 +147,21 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         if (ssBest?.name === n) badges.push({ emoji: '👑', label: 'best SS (total)' });
         if (durBest?.name === n && (allDur.get(n) ?? 0) > 0) badges.push({ emoji: '😴', label: 'cel mai mult somn' });
         if (remBest?.name === n && (aAll.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
-        if (rhrBest?.name === n) badges.push({ emoji: '🫀', label: 'low RHR' });
+        if (rhrBest?.name === n && aAll.rhr > 0) badges.push({ emoji: '🫀', label: 'cel mai bun RHR (vs. baseline)' });
         if (hrvBest?.name === n && (aAll.hrv ?? 0) > 0) badges.push({ emoji: '⚡', label: 'high HRV' });
       }
       if (streakBest?.name === n && recordStreak >= 3) badges.push({ emoji: '🔥', label: `record ${recordStreak}z` });
+
+      // Period crowns — only when there was actually a contest in this window.
+      const periodBadges: Row['badges'] = [];
+      if (a && contested) {
+        if (pSsBest?.name === n) periodBadges.push({ emoji: '👑', label: 'cel mai bun SS' });
+        if (pRemBest?.name === n && (a.rem ?? 0) > 0) periodBadges.push({ emoji: '🌙', label: 'cel mai mult REM' });
+        if (pRhrBest?.name === n && a.rhr > 0) periodBadges.push({ emoji: '🫀', label: 'cel mai bun RHR' });
+        if (pHrvBest?.name === n && (a.hrv ?? 0) > 0) periodBadges.push({ emoji: '⚡', label: 'cel mai mare HRV' });
+        if (pDurBest?.name === n && (perDur.get(n) ?? 0) > 0) periodBadges.push({ emoji: '😴', label: 'cel mai mult somn' });
+        if (pLogBest?.name === n) periodBadges.push({ emoji: '📝', label: 'cele mai multe loguri' });
+      }
 
       return {
         name: n,
@@ -141,6 +177,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         nights90,
         nights80,
         badges,
+        periodBadges,
         godMode: godActive,
         elite,
         hasData: !!a,
@@ -214,7 +251,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       onClose={() => setOpenRow(null)}
       title={openRow ? <PlayerDrawerTitle player={openRow} /> : undefined}
     >
-      {openRow && <PlayerDrawer player={openRow} entries={entries} currentUser={currentUser} />}
+      {openRow && <PlayerDrawer player={openRow} entries={entries} currentUser={currentUser} periodLabel={periodLabel} />}
     </Modal>
     </>
   );
@@ -268,14 +305,25 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
                 {tier.icon} Lv{row.level}
               </span>
               {row.godMode && (
-                <span className="god-text text-[9px] font-black tracking-wider" title="Scor perfect — 100!">💯 GOD</span>
+                <span className="god-text text-[9px] font-black tracking-wider" title="God Mode activ — a prins o noapte de 95+ în ultimele 7 zile">💯 GOD</span>
               )}
               {row.elite && (
-                <span className="text-[9px] font-bold" style={{ color: '#fbbf24' }} title="Aproape perfect — 95+">🌟</span>
+                <span className="text-[9px] font-bold" style={{ color: '#fbbf24' }} title="Noapte de 90+ în ultimele 7 zile">🌟</span>
               )}
               {row.badges.slice(0, 3).map((b, i) => (
-                <span key={i} className="text-[10px]" title={b.label}>{b.emoji}</span>
+                <span key={i} className="text-[10px]" title={b.label} aria-label={b.label}>{b.emoji}</span>
               ))}
+              {/* Period crowns sit in a ringed chip so they read as "this window",
+                  not as another permanent distinction. */}
+              {row.periodBadges.length > 0 && period !== 'today' && (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[9px] px-1 py-px rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10"
+                  title={`Lider ${periodLabelShort(period)}: ${row.periodBadges.map(b => b.label).join(', ')}`}
+                  aria-label={`Lider ${periodLabelShort(period)}: ${row.periodBadges.map(b => b.label).join(', ')}`}
+                >
+                  {row.periodBadges.slice(0, 4).map((b, i) => <span key={i}>{b.emoji}</span>)}
+                </span>
+              )}
             </div>
             <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5 flex-wrap">
               {row.hasData ? (
@@ -335,6 +383,10 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
       )}
     </div>
   );
+}
+
+function periodLabelShort(p: Period): string {
+  return PERIODS.find(x => x.id === p)?.label.toLowerCase() ?? '';
 }
 
 function bestBy<T>(arr: T[], score: (x: T) => number): T | null {

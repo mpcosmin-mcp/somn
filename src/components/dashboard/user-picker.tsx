@@ -37,8 +37,13 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
   // Read the shared entries from context — no duplicate fetch. When the
   // background refetch in EntriesProvider returns fresh data, this picker
   // automatically re-renders with up-to-date XP/level/streak.
-  const { entries } = useEntries();
+  const { entries, loading } = useEntries();
   const [picked, setPicked] = useState<string | null>(null);
+
+  // Until the entries land, every XP calc returns 0 — which used to render as a
+  // confident "Lv 1 · Somnoros" for all three, then snap to the real levels a
+  // second later. Suppress the stats while loading rather than show fiction.
+  const statsReady = !loading && entries.length > 0;
 
   // If we have at least one entry, sort users by XP descending (leader first).
   // Otherwise keep NAMES order so the picker renders immediately on the very
@@ -64,6 +69,7 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
             <PickerStep
               sortedNames={sortedNames}
               entries={entries}
+              statsReady={statsReady}
               onPick={setPicked}
             />
           </>
@@ -90,10 +96,12 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
 
 /* ─── STEP 1: pick a user ──────────────────────────────── */
 function PickerStep({
-  sortedNames, entries, onPick,
+  sortedNames, entries, statsReady, onPick,
 }: {
   sortedNames: string[];
   entries: SleepEntry[];
+  /** False while the sheet is still loading — hide levels rather than show Lv 1. */
+  statsReady: boolean;
   onPick: (n: string) => void;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -138,20 +146,26 @@ function PickerStep({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-bold text-base text-[var(--color-fg)]">{FIRST_NAME[n]}</span>
-                      <span
-                        className="text-[9px] num font-bold px-1.5 py-0.5 rounded shrink-0"
-                        style={{ color: tier.color, background: tier.color + '15' }}
-                      >
-                        {tier.icon} Lv {lvl}
-                      </span>
-                      {streak > 0 && (
-                        <span className="text-[9px] num font-bold text-[var(--color-accent)]">
-                          {streak}d 🔥
-                        </span>
+                      {statsReady ? (
+                        <>
+                          <span
+                            className="text-[9px] num font-bold px-1.5 py-0.5 rounded shrink-0"
+                            style={{ color: tier.color, background: tier.color + '15' }}
+                          >
+                            {tier.icon} Lv {lvl}
+                          </span>
+                          {streak > 0 && (
+                            <span className="text-[9px] num font-bold text-[var(--color-accent)]">
+                              {streak}d 🔥
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="h-[17px] w-16 rounded shimmer shrink-0" aria-hidden />
                       )}
                     </div>
                     <div className="text-[10px] text-[var(--color-fg-muted)] mt-0.5">
-                      {tier.name}
+                      {statsReady ? tier.name : <span className="inline-block h-3 w-24 rounded shimmer align-middle" aria-hidden />}
                     </div>
                   </div>
                   <span

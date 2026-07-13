@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import {
   type SleepEntry,
   FIRST_NAME, personColor, personSex,
@@ -6,9 +7,10 @@ import {
   sleepDurationMin, fmtDuration,
 } from '@/lib/sleep';
 import { coachInsights, type InsightTone } from '@/lib/coach';
-import { tierFor, maxStreakFor } from '@/lib/gamify';
+import { tierFor, maxStreakFor, todayISO } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 import { PlayerAchievements } from '@/components/dashboard/player-achievements';
+import { TierLadderModal } from '@/components/dashboard/achievement-detail';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 
@@ -19,7 +21,10 @@ export interface PlayerSummary {
   level: number;
   xp: number;
   streak: number;
+  /** Permanent all-time distinctions. */
   badges: { emoji: string; label: string }[];
+  /** Crowns for the period selected in the leaderboard. */
+  periodBadges: { emoji: string; label: string }[];
   hasData: boolean;
 }
 
@@ -31,7 +36,7 @@ const TONE: Record<InsightTone, string> = {
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : 0);
 
-/** Compact header chip for the Drawer's sticky title bar. */
+/** Compact header chip for the Modal's sticky title bar. */
 export function PlayerDrawerTitle({ player }: { player: PlayerSummary }) {
   const c = personColor(player.name);
   const tier = tierFor(player.level);
@@ -46,14 +51,18 @@ export function PlayerDrawerTitle({ player }: { player: PlayerSummary }) {
   );
 }
 
-export function PlayerDrawer({ player, entries, currentUser }: {
+export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
   player: PlayerSummary;
   entries: SleepEntry[];
   currentUser: string;
+  /** Which window the period crowns were computed over ("ultimele 7 zile"). */
+  periodLabel: string;
 }) {
+  const [ladderOpen, setLadderOpen] = useState(false);
   const c = personColor(player.name);
   const isMe = player.name === currentUser;
   const fn = FIRST_NAME[player.name] ?? player.name.split(' ')[0];
+  const tier = tierFor(player.level);
 
   const mine = entries.filter(e => e.name === player.name).sort((a, b) => a.date.localeCompare(b.date));
   const last = mine[mine.length - 1] ?? null;
@@ -68,9 +77,9 @@ export function PlayerDrawer({ player, entries, currentUser }: {
   const maxStreak = maxStreakFor(entries, player.name);
 
   return (
-    <div className="px-5 py-4 flex flex-col gap-5">
+    <div className="px-5 py-3.5 flex flex-col gap-3">
       {/* Hero */}
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3">
         <Avi name={player.name} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -78,8 +87,20 @@ export function PlayerDrawer({ player, entries, currentUser }: {
             {isMe && <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--color-accent)]">tu</span>}
             {player.streak >= 1 && <span className="text-xs num text-[var(--color-fg-muted)]">🔥 {player.streak}z</span>}
           </div>
+          {/* Level chip → the full tier ladder, on top of this modal */}
+          <button
+            type="button"
+            onClick={() => setLadderOpen(true)}
+            className="mt-1 inline-flex items-center gap-1.5 text-[10px] num font-bold px-1.5 py-0.5 rounded transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+            style={{ color: tier.color, background: tier.color + '18' }}
+            aria-label={`Nivel ${player.level}, ${tier.name} — vezi toate palierele`}
+          >
+            {tier.icon} Lv{player.level} · {tier.name}
+            <span className="num text-[var(--color-fg-muted)]">{player.xp} XP</span>
+            <span aria-hidden className="text-[var(--color-fg-dim)]">›</span>
+          </button>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="num font-bold leading-none text-4xl tracking-tight" style={{ color: player.hasData ? ssColor(player.ss) : 'var(--color-fg-dim)' }}>
+            <span className="num font-bold leading-none text-2xl tracking-tight" style={{ color: player.hasData ? ssColor(player.ss) : 'var(--color-fg-dim)' }}>
               {player.hasData ? player.ss : '—'}
             </span>
             <span className="text-xs text-[var(--color-fg-muted)]">SS</span>
@@ -92,11 +113,11 @@ export function PlayerDrawer({ player, entries, currentUser }: {
         </div>
       </div>
 
-      {/* TODAY */}
+      {/* TODAY — one compact row of five */}
       <section>
-        <div className="label mb-2">{last && last.date === todayISO() ? 'Azi' : 'Ultimul log'}</div>
+        <div className="label mb-1.5">{last && last.date === todayISO() ? 'Azi' : 'Ultimul log'}</div>
         {last ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-5 gap-1.5">
             <Stat label="SS" value={last.ss} color={ssColor(last.ss)} />
             <Stat label="Somn" value={lastDur != null ? fmtDuration(lastDur) : '—'} color={durationColor(lastDur)} />
             <Stat label="REM" value={last.rem != null ? `${last.rem}m` : '—'} color={remColor(last.rem)} />
@@ -108,32 +129,32 @@ export function PlayerDrawer({ player, entries, currentUser }: {
         )}
       </section>
 
-      {/* Insights */}
-      <section>
-        <div className="label mb-2">Insights</div>
-        <div className="flex flex-col gap-2">
-          {insights.map(i => (
-            <div key={i.id} className="rounded-xl border px-3 py-2.5" style={{ background: `color-mix(in srgb, ${TONE[i.tone]} 8%, transparent)`, borderColor: `color-mix(in srgb, ${TONE[i.tone]} 26%, transparent)` }}>
-              <div className="text-xs font-medium text-[var(--color-fg)] leading-snug">{i.title}</div>
-              <div className="text-[11px] text-[var(--color-fg-muted)] leading-snug mt-0.5">{i.body}</div>
-              {i.source && <div className="text-[9px] text-[var(--color-fg-dim)] mt-1">📖 {i.source}</div>}
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Period crowns — the competitive layer. Change hands as the window moves. */}
+      {player.periodBadges.length > 0 && (
+        <section>
+          <div className="label mb-1.5">🏆 Lider · <span className="normal-case tracking-normal text-[var(--color-fg-dim)] font-normal">{periodLabel}</span></div>
+          <div className="flex flex-wrap gap-1.5">
+            {player.periodBadges.map((b, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10 text-[var(--color-fg)]">
+                <span aria-hidden>{b.emoji}</span> {b.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Distincții — cine e #1 în echipă pe fiecare metrică (rămân în modal) */}
+      {/* Distincții — permanente, pe tot istoricul. Nu se pierd. */}
       {(player.badges.length > 0 || maxStreak >= 2) && (
         <section>
-          <div className="label mb-2">Distincții</div>
+          <div className="label mb-1.5">Distincții <span className="normal-case tracking-normal text-[var(--color-fg-dim)] font-normal">· permanente</span></div>
           <div className="flex flex-wrap gap-1.5">
             {player.badges.map((b, i) => (
-              <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
                 <span aria-hidden>{b.emoji}</span> {b.label}
               </span>
             ))}
             {maxStreak >= 2 && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
                 <span aria-hidden>🏅</span> record {maxStreak}z streak
               </span>
             )}
@@ -143,27 +164,42 @@ export function PlayerDrawer({ player, entries, currentUser }: {
 
       <PlayerAchievements entries={entries} name={player.name} />
 
-      {/* XP logic moved out of the modal → the rulebook page */}
+      {/* Insights */}
+      <section>
+        <div className="label mb-1.5">Insights</div>
+        <div className="flex flex-col gap-2">
+          {insights.map(i => (
+            <div key={i.id} className="rounded-xl border px-3 py-2" style={{ background: `color-mix(in srgb, ${TONE[i.tone]} 8%, transparent)`, borderColor: `color-mix(in srgb, ${TONE[i.tone]} 26%, transparent)` }}>
+              <div className="text-[11px] font-medium text-[var(--color-fg)] leading-snug">{i.title}</div>
+              <div className="text-[10px] text-[var(--color-fg-muted)] leading-snug mt-0.5">{i.body}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* XP logic lives in the rulebook page, not in this modal */}
       <Link
         href="/ghid"
-        className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs font-bold text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-accent)]/40 transition-colors"
+        className="flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] font-bold text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-accent)]/40 transition-colors"
       >
-        <BookOpen size={15} /> Cum câștigi XP · reguli & categorii →
+        <BookOpen size={13} /> Cum câștigi XP · reguli & categorii →
       </Link>
+
+      <TierLadderModal
+        open={ladderOpen}
+        onClose={() => setLadderOpen(false)}
+        entries={entries}
+        name={player.name}
+      />
     </div>
   );
 }
 
-function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function Stat({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
-    <div className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-2 py-2 text-center">
+    <div className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-1 py-1.5 text-center">
       <div className="label mb-0.5">{label}</div>
-      <div className="num font-bold text-base leading-none" style={{ color }}>{value}</div>
+      <div className="num font-bold text-sm leading-none" style={{ color }}>{value}</div>
     </div>
   );
 }

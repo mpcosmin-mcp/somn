@@ -6,8 +6,13 @@ import { useEffect, useRef, type ReactNode } from 'react';
  * middle of the screen on desktop, bottom-sheet on mobile. Backdrop dim+blur,
  * Escape + backdrop-click to close, focus-trap with focus restore on close.
  *
- * Minimal 5-prop contract — header chips / titles compose inside `title`.
+ * Stackable: a modal can open on top of another (player → badge detail). The
+ * body scroll-lock is refcounted, so closing the inner modal doesn't unlock
+ * scrolling while the outer one is still up. Escape closes only the topmost.
  */
+
+let openCount = 0;
+
 export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', children }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +27,7 @@ export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', childr
   useEffect(() => {
     if (!open) return;
     restoreRef.current = (document.activeElement as HTMLElement) ?? null;
+    openCount++;
     document.body.style.overflow = 'hidden';
 
     // Focus into the panel on open.
@@ -29,6 +35,11 @@ export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', childr
     requestAnimationFrame(() => panel?.focus());
 
     const onKey = (e: KeyboardEvent) => {
+      // Only the topmost modal reacts, or one Escape would collapse the whole
+      // stack. Ask the DOM which dialog is last rather than trusting a counter —
+      // effects re-run on every parent render and the count drifts.
+      const all = document.querySelectorAll('[role="dialog"]');
+      if (all.length && all[all.length - 1] !== panel) return;
       if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
       if (e.key !== 'Tab' || !panel) return;
       const f = panel.querySelectorAll<HTMLElement>(
@@ -42,7 +53,8 @@ export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', childr
     document.addEventListener('keydown', onKey);
 
     return () => {
-      document.body.style.overflow = '';
+      openCount = Math.max(0, openCount - 1);
+      if (openCount === 0) document.body.style.overflow = '';
       document.removeEventListener('keydown', onKey);
       restoreRef.current?.focus?.();
     };
@@ -52,7 +64,7 @@ export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', childr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-6 bg-black/60 backdrop-blur-sm backdrop-in"
+      className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-6 bg-black/60 backdrop-blur-md backdrop-in"
       onClick={onClose}
       role="presentation"
     >
@@ -64,7 +76,7 @@ export function Modal({ open, onClose, title, widthClass = 'md:max-w-md', childr
         onClick={e => e.stopPropagation()}
         className={`modal-pop outline-none overflow-y-auto bg-[var(--color-bg)] shadow-2xl shadow-black/50
           w-full max-h-[92dvh] rounded-t-3xl border-t border-[var(--color-border)]
-          md:max-h-[85vh] md:rounded-2xl md:border ${widthClass} pb-safe`}
+          md:max-h-[90vh] md:rounded-2xl md:border ${widthClass} pb-safe`}
       >
         {title != null && (
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 backdrop-blur-md">
