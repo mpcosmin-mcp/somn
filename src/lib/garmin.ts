@@ -10,7 +10,7 @@
  * (e.g. "Petrica Cosmin Moga"). No account is hardcoded here.
  */
 
-import { GarminConnect } from '@gooin/garmin-connect';
+import type { GarminConnect } from '@gooin/garmin-connect';
 import type { IGarminTokens, IOauth1Token, IOauth2Token } from '@gooin/garmin-connect/dist/garmin/types';
 import { kv } from '@vercel/kv';
 import type { SleepEntry } from '@/lib/sleep';
@@ -65,6 +65,11 @@ export function accountFromEnv(): GarminAccount {
  * password login and stores the new tokens.
  */
 export async function garminLogin(account: GarminAccount): Promise<GarminConnect> {
+  // Import lazily inside the handler: this unofficial package runs code at
+  // module load that crashes Next's serverless module graph on Vercel. Loading
+  // it at call time keeps the crash inside the route's try/catch (surfaced as
+  // JSON) instead of a bare 500 error page.
+  const { GarminConnect } = await import('@gooin/garmin-connect');
   const client = new GarminConnect({ username: account.email, password: account.password });
   client.onSessionChange((tokens) => { void saveTokens(account.email, tokens); });
 
