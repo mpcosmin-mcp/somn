@@ -4,7 +4,6 @@ import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { TopBar } from '@/components/layout/top-bar';
 import { UserPicker } from '@/components/dashboard/user-picker';
-import { ChatPanel } from '@/components/chat/chat-panel';
 
 /**
  * App shell — full-width single page.
@@ -59,7 +58,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe lg:pl-[316px]">
         {children}
       </main>
-      <ChatPanel />
     </div>
   );
 }
