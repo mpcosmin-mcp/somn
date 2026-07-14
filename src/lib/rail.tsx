@@ -13,7 +13,10 @@ export function RailProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setCollapsed(localStorage.getItem(KEY) === '1');
+    const stored = localStorage.getItem(KEY);
+    // No saved preference → open on desktop, closed on mobile (where the rail
+    // is a full-screen overlay and shouldn't cover the dashboard on load).
+    setCollapsed(stored != null ? stored === '1' : window.innerWidth < 1024);
     setHydrated(true);
   }, []);
 

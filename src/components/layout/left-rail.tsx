@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { PanelLeftClose, PanelLeftOpen, ChevronRight } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { useUser } from '@/lib/user';
 import { useRail } from '@/lib/rail';
 import { useActivities } from '@/lib/use-activities';
@@ -12,9 +12,9 @@ import type { Idea } from '@/app/api/ideas/route';
 const STATUS_ICON: Record<string, string> = { new: '📝', wip: '🔨', done: '✅', rejected: '❌' };
 
 /**
- * Left rail (desktop only) — fills the wide empty gutter with the two things
- * you'd otherwise have to navigate to: today's Aria classes (bookable inline)
- * and the top ideas. Collapsible; state persists via useRail.
+ * Left rail — the slide-out "Meniu". Fills the empty desktop gutter and, on
+ * mobile, overlays as a drawer. Holds today's Aria classes (bookable inline)
+ * and the top ideas. Toggled from the TopBar "Meniu" button; state persists.
  */
 export function LeftRail() {
   const { collapsed, toggle } = useRail();
@@ -22,35 +22,47 @@ export function LeftRail() {
 
   if (!user) return null;
 
-  // Collapsed → a thin edge button that re-opens the rail.
-  if (collapsed) {
-    return (
-      <button
-        onClick={toggle}
-        aria-label="Deschide meniul"
-        className="hidden lg:flex fixed left-2 top-20 z-30 items-center justify-center w-9 h-9 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-accent)]/50 shadow-sm transition-colors"
-      >
-        <PanelLeftOpen size={18} />
-      </button>
-    );
-  }
-
   return (
-    <aside className="hidden lg:flex lg:flex-col fixed left-0 top-14 bottom-0 w-[300px] border-r border-[var(--color-border)] bg-[var(--color-bg)]/60 overflow-y-auto px-4 py-4 gap-5">
-      <div className="flex items-center justify-between">
-        <span className="label">Meniu</span>
-        <button
-          onClick={toggle}
-          aria-label="Pliază meniul"
-          className="p-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
-        >
-          <PanelLeftClose size={16} />
-        </button>
-      </div>
+    <>
+      {/* Mobile backdrop — tap to close */}
+      <div
+        onClick={toggle}
+        aria-hidden
+        className={`lg:hidden fixed inset-0 top-14 z-30 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
+          collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+      />
 
-      <AriaToday />
-      <IdeasMini user={user} />
-    </aside>
+      <aside
+        className={`fixed left-0 top-14 bottom-0 w-[300px] max-w-[85vw] z-40 lg:z-20 flex flex-col gap-5 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-bg)] lg:bg-[var(--color-bg)]/70 lg:backdrop-blur-sm px-4 py-4 transition-transform duration-300 ease-out ${
+          collapsed ? '-translate-x-full pointer-events-none' : 'translate-x-0'
+        }`}
+        aria-hidden={collapsed}
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-sm font-bold text-[var(--color-fg)] flex items-center gap-1.5">
+              <span aria-hidden>☰</span> Meniu
+            </div>
+            <div className="text-[10px] text-[var(--color-fg-dim)] mt-0.5">Orarul Aria · ideile echipei</div>
+          </div>
+          <button
+            onClick={toggle}
+            aria-label="Închide meniul"
+            className="p-1.5 -mr-1 rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className={collapsed ? '' : 'rail-in delay-0'}>
+          <AriaToday />
+        </div>
+        <div className={collapsed ? '' : 'rail-in delay-1'}>
+          <IdeasMini />
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -97,7 +109,7 @@ function RailClass({ activity, names, user, onToggle }: {
   const isBooked = !!user && names.includes(user);
   const full = names.length >= activity.capacity;
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden">
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden transition-colors">
       <div className="h-0.5" style={{ background: activity.color }} />
       <div className="px-2.5 py-2">
         <div className="flex items-center justify-between gap-1">
@@ -111,7 +123,7 @@ function RailClass({ activity, names, user, onToggle }: {
           <button
             onClick={onToggle}
             disabled={!isBooked && full}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors ${
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all active:scale-95 ${
               isBooked
                 ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
                 : full
@@ -127,7 +139,7 @@ function RailClass({ activity, names, user, onToggle }: {
   );
 }
 
-function IdeasMini({ user }: { user: string }) {
+function IdeasMini() {
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
 
   useEffect(() => {

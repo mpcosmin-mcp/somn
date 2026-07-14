@@ -5,6 +5,7 @@ import { useEntries } from '@/lib/entries-provider';
 import { TopBar } from '@/components/layout/top-bar';
 import { UserPicker } from '@/components/dashboard/user-picker';
 import { LeftRail } from '@/components/layout/left-rail';
+import { RightRail } from '@/components/layout/right-rail';
 import { RailProvider, useRail } from '@/lib/rail';
 
 /**
@@ -59,18 +60,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         />
         <TopBar />
         <LeftRail />
+        <RightRail />
         <ShellMain>{children}</ShellMain>
       </div>
     </RailProvider>
   );
 }
 
-/** Main column — indents to clear the left rail unless it's collapsed. */
+/** Main column — indents to clear the left rail (unless collapsed) and the
+ *  right rail (xl+ only), so the dashboard sits balanced between them. */
 function ShellMain({ children }: { children: ReactNode }) {
   const { collapsed } = useRail();
   return (
     <main
-      className={`flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe transition-[padding] ${
+      className={`flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe transition-[padding] duration-300 xl:pr-[316px] ${
         collapsed ? 'lg:pl-6' : 'lg:pl-[316px]'
       }`}
     >

@@ -274,6 +274,8 @@ html.light .glass {
 @keyframes fade-right { from { opacity: 0; transform: translateX(16px);  } to { opacity: 1; transform: none; } }
 .fade-in-left  { animation: fade-left  0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .fade-in-right { animation: fade-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+/* Rail sections stagger in when the menu opens */
+.rail-in { animation: fade-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 /* Centered modal entrance — subtle pop (ShapeSquad-style player card). */
 @keyframes modal-pop { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: none; } }
