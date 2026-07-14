@@ -48,6 +48,13 @@ export function TopBar() {
 
         <div className="flex items-center gap-1.5">
           <Link
+            href="/activitati"
+            className="text-[10px] font-bold px-2 py-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors flex items-center gap-1"
+            title="Orar antrenamente Aria"
+          >
+            🏃 activități
+          </Link>
+          <Link
             href="/ideas"
             className="text-[10px] font-bold px-2 py-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors flex items-center gap-1"
             title="Idei de îmbunătățire"
