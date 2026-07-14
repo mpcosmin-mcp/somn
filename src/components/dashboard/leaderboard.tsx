@@ -378,6 +378,11 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
 
       {latestEntry && (
         <div className="mt-0.5 ml-[34px]">
+          {latestEntry.journal && (
+            <p className="text-xs text-[var(--color-fg-muted)] italic mb-1 whitespace-pre-line break-words">
+              “{latestEntry.journal}”
+            </p>
+          )}
           <EntryReactions entry={latestEntry} currentUser={currentUser} />
         </div>
       )}
