@@ -3,6 +3,7 @@ import { SHEETS_API, DUEL_ROW_MARKER } from '@/lib/config';
 import { type SleepEntry } from '@/lib/sleep';
 import { getCachedEntries, setCachedEntries, invalidateEntriesCache } from '@/lib/sheets-cache';
 import { fetchWithRetry } from '@/lib/fetch-retry';
+import { normalizeDate, type Cell } from '@/lib/sheet-parse';
 
 /**
  * GET /api/sheets — fetches all entries from the Google Sheet
@@ -15,8 +16,6 @@ import { fetchWithRetry } from '@/lib/fetch-retry';
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-type Cell = string | number | null | undefined;
 
 interface RawSheetRow {
   // Most fields are well-known. We use bracket access to also pull oddly-named
@@ -103,27 +102,6 @@ function parseTime(v: Cell): string | null {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
   return null;
-}
-
-/**
- * Normalize whatever Apps Script returns into a YYYY-MM-DD local date.
- *
- * Google Sheets often coerces YYYY-MM-DD strings into Date objects internally.
- * When Apps Script JSON-stringifies them, you get ISO timestamps like
- * "2026-05-07T21:00:00.000Z" — that's midnight Romania (UTC+3), serialized as
- * the previous day in UTC. A naive .slice(0,10) would lose a calendar day.
- *
- * Fix: add 12h to the parsed timestamp so any timezone shift up to ±12h still
- * lands on the original calendar day, then slice.
- */
-function normalizeDate(raw: Cell): string {
-  const s = String(raw ?? '').trim();
-  if (!s) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;       // already a clean date
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return s.slice(0, 10);     // unparseable, best effort
-  const adjusted = new Date(d.getTime() + 12 * 60 * 60 * 1000);
-  return adjusted.toISOString().slice(0, 10);
 }
 
 /** Pick first non-empty value from a list of possible column names */
