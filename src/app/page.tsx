@@ -35,14 +35,15 @@ export default function Home() {
             <button onClick={() => refetch({ fresh: true })} className="underline font-bold ml-2 shrink-0">retry</button>
           </div>
         )}
+        {/* Hero: your sleep trend first thing on open */}
         <div className="fade-in-up delay-0">
-          <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
+          <TeamChartPane entries={entries} initialFocus={[user]} />
         </div>
         <div className="fade-in-up delay-1">
-          <Leaderboard entries={entries} currentUser={user} />
+          <KpiCards entries={entries} user={user} onMetricClick={setOpenMetric} />
         </div>
         <div className="fade-in-up delay-2">
-          <TeamChartPane entries={entries} />
+          <Leaderboard entries={entries} currentUser={user} />
         </div>
       </div>
 

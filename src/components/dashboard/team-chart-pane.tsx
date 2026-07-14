@@ -29,11 +29,11 @@ const METRIC_META: Record<Metric, { label: string; unit: string; target: number;
  *   ─ Big chart — when filtered to one person, the Y-axis auto-zooms on
  *     that person's range so personal variance is more legible.
  */
-export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
+export function TeamChartPane({ entries, initialFocus = [] }: { entries: SleepEntry[]; initialFocus?: string[] }) {
   const [range, setRange] = useState<Range>('30');
   const [metric, setMetric] = useState<Metric>('ss');
   // Empty = whole team. 1 = focus. 2+ = head-to-head comparison.
-  const [focusUsers, setFocusUsers] = useState<string[]>([]);
+  const [focusUsers, setFocusUsers] = useState<string[]>(initialFocus);
 
   const meta = METRIC_META[metric];
 

@@ -1,21 +1,26 @@
 'use client';
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { useActivities } from '@/lib/use-activities';
-import { FIRST_NAME, personColor } from '@/lib/sleep';
+import { FIRST_NAME, personColor, ssColor } from '@/lib/sleep';
 import { calcXP, xpLevel, levelProgress, tierFor, streakFor, maxStreakFor } from '@/lib/gamify';
 import { attendanceCount, ACTIVITY_TIERS } from '@/lib/activities';
 import { Avi } from '@/components/ui/avi';
+import { PlayerAchievements } from '@/components/dashboard/player-achievements';
 
 /**
- * Right rail (xl+ only) — the "you at a glance" panel that balances the page
- * against the left menu. Every number is derived from the engine / entries,
- * never hardcoded: level + XP progress, lifetime records, and 🏃 Activ badge.
+ * Right rail (xl+) — the "Player Hub". Your score of the moment sits next to
+ * your name, your medals live here as a showcase (no need to open a leaderboard
+ * card), and records collapse into an accordion. Every number is derived from
+ * the engine / entries, never hardcoded.
  */
 export function RightRail() {
   const { user } = useUser();
   const { entries } = useEntries();
   const { bookings } = useActivities();
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
   if (!user) return null;
 
@@ -27,7 +32,8 @@ export function RightRail() {
   const streak = streakFor(entries, user);
   const { into, need, pct, maxed } = levelProgress(xp);
 
-  const mine = entries.filter(e => e.name === user);
+  const mine = entries.filter(e => e.name === user).sort((a, b) => a.date.localeCompare(b.date));
+  const lastSS = mine.length ? mine[mine.length - 1].ss : null;
   const bestSS = mine.length ? Math.max(...mine.map(e => e.ss)) : 0;
   const remVals = mine.map(e => e.rem).filter((v): v is number => v != null);
   const bestREM = remVals.length ? Math.max(...remVals) : 0;
@@ -39,11 +45,11 @@ export function RightRail() {
 
   return (
     <aside className="hidden xl:flex xl:flex-col fixed right-0 top-14 bottom-0 w-[300px] border-l border-[var(--color-border)] bg-[var(--color-bg)]/70 backdrop-blur-sm overflow-y-auto px-4 py-4 gap-4">
-      {/* Identity + level */}
+      {/* Identity + score of the moment */}
       <div className="rounded-2xl border border-[var(--color-border)] overflow-hidden" style={{ background: `linear-gradient(135deg, ${c}14, transparent 70%)` }}>
         <div className="flex items-center gap-3 px-4 pt-4 pb-3">
           <Avi name={user} size="lg" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="font-bold text-base truncate" style={{ color: c }}>{fn}</div>
             <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1 mt-0.5">
               <span style={{ color: tier.color }}>{tier.icon}</span>
@@ -51,6 +57,13 @@ export function RightRail() {
               <span className="text-[var(--color-fg-dim)]">·</span>
               <span className="truncate">{tier.name}</span>
             </div>
+          </div>
+          {/* Score of the moment — big, right next to the name */}
+          <div className="text-right shrink-0">
+            <div className="num font-bold text-3xl leading-none" style={{ color: lastSS != null ? ssColor(lastSS) : 'var(--color-fg-dim)' }}>
+              {lastSS ?? '—'}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-[var(--color-fg-dim)]">azi</div>
           </div>
         </div>
         <div className="px-4 pb-3">
@@ -69,15 +82,30 @@ export function RightRail() {
         </div>
       </div>
 
-      {/* Records */}
+      {/* Badges showcase — medals live here, no leaderboard click needed */}
+      {mine.length > 0 && <PlayerAchievements entries={entries} name={user} />}
+
+      {/* Records — accordion */}
       {mine.length > 0 && (
         <section>
-          <div className="label mb-2">Recorduri</div>
-          <div className="grid grid-cols-3 gap-2">
-            <RecordCell emoji="🏆" value={bestSS} unit="SS" color={c} />
-            <RecordCell emoji="🌙" value={bestREM} unit="min REM" color={c} />
-            <RecordCell emoji="🔥" value={maxStreak} unit="zile" color={c} />
-          </div>
+          <button
+            onClick={() => setRecordsOpen(o => !o)}
+            aria-expanded={recordsOpen}
+            className="w-full flex items-center justify-between group"
+          >
+            <span className="label">Recorduri</span>
+            <span className="flex items-center gap-1.5 text-[10px] num text-[var(--color-fg-muted)]">
+              {!recordsOpen && <span>🏆 {bestSS} · 🌙 {bestREM} · 🔥 {maxStreak}</span>}
+              <ChevronDown size={14} className={`transition-transform ${recordsOpen ? 'rotate-180' : ''} text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]`} />
+            </span>
+          </button>
+          {recordsOpen && (
+            <div className="grid grid-cols-3 gap-2 mt-2 rail-in">
+              <RecordCell emoji="🏆" value={bestSS} unit="SS" color={c} />
+              <RecordCell emoji="🌙" value={bestREM} unit="min REM" color={c} />
+              <RecordCell emoji="🔥" value={maxStreak} unit="zile" color={c} />
+            </div>
+          )}
         </section>
       )}
 
