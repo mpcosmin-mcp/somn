@@ -23,6 +23,10 @@ interface Props {
   /** Color the line + dots by target status: green where on/above target, red where below
    *  (flipped for lowerBetter). Opt-in — keeps the multi-person team chart on per-person colors. */
   colorByTarget?: boolean;
+  /** Per-series target (aligned with `series`). A point outside its OWN target gets a red,
+   *  slightly larger dot — so out-of-target deviations are flagged even in multi-person view,
+   *  and sex-aware (each person judged against their own RHR band). */
+  seriesTargets?: (number | null | undefined)[];
   /** Format a numeric value for display (axis / tooltip / legend / target). Plotting stays
    *  numeric — used e.g. for sleep duration so the user sees "6h 40m" instead of "400". */
   fmt?: (v: number) => string;
@@ -53,6 +57,7 @@ export function TeamChart({
   unit = '',
   lowerBetter = false,
   colorByTarget = false,
+  seriesTargets,
   fmt,
 }: Props) {
   const fmtV = (v: number) => (fmt ? fmt(v) : `${Math.round(v)}`);
@@ -186,6 +191,16 @@ export function TeamChart({
   const threshFrac = targetY != null ? Math.max(0, Math.min(1, targetY / VH)) : 0;
   const threshTop = lowerBetter ? BAD : GOOD;   // above the target line (smaller y)
   const threshBot = lowerBetter ? GOOD : BAD;   // below the target line
+
+  // A point is "out of target" when it's on the wrong side of its OWN series
+  // target (sex-aware). Used to flag it with a red, larger dot.
+  const outOfTarget = (seriesIdx: number, v: number | null): boolean => {
+    const st = seriesTargets?.[seriesIdx];
+    if (st == null || v == null) return false;
+    return lowerBetter ? v > st : v < st;
+  };
+  const dotStroke = (seriesIdx: number, v: number | null, base: string): string =>
+    outOfTarget(seriesIdx, v) ? BAD : (useThresh ? (statusColor(v) ?? base) : base);
 
   // ─── Hover mapping ─────────────────────────────────────────
   // Convert client mouse x → SVG viewBox x → nearest date index.
@@ -368,16 +383,20 @@ export function TeamChart({
 
         {/* Dots on data points — stroke colored by each point's target status when enabled */}
         {seriesGeom.map((s, i) =>
-          s.pts.map((p, idx) => p && (
-            <circle
-              key={`dot-${i}-${idx}`}
-              cx={p.x} cy={p.y} r={3}
-              fill="var(--color-bg)"
-              stroke={useThresh ? (statusColor(s.values[idx]) ?? s.color) : s.color}
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-            />
-          )),
+          s.pts.map((p, idx) => {
+            if (!p) return null;
+            const out = outOfTarget(i, s.values[idx]);
+            return (
+              <circle
+                key={`dot-${i}-${idx}`}
+                cx={p.x} cy={p.y} r={out ? 4 : 3}
+                fill={out ? BAD : 'var(--color-bg)'}
+                stroke={dotStroke(i, s.values[idx], s.color)}
+                strokeWidth={out ? 2 : 1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          }),
         )}
 
         {/* X-axis date labels */}
@@ -412,7 +431,7 @@ export function TeamChart({
             {seriesGeom.map((s, i) => {
               const p = s.pts[safeHoverIdx];
               if (!p) return null;
-              const hc = useThresh ? (statusColor(s.values[safeHoverIdx]) ?? s.color) : s.color;
+              const hc = dotStroke(i, s.values[safeHoverIdx], s.color);
               return (
                 <g key={`hover-${i}`}>
                   <circle cx={p.x} cy={p.y} r={7} fill={hc} opacity={0.18} />

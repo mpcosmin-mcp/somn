@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import {
   type SleepEntry,
-  NAMES, FIRST_NAME, personColor,
+  NAMES, FIRST_NAME, personColor, personSex, rhrCutoffs,
   sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
@@ -32,7 +32,10 @@ const METRIC_META: Record<Metric, { label: string; unit: string; target: number;
 export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
   const [range, setRange] = useState<Range>('30');
   const [metric, setMetric] = useState<Metric>('ss');
-  const [focusUser, setFocusUser] = useState<string | null>(null);
+  // Empty = whole team. 1 = focus. 2+ = head-to-head comparison.
+  const [focusUsers, setFocusUsers] = useState<string[]>([]);
+
+  const meta = METRIC_META[metric];
 
   const scoped = useMemo(() => {
     if (range === 'all') return entries;
@@ -44,8 +47,9 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
     [scoped],
   );
 
+  const usersToShow = focusUsers.length ? focusUsers : (NAMES as readonly string[]);
+
   const series = useMemo(() => {
-    const usersToShow = focusUser ? [focusUser] : (NAMES as readonly string[]);
     return usersToShow.map(n => {
       const personMap = new Map(scoped.filter(e => e.name === n).map(e => [e.date, e]));
       const values = allDates.map(d => {
@@ -60,9 +64,22 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
         values,
       };
     });
-  }, [scoped, allDates, metric, focusUser]);
+  }, [scoped, allDates, metric, usersToShow]);
 
-  const meta = METRIC_META[metric];
+  // Per-person target — sex-aware for RHR (Clara's band is +5 bpm), so an
+  // out-of-target dot is judged against THAT person's real target.
+  const seriesTargets = usersToShow.map(n =>
+    metric === 'rhr' ? rhrCutoffs(personSex(n))[1] : meta.target,
+  );
+
+  // A single shared target LINE only makes sense when it's the same for everyone
+  // shown. For RHR that's only when exactly one person is focused.
+  const targetLine = metric === 'rhr'
+    ? (focusUsers.length === 1 ? rhrCutoffs(personSex(focusUsers[0]))[1] : undefined)
+    : meta.target;
+
+  const toggleUser = (n: string) =>
+    setFocusUsers(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n]);
 
   return (
     <Card className="p-4 sm:p-5 space-y-4">
@@ -70,9 +87,11 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="label">
-            {focusUser
-              ? `${FIRST_NAME[focusUser] ?? focusUser.split(' ')[0]} · doar acest user`
-              : 'istoric echipă · toți pe același chart'}
+            {focusUsers.length === 0
+              ? 'istoric echipă · toți pe același chart'
+              : focusUsers.length === 1
+                ? `${FIRST_NAME[focusUsers[0]] ?? focusUsers[0].split(' ')[0]} · doar el`
+                : `${focusUsers.map(n => FIRST_NAME[n] ?? n.split(' ')[0]).join(' vs ')} · comparație`}
           </div>
           <div className="text-base font-bold">{meta.label}</div>
         </div>
@@ -113,38 +132,42 @@ export function TeamChartPane({ entries }: { entries: SleepEntry[] }) {
         </span>
       </div>
 
-      {/* Person filter chips */}
+      {/* Person filter chips — tap two to compare head-to-head */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="label mr-1">filtru:</span>
         <PersonChip
           label="Toți"
-          active={focusUser === null}
-          onClick={() => setFocusUser(null)}
+          active={focusUsers.length === 0}
+          onClick={() => setFocusUsers([])}
         />
         {NAMES.map(n => {
           const fn = FIRST_NAME[n] ?? n.split(' ')[0];
           const c = personColor(n);
-          const active = focusUser === n;
           return (
             <PersonChip
               key={n}
               label={fn}
               color={c}
-              active={active}
-              onClick={() => setFocusUser(active ? null : n)}
+              active={focusUsers.includes(n)}
+              onClick={() => toggleUser(n)}
             />
           );
         })}
+        <span className="text-[10px] text-[var(--color-fg-dim)] ml-1">
+          {focusUsers.length >= 2 ? 'comparație directă' : 'alege 2 pt. comparație'}
+        </span>
       </div>
 
       <TeamChart
         series={series}
         dates={allDates}
         height={280}
-        target={meta.target}
+        target={targetLine}
+        seriesTargets={seriesTargets}
         targetLabel="target"
         unit={meta.unit}
         lowerBetter={meta.lowerBetter}
+        colorByTarget={focusUsers.length === 1}
         fmt={metric === 'dur' ? fmtDuration : undefined}
       />
     </Card>
