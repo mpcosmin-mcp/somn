@@ -18,7 +18,12 @@ export async function submitEntry(e: Omit<SleepEntry, never>): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(e),
   });
-  if (!res.ok) throw new Error(`POST /api/sheets ${res.status}`);
+  if (!res.ok) {
+    // Surface the server's Romanian validation message (e.g. "rhr=20 în afara
+    // intervalului permis") instead of the raw "POST /api/sheets 400".
+    const msg = await res.json().then(j => j?.error).catch(() => null);
+    throw new Error(msg || `Eroare la salvare (${res.status})`);
+  }
 }
 
 export async function cleanupDuplicates(): Promise<{ ok: boolean; removed: number }> {

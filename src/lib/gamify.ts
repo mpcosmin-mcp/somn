@@ -206,7 +206,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     icon: '💯',
     name: 'Ascensiune',
     hint: 'nopți perfecte (SS = 100)',
-    description: 'Somnul perfect. O noapte de 100 îți dă un NIVEL ÎNTREG, garantat — indiferent la ce nivel ești. Nu e o sumă fixă de XP: primești exact cât costă nivelul tău curent, deci la Lv 5 sunt 200 XP, iar la Lv 50 sunt 1325. Recompensa crește odată cu tine și nu se devalorizează niciodată. Cel mai rar și mai puternic eveniment din joc.',
+    description: 'Somnul perfect. O noapte de 100 îți dă un NIVEL ÎNTREG, garantat — indiferent la ce nivel ești. Nu e o sumă fixă de XP: primești exact cât costă nivelul tău curent — puțin la începuturi, sute de XP lângă plafon. Recompensa crește odată cu tine și nu se devalorizează niciodată. Cel mai rar și mai puternic eveniment din joc.',
     tiers: ladder(1, 2, 5, 10),
     count: (data) => data.filter(e => e.ss >= 100).length,
   },

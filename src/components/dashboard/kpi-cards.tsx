@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   type SleepEntry,
-  ssColor, hrvColor, remColor, rhrColor, durationColor, personSex,
+  ssColor, hrvColor, remColor, rhrColor, durationColor, personSex, rhrCutoffs,
   sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
@@ -120,7 +120,7 @@ export function KpiCards({ entries, user, onMetricClick }: {
         delta={rhrDelta}
         deltaUnit="bpm"
         higherBetter={false}
-        target={60}
+        target={rhrCutoffs(personSex(user))[1]}
         series={rhrSeries}
         dates={dates}
         color={last.rhr > 0 ? rhrColor(last.rhr, personSex(user)) : 'var(--color-fg-dim)'}

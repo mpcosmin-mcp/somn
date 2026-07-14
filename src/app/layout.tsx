@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'somn · sleep for IT people',
-  description: 'Sleep, REM, RHR & HRV tracker for the team. Built with Next.js, AI-fueled, ruthlessly minimal. Daily roasts by Claude Haiku.',
+  description: 'Sleep Score, REM, RHR & HRV tracker for the team — gamified, ruthlessly minimal.',
   metadataBase: new URL('https://somn-xi.vercel.app'),
   manifest: '/manifest.json',
   applicationName: 'somn',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'somn · sleep for IT people',
-    description: 'Sleep, REM, RHR & HRV tracker. Daily roasts by Claude Haiku.',
+    description: 'Sleep Score, REM, RHR & HRV tracker — gamified, ruthlessly minimal.',
     type: 'website',
     locale: 'ro_RO',
     siteName: 'somn',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'somn · sleep for IT people',
-    description: 'Sleep, REM, RHR & HRV tracker. Daily roasts by Claude Haiku.',
+    description: 'Sleep Score, REM, RHR & HRV tracker — gamified, ruthlessly minimal.',
   },
   robots: {
     index: false,        // private team app — keep out of search engines

@@ -25,7 +25,7 @@ export default async function OG() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 96, fontWeight: 800, letterSpacing: '-0.04em' }}>somn</span>
           <span style={{ fontSize: 18, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: 600, marginLeft: 16, marginTop: 32 }}>
-            sleep · IT · ai
+            sleep · IT · team
           </span>
         </div>
 
@@ -35,15 +35,15 @@ export default async function OG() {
             Sleep, REM, RHR & HRV
           </span>
           <span style={{ fontSize: 32, color: '#a1a1aa', lineHeight: 1.3 }}>
-            Tracker pentru IT-iști care iubesc somnul, sportul și AI-ul.
-            <br />Roastuit zilnic de Claude Haiku.
+            Tracker de somn pentru echipă — Sleep Score, REM, RHR, HRV.
+            <br />Gamificat, minimal, cu clasament.
           </span>
         </div>
 
         {/* Bottom: stack */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 22, color: '#52525b', fontFamily: 'monospace' }}>
-            ~$ next.js · vercel · claude haiku
+            ~$ next.js · vercel
           </span>
           <div style={{
             width: 80, height: 80, borderRadius: 20,

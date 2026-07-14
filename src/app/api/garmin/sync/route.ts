@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SHEETS_API } from '@/lib/config';
+import { requireSheetsApi } from '@/lib/config';
 import { normalizeDate, type Cell } from '@/lib/sheet-parse';
 import { invalidateEntriesCache } from '@/lib/sheets-cache';
 import { fetchWithRetry } from '@/lib/fetch-retry';
@@ -37,7 +37,7 @@ function authorized(req: NextRequest): boolean {
 
 /** (date, name) pairs already in the Sheet — the only thing we need to read. */
 async function existingKeys(): Promise<Set<string>> {
-  const res = await fetchWithRetry(`${SHEETS_API}?v=${Date.now()}`, {
+  const res = await fetchWithRetry(`${requireSheetsApi()}?v=${Date.now()}`, {
     cache: 'no-store', retries: 2, timeoutMs: 15_000,
   });
   if (!res.ok) throw new Error(`Sheets API ${res.status}`);
@@ -60,7 +60,7 @@ async function writeEntry(e: SleepEntry): Promise<void> {
     start: e.start ?? '',
     end: e.end ?? '',
   });
-  const res = await fetch(`${SHEETS_API}?${params}`, { method: 'GET', cache: 'no-store' });
+  const res = await fetch(`${requireSheetsApi()}?${params}`, { method: 'GET', cache: 'no-store' });
   if (!res.ok) throw new Error(`Sheets API write ${res.status}`);
 }
 

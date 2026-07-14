@@ -77,7 +77,7 @@ export default function GhidPage() {
           deci treci pragul oriunde te-ai afla în interiorul lui.
         </p>
         <div className="grid grid-cols-3 gap-1.5 mt-3">
-          {[5, 20, 50].map(l => (
+          {[5, 20, 40].map(l => (
             <div key={l} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-center">
               <div className="text-[9px] text-[var(--color-fg-dim)]">la Lv {l}</div>
               <div className="num font-bold text-xs" style={{ color: '#f472b6' }}>+{xpToNextLevel(l)} XP</div>
@@ -85,9 +85,10 @@ export default function GhidPage() {
           ))}
         </div>
         <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-          De ce nu o sumă fixă: 1000 XP ar însemna <strong>cinci nivele</strong> la Lv 5 și <strong>nici măcar unul</strong> la Lv 50 — exact loteria pe care
-          am eliminat-o. Legând premiul de costul nivelului, recompensa crește odată cu tine și nu se devalorizează niciodată.
-          Promisiunea rămâne simplă: <strong className="text-[var(--color-fg)]">un 100 e un nivel. Întotdeauna.</strong>
+          De ce nu o sumă fixă: {xpToNextLevel(1)} XP ar însemna <strong>un nivel întreg</strong> la Lv 1, dar
+          {' '}<strong>doar un sfert</strong> lângă plafon (unde un nivel costă {xpToNextLevel(MAX_LEVEL - 1)} XP) — o sumă fixă se devalorizează
+          pe măsură ce urci. Legând premiul de costul nivelului, recompensa crește odată cu tine.
+          Promisiunea rămâne simplă: <strong className="text-[var(--color-fg)]">un 100 e un nivel</strong> (până la plafonul de Lv {MAX_LEVEL}).
           {' '}(Și fiind ≥ 95, îți pornește și God Mode.)
         </p>
       </Card>
@@ -124,7 +125,7 @@ export default function GhidPage() {
             🔥 Streak {STREAK_MILESTONES.map(m => `${m.days}z`).join(' / ')}
             <Xp v={STREAK_MILESTONES.map(m => `+${m.bonus}`).join(' · ')} c="#f59e0b" />
           </Rule>
-          <Rule>🏅 Măiestrie (badge-uri) <Xp v="+5% … +20% PERMANENT" c="#a3e635" /></Rule>
+          <Rule>🏅 Măiestrie (badge-uri) <Xp v={`+${Math.round(TIER_PCT.bronze * 100)}% … +${Math.round(TIER_PCT.platinum * 100)}% PERMANENT`} c="#a3e635" /></Rule>
           <Rule>⚡ God Mode (fereastră de {GOD_WINDOW_DAYS}z) <Xp v="+20% la tot" c="#fbbf24" /></Rule>
         </ul>
       </Card>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SHEETS_API, DUEL_ROW_MARKER } from '@/lib/config';
+import { requireSheetsApi, DUEL_ROW_MARKER } from '@/lib/config';
 import { type SleepEntry } from '@/lib/sleep';
 import { getCachedEntries, setCachedEntries, invalidateEntriesCache } from '@/lib/sheets-cache';
 import { fetchWithRetry } from '@/lib/fetch-retry';
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const url = `${SHEETS_API}?v=${Date.now()}`;
+    const url = `${requireSheetsApi()}?v=${Date.now()}`;
     const res = await fetchWithRetry(url, { cache: 'no-store', retries: 2, timeoutMs: 15_000 });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
     const json = (await res.json()) as { data?: RawSheetRow[] };
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
       start: start ?? '',
       end: end ?? '',
     });
-    const url = `${SHEETS_API}?${params}`;
+    const url = `${requireSheetsApi()}?${params}`;
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
     invalidateEntriesCache();
@@ -260,7 +260,7 @@ export async function DELETE(req: NextRequest) {
       date,
       name,
     });
-    const res = await fetch(`${SHEETS_API}?${params}`, { method: 'GET', cache: 'no-store' });
+    const res = await fetch(`${requireSheetsApi()}?${params}`, { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw new Error(`Sheets API ${res.status}`);
     invalidateEntriesCache();
     return NextResponse.json({ ok: true });

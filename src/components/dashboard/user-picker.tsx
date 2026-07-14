@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { type SleepEntry, NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
 import { TimeRangeSlider } from '@/components/dashboard/time-range-slider';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
@@ -60,7 +60,7 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
           <span className="num text-4xl font-bold tracking-tight text-[var(--color-fg)]">somn</span>
         </div>
         <div className="text-xs uppercase tracking-[0.22em] text-[var(--color-fg-muted)] text-center mb-8 font-semibold">
-          sleep · IT · ai
+          sleep · IT · team
         </div>
 
         {!picked && (
@@ -86,7 +86,7 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
 
         <div className="mt-8 text-center">
           <div className="text-[10px] text-[var(--color-fg-dim)] num">
-            built with next.js · powered by claude haiku
+            built with next.js · on vercel
           </div>
         </div>
       </div>
@@ -204,6 +204,28 @@ function LogStep({
   const [error, setError] = useState<string | null>(null);
   const isToday = date === todayStr();
   const already = entries.some(e => e.name === user && e.date === date);
+
+  // Preload the existing row when one exists for (user, date), so
+  // "reactualizează" edits the real values instead of overwriting the whole
+  // line with blanks — which would wipe Garmin-synced HRV/REM/times. Loads
+  // once per target (tracked by ref) so it never clobbers what you're typing.
+  const loadedKey = useRef('');
+  useEffect(() => {
+    const key = `${user}::${date}`;
+    if (loadedKey.current === key) return;
+    const existing = entries.find(e => e.name === user && e.date === date);
+    if (!existing && entries.length === 0) return; // entries not loaded yet — wait
+    loadedKey.current = key;
+    setVals(existing ? {
+      ss: existing.ss ? String(existing.ss) : '',
+      rem: existing.rem != null ? String(existing.rem) : '',
+      rhr: existing.rhr ? String(existing.rhr) : '',
+      hrv: existing.hrv != null ? String(existing.hrv) : '',
+      journal: existing.journal ?? '',
+      start: existing.start ?? '',
+      end: existing.end ?? '',
+    } : { ss: '', rem: '', rhr: '', hrv: '', journal: '', start: '', end: '' });
+  }, [user, date, entries]);
 
   const canSave = vals.ss.trim() !== '' && vals.rhr.trim() !== '';
 

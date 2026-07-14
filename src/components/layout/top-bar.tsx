@@ -42,7 +42,7 @@ export function TopBar() {
             somn
           </span>
           <span className="text-[9px] uppercase tracking-[0.22em] text-[var(--color-fg-muted)] font-medium hidden sm:inline">
-            sleep · IT · ai
+            sleep · IT · team
           </span>
         </Link>
 
