@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSheetsApi } from '@/lib/config';
+import { requireSheetsApi, withToken } from '@/lib/config';
 
 /**
  * POST /api/sheets/cleanup
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
   try {
-    const url = `${requireSheetsApi()}?action=cleanup`;
+    const url = withToken(`${requireSheetsApi()}?action=cleanup`);
     const res = await fetch(url, { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw new Error(`Sheets cleanup ${res.status}`);
     const json = (await res.json()) as { status?: string; removed?: number };

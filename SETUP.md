@@ -48,156 +48,182 @@ Create those 9 headers in row 1, in that order (format `start`/`end` as Plain Te
 
 ### Update the Apps Script — REPLACE the entire file
 
-Open `Extensions → Apps Script` and **replace the whole file** with this. Features:
-- 7-column schema (no `score`)
-- **Upsert** writes — find existing row by (date, name), update in place; otherwise append
-- **Cleanup action** — `?action=cleanup` removes duplicate rows, keeping the most-complete one
-- JSONP callback support (kept for backwards compatibility with v1)
+Open `Extensions → Apps Script` and **replace the whole file** with this. What's new vs. the old version (the hunt fixes, 14 iul 2026):
+- **normDate()** — Google coerces `"2026-05-07"` into a Date, so the old upsert's `String(date).slice(0,10)` = `"Wed May 07"` never matched `"2026-05-07"` → it appended a **duplicate** every time and corrections became invisible. Both sides now normalize to `YYYY-MM-DD` before comparing.
+- **Merge upsert (keep())** — an update no longer overwrites a field with a blank. A Garmin sync (which sends no journal) can't wipe a hand-written journal; a partial update keeps what it didn't touch.
+- **Token on mutations** — `write`/`delete`/`cleanup` require `?token=<TOKEN>`. Reads stay open (the URL is the read capability). Replace `PASTE_YOUR_SHEETS_TOKEN_HERE` with the value of `SHEETS_TOKEN` from Vercel / `.env.local`.
+- **LockService** — serializes mutations so two writes can't both append the same row.
 
 ```javascript
 const SHEET_NAME = 'Sheet1';
+const TZ = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+
+// Shared write token — MUST equal SHEETS_TOKEN in Vercel / .env.local.
+const TOKEN = 'PASTE_YOUR_SHEETS_TOKEN_HERE';
+
+// A date cell may be a real Date (Google coerced "2026-05-07") or a string.
+// Normalize both to plain YYYY-MM-DD so an upsert's two sides compare equal.
+function normDate(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  var s = String(v == null ? '' : v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+  return s.slice(0, 10);
+}
+
+// Keep the existing cell when the incoming value is blank — never wipe a field
+// the caller didn't provide (e.g. a Garmin sync sends no journal).
+function keep(incoming, existing) {
+  return (incoming !== '' && incoming != null) ? incoming : (existing == null ? '' : existing);
+}
 
 function doGet(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   const callback = e.parameter.callback;
   const respond = (obj) => {
     const out = JSON.stringify(obj);
-    return ContentService.createTextOutput(callback ? `${callback}(${out})` : out)
+    return ContentService.createTextOutput(callback ? callback + '(' + out + ')' : out)
       .setMimeType(callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
   };
 
-  // ─── WRITE (upsert by date+name) ──────────────────────
-  if (e.parameter.action === 'write') {
-    const date = String(e.parameter.date || '');
-    const name = String(e.parameter.name || '');
-    const sleepScore = parseFloat(e.parameter.sleep_score) || 0;
-    const rhr = parseFloat(e.parameter.rhr) || 0;
-    const hrv = e.parameter.hrv ? parseFloat(e.parameter.hrv) : '';
-    const rem = e.parameter.rem ? parseFloat(e.parameter.rem) : '';
-    const journal = String(e.parameter.journal || '');
-    const start = String(e.parameter.start || '');
-    const end = String(e.parameter.end || '');
+  const action = e.parameter.action;
+  const isMutation = action === 'write' || action === 'delete' || action === 'cleanup';
 
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0] || [];
-    const dateIdx = headers.indexOf('date');
-    const nameIdx = headers.indexOf('name');
-
-    // Find existing row (date+name match)
-    let foundRow = -1;
-    for (let i = 1; i < data.length; i++) {
-      const rowDate = String(data[i][dateIdx] || '');
-      const cleanDate = rowDate.length > 10 ? rowDate.slice(0, 10) : rowDate;
-      if ((cleanDate === date || rowDate === date) && String(data[i][nameIdx]) === name) {
-        foundRow = i + 1;
-        break;
-      }
-    }
-
-    const rowValues = [date, name, sleepScore, rhr, hrv, rem, journal, start, end];
-    if (foundRow > 0) {
-      sheet.getRange(foundRow, 1, 1, rowValues.length).setValues([rowValues]);
-    } else {
-      sheet.appendRow(rowValues);
-    }
-
-    return respond({ status: 'ok', upsert: foundRow > 0 ? 'update' : 'append' });
+  // ─── AUTH — mutations require the shared token ─────────
+  if (isMutation && e.parameter.token !== TOKEN) {
+    return respond({ status: 'error', error: 'unauthorized' });
   }
 
-  // ─── DELETE (remove a single row by date+name) ──────
-  if (e.parameter.action === 'delete') {
-    const data = sheet.getDataRange().getValues();
-    if (data.length < 2) return respond({ status: 'ok', removed: 0 });
-    const headers = data[0];
-    const dateIdx = headers.indexOf('date');
-    const nameIdx = headers.indexOf('name');
-    const targetDate = String(e.parameter.date || '');
-    const targetName = String(e.parameter.name || '');
-    let removed = 0;
-    // Bottom-up to keep indices valid
-    for (let i = data.length - 1; i >= 1; i--) {
-      const rowDate = String(data[i][dateIdx] || '').slice(0, 10);
-      const rowName = String(data[i][nameIdx] || '');
-      if (rowDate === targetDate && rowName === targetName) {
-        sheet.deleteRow(i + 1);
-        removed++;
-      }
-    }
-    return respond({ status: 'ok', removed });
+  // ─── LOCK — serialize mutations ───────────────────────
+  var lock = null;
+  if (isMutation) {
+    lock = LockService.getScriptLock();
+    try { lock.waitLock(10000); } catch (err) { return respond({ status: 'error', error: 'busy' }); }
   }
 
-  // ─── CLEANUP (remove duplicate rows by date+name) ─────
-  if (e.parameter.action === 'cleanup') {
-    const data = sheet.getDataRange().getValues();
-    if (data.length < 2) return respond({ status: 'ok', removed: 0 });
-    const headers = data[0];
-    const dateIdx = headers.indexOf('date');
-    const nameIdx = headers.indexOf('name');
+  try {
+    // ─── WRITE (upsert by date+name, merge-preserving) ───
+    if (action === 'write') {
+      const date = String(e.parameter.date || '');
+      const name = String(e.parameter.name || '');
+      const sleepScore = parseFloat(e.parameter.sleep_score) || 0;
+      const rhr = parseFloat(e.parameter.rhr) || 0;
+      const hrv = e.parameter.hrv ? parseFloat(e.parameter.hrv) : '';
+      const rem = e.parameter.rem ? parseFloat(e.parameter.rem) : '';
+      const journal = String(e.parameter.journal || '');
+      const start = String(e.parameter.start || '');
+      const end = String(e.parameter.end || '');
 
-    // Group all rows by (date, name) → keep array of (sheet-row-index)
-    const groups = {};
-    for (let i = 1; i < data.length; i++) {
-      const rowDate = String(data[i][dateIdx] || '').slice(0, 10);
-      const rowName = String(data[i][nameIdx] || '');
-      if (!rowDate || !rowName) continue;
-      const key = rowDate + '::' + rowName;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(i + 1);  // sheet row number (1-indexed)
-    }
+      const data = sheet.getDataRange().getValues();
+      const headers = data[0] || [];
+      const dateIdx = headers.indexOf('date');
+      const nameIdx = headers.indexOf('name');
+      const key = normDate(date) + '::' + name;
 
-    // For each group with > 1 row, score and delete the worse ones
-    const toDelete = [];
-    Object.keys(groups).forEach(function(key) {
-      const indices = groups[key];
-      if (indices.length <= 1) return;
-      let bestIdx = indices[0];
-      let bestScore = -1;
-      indices.forEach(function(idx) {
-        const row = data[idx - 1];
-        let score = 0;
-        for (let c = 0; c < row.length; c++) {
-          if (row[c] !== '' && row[c] !== null) score++;
+      let foundRow = -1, existing = null;
+      for (let i = 1; i < data.length; i++) {
+        if (normDate(data[i][dateIdx]) + '::' + String(data[i][nameIdx]) === key) {
+          foundRow = i + 1; existing = data[i]; break;
         }
-        if (score > bestScore) { bestScore = score; bestIdx = idx; }
-      });
-      indices.forEach(function(idx) {
-        if (idx !== bestIdx) toDelete.push(idx);
-      });
-    });
+      }
 
-    // Delete bottom-up so indices stay valid
-    toDelete.sort(function(a, b) { return b - a; });
-    toDelete.forEach(function(idx) { sheet.deleteRow(idx); });
+      let rowValues;
+      if (foundRow > 0) {
+        rowValues = [date, name, sleepScore, rhr,
+          keep(hrv, existing[4]), keep(rem, existing[5]), keep(journal, existing[6]),
+          keep(start, existing[7]), keep(end, existing[8])];
+        sheet.getRange(foundRow, 1, 1, rowValues.length).setValues([rowValues]);
+      } else {
+        rowValues = [date, name, sleepScore, rhr, hrv, rem, journal, start, end];
+        sheet.appendRow(rowValues);
+      }
+      return respond({ status: 'ok', upsert: foundRow > 0 ? 'update' : 'append' });
+    }
 
-    return respond({ status: 'ok', removed: toDelete.length });
+    // ─── DELETE (by date+name) ────────────────────────────
+    if (action === 'delete') {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) return respond({ status: 'ok', removed: 0 });
+      const headers = data[0];
+      const dateIdx = headers.indexOf('date');
+      const nameIdx = headers.indexOf('name');
+      const key = normDate(e.parameter.date || '') + '::' + String(e.parameter.name || '');
+      let removed = 0;
+      for (let i = data.length - 1; i >= 1; i--) {
+        if (normDate(data[i][dateIdx]) + '::' + String(data[i][nameIdx]) === key) {
+          sheet.deleteRow(i + 1); removed++;
+        }
+      }
+      return respond({ status: 'ok', removed });
+    }
+
+    // ─── CLEANUP (dedupe by date+name, keep most complete) ─
+    if (action === 'cleanup') {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) return respond({ status: 'ok', removed: 0 });
+      const headers = data[0];
+      const dateIdx = headers.indexOf('date');
+      const nameIdx = headers.indexOf('name');
+      const groups = {};
+      for (let i = 1; i < data.length; i++) {
+        const d = normDate(data[i][dateIdx]);
+        const n = String(data[i][nameIdx] || '');
+        if (!d || !n) continue;
+        const k = d + '::' + n;
+        (groups[k] = groups[k] || []).push(i + 1);
+      }
+      const toDelete = [];
+      Object.keys(groups).forEach(function(k) {
+        const idxs = groups[k];
+        if (idxs.length <= 1) return;
+        let bestIdx = idxs[0], bestScore = -1;
+        idxs.forEach(function(idx) {
+          const row = data[idx - 1];
+          let score = 0;
+          for (let c = 0; c < row.length; c++) if (row[c] !== '' && row[c] !== null) score++;
+          if (score > bestScore) { bestScore = score; bestIdx = idx; }
+        });
+        idxs.forEach(function(idx) { if (idx !== bestIdx) toDelete.push(idx); });
+      });
+      toDelete.sort(function(a, b) { return b - a; });
+      toDelete.forEach(function(idx) { sheet.deleteRow(idx); });
+      return respond({ status: 'ok', removed: toDelete.length });
+    }
+  } finally {
+    if (lock) lock.releaseLock();
   }
 
-  // ─── READ ──────────────────────────────────────────────
+  // ─── READ (open) ──────────────────────────────────────
   const rows = sheet.getDataRange().getValues();
-  const data = rows.length < 2 ? [] : (() => {
+  const data = rows.length < 2 ? [] : (function () {
     const headers = rows[0];
-    return rows.slice(1).map(row => {
+    return rows.slice(1).map(function (row) {
       const obj = {};
-      headers.forEach((h, i) => obj[h] = row[i]);
+      headers.forEach(function (h, i) { obj[h] = row[i]; });
       return obj;
     });
   })();
-
   return respond({ status: 'ok', data });
 }
 ```
 
-After pasting:
-1. **Save** (`Ctrl+S`)
-2. **Deploy → Manage deployments → Edit (pencil) → New version → Deploy**
-3. Keep the **same web app URL** — that's what's hardcoded in `src/lib/config.ts`. Don't change "Who has access" or "Execute as" — keep them as before.
+**Rollout order (avoids breaking prod writes):**
+1. First make sure `SHEETS_TOKEN` is set in Vercel (Production) **and** prod has redeployed with it — otherwise prod sends an empty token and the new script would reject writes.
+2. Paste the `TOKEN` value into the script (same value as `SHEETS_TOKEN`).
+3. **Save** (`Ctrl+S`) → **Deploy → Manage deployments → Edit (pencil) → New version → Deploy**. Keep "Execute as: Me" and "Who has access: Anyone".
 
-### One-time cleanup of existing duplicates
+> Note: with the merge upsert, an optional field (hrv/rem/journal/start/end) can't be *cleared* by sending it blank — a blank keeps the old value. Clearing a field is done by editing the Sheet directly. This is the deliberate trade that stops the cron from wiping journals.
 
-After deploying the Apps Script, on the somn site:
-- Open `/detail` page → scroll to the bottom → click **curăță duplicate**
-- Toast shows how many duplicate rows were removed
-- Future writes use upsert, so this won't happen again
+### One-time cleanup of the existing duplicates
+
+The hunt found ~6 duplicate dates for Petrica (one with 3 rows) from the old date bug. After deploying the new script, run cleanup **once** (it's now auth-gated, so from a terminal):
+
+```
+curl -X POST "https://somn-xi.vercel.app/api/sheets/cleanup?key=<CRON_SECRET>"
+```
+
+It keeps the most-complete row per (date, name) and returns how many it removed. Future writes upsert correctly, so duplicates won't come back.
 
 ---
 

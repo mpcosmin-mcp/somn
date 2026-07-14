@@ -21,5 +21,17 @@ export function requireSheetsApi(): string {
   return SHEETS_API;
 }
 
+/**
+ * Shared secret gating Apps Script MUTATIONS (write/delete/cleanup). Reads stay
+ * open (the URL itself is the read capability). Sent only when set, so pushing
+ * this before the secret exists in prod / the Apps Script is a no-op.
+ */
+export const SHEETS_TOKEN = process.env.SHEETS_TOKEN ?? '';
+
+/** Append the write token to an Apps Script URL that already has a query string. */
+export function withToken(url: string): string {
+  return SHEETS_TOKEN ? `${url}&token=${encodeURIComponent(SHEETS_TOKEN)}` : url;
+}
+
 /** Marker for special rows (legacy duel feature, filtered out) */
 export const DUEL_ROW_MARKER = '__DUEL__';

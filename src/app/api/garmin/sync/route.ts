@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSheetsApi } from '@/lib/config';
+import { requireSheetsApi, withToken } from '@/lib/config';
 import { normalizeDate, type Cell } from '@/lib/sheet-parse';
 import { invalidateEntriesCache } from '@/lib/sheets-cache';
 import { fetchWithRetry } from '@/lib/fetch-retry';
@@ -60,7 +60,7 @@ async function writeEntry(e: SleepEntry): Promise<void> {
     start: e.start ?? '',
     end: e.end ?? '',
   });
-  const res = await fetch(`${requireSheetsApi()}?${params}`, { method: 'GET', cache: 'no-store' });
+  const res = await fetch(withToken(`${requireSheetsApi()}?${params}`), { method: 'GET', cache: 'no-store' });
   if (!res.ok) throw new Error(`Sheets API write ${res.status}`);
 }
 
