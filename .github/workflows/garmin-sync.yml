@@ -1,0 +1,38 @@
+name: Garmin daily sync
+
+# Pulls Petrica's last few nights from Garmin and writes any missing rows to the
+# Sheet. Runs where the Garmin client actually works (full node_modules), unlike
+# the Vercel serverless runtime which drops its transitive deps.
+
+on:
+  schedule:
+    - cron: '0 7 * * *' # 07:00 UTC = 10:00 Europe/Bucharest (summer)
+  workflow_dispatch: # manual "Run workflow" button
+    inputs:
+      days:
+        description: 'Look-back days'
+        required: false
+        default: '3'
+
+concurrency:
+  group: garmin-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/garmin-sync.mjs
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARMIN_PLAYER: ${{ secrets.GARMIN_PLAYER }}
+          SHEETS_API_URL: ${{ secrets.SHEETS_API_URL }}
+          SHEETS_TOKEN: ${{ secrets.SHEETS_TOKEN }}
+          SYNC_DAYS: ${{ github.event.inputs.days || '3' }}
