@@ -1,6 +1,4 @@
 'use client';
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { useActivities } from '@/lib/use-activities';
@@ -87,9 +85,6 @@ export function RightRail() {
       <section>
         <div className="flex items-center justify-between mb-2">
           <span className="label">🏃 Activ</span>
-          <Link href="/activitati" className="text-[10px] text-[var(--color-accent)] hover:underline flex items-center gap-0.5">
-            detalii <ChevronRight size={11} />
-          </Link>
         </div>
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-3">
           <div className="flex items-baseline justify-between gap-2">

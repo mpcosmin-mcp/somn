@@ -1,20 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { X, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useUser } from '@/lib/user';
 import { useRail } from '@/lib/rail';
 import { useActivities } from '@/lib/use-activities';
-import { getActivitiesForDay, type Activity } from '@/lib/activities';
-import { todayStr } from '@/lib/utils';
-import type { Idea } from '@/app/api/ideas/route';
-
-const STATUS_ICON: Record<string, string> = { new: '📝', wip: '🔨', done: '✅', rejected: '❌' };
+import {
+  RO_DAYS_SHORT, getWeekDates, getActivitiesForDay, addWeeks, formatWeekRange,
+  getWeekStart, isToday, isPast, type Activity,
+} from '@/lib/activities';
 
 /**
- * Left rail — the slide-out "Meniu". Fills the empty desktop gutter and, on
- * mobile, overlays as a drawer. Holds today's Aria classes (bookable inline)
- * and the top ideas. Toggled from the TopBar "Meniu" button; state persists.
+ * Left rail = the "Meniu", operations only: the Aria 5-day activity calendar
+ * with a quick Mă duc / anulează toggle per class. Ideas moved to the header.
+ * Collapsible; on mobile it overlays as a drawer.
  */
 export function LeftRail() {
   const { collapsed, toggle } = useRail();
@@ -24,7 +21,6 @@ export function LeftRail() {
 
   return (
     <>
-      {/* Mobile backdrop — tap to close */}
       <div
         onClick={toggle}
         aria-hidden
@@ -34,7 +30,7 @@ export function LeftRail() {
       />
 
       <aside
-        className={`fixed left-0 top-14 bottom-0 w-[300px] max-w-[85vw] z-40 lg:z-20 flex flex-col gap-5 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-bg)] lg:bg-[var(--color-bg)]/70 lg:backdrop-blur-sm px-4 py-4 transition-transform duration-300 ease-out ${
+        className={`fixed left-0 top-14 bottom-0 w-[300px] max-w-[85vw] z-40 lg:z-20 flex flex-col gap-4 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-bg)] lg:bg-[var(--color-bg)]/70 lg:backdrop-blur-sm px-4 py-4 transition-transform duration-300 ease-out ${
           collapsed ? '-translate-x-full pointer-events-none' : 'translate-x-0'
         }`}
         aria-hidden={collapsed}
@@ -42,9 +38,9 @@ export function LeftRail() {
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm font-bold text-[var(--color-fg)] flex items-center gap-1.5">
-              <span aria-hidden>☰</span> Meniu
+              <span aria-hidden>🏃</span> Aria
             </div>
-            <div className="text-[10px] text-[var(--color-fg-dim)] mt-0.5">Orarul Aria · ideile echipei</div>
+            <div className="text-[10px] text-[var(--color-fg-dim)] mt-0.5">Antrenamentele săptămânii · mergi?</div>
           </div>
           <button
             onClick={toggle}
@@ -55,149 +51,120 @@ export function LeftRail() {
           </button>
         </div>
 
-        <div className={collapsed ? '' : 'rail-in delay-0'}>
-          <AriaToday />
-        </div>
-        <div className={collapsed ? '' : 'rail-in delay-1'}>
-          <IdeasMini />
+        <div className={collapsed ? '' : 'rail-in'}>
+          <AriaWeek />
         </div>
       </aside>
     </>
   );
 }
 
-function AriaToday() {
+function AriaWeek() {
   const { user } = useUser();
-  const { getNames, toggleBooking } = useActivities();
-  const date = todayStr();
-  const dayIdx = (new Date().getDay() + 6) % 7; // 0=Mon … 6=Sun
-  const classes = dayIdx <= 4 ? getActivitiesForDay(dayIdx) : [];
+  const { weekStart, setWeekStart, getNames, toggleBooking, loading } = useActivities();
+  const dates = getWeekDates(weekStart);
+  const todayWeek = getWeekStart(new Date());
+  const isCurrentWeek = weekStart === todayWeek;
 
   return (
     <section>
+      {/* Week navigator */}
       <div className="flex items-center justify-between mb-2">
-        <span className="label">🏃 Azi la Aria</span>
-        <Link href="/activitati" className="text-[10px] text-[var(--color-accent)] hover:underline flex items-center gap-0.5">
-          orar <ChevronRight size={11} />
-        </Link>
+        <button
+          onClick={() => setWeekStart(addWeeks(weekStart, -1))}
+          aria-label="Săptămâna anterioară"
+          className="p-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+        >
+          <ChevronLeft size={15} />
+        </button>
+        <div className="text-center">
+          <div className="num text-[11px] font-bold text-[var(--color-fg)]">{formatWeekRange(weekStart)}</div>
+          {!isCurrentWeek && (
+            <button onClick={() => setWeekStart(todayWeek)} className="text-[9px] text-[var(--color-accent)] hover:underline">
+              ← săptămâna asta
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setWeekStart(addWeeks(weekStart, 1))}
+          aria-label="Săptămâna următoare"
+          className="p-1 rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)] transition-colors"
+        >
+          <ChevronRight size={15} />
+        </button>
       </div>
 
-      {classes.length === 0 ? (
-        <div className="text-[11px] text-[var(--color-fg-dim)] rounded-lg border border-dashed border-[var(--color-border)]/60 px-3 py-4 text-center">
-          Weekend — fără antrenamente. <Link href="/activitati" className="text-[var(--color-accent)] hover:underline">Vezi săptămâna →</Link>
-        </div>
+      {loading ? (
+        <div className="text-[11px] text-[var(--color-fg-dim)] text-center py-6">se încarcă...</div>
       ) : (
-        <div className="space-y-1.5">
-          {classes.map(c => (
-            <RailClass
-              key={c.id}
-              activity={c}
-              names={getNames(c.id, date)}
-              user={user}
-              onToggle={() => { if (user) toggleBooking(c.id, date, user); }}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function RailClass({ activity, names, user, onToggle }: {
-  activity: Activity; names: string[]; user: string | null; onToggle: () => void;
-}) {
-  const isBooked = !!user && names.includes(user);
-  const full = names.length >= activity.capacity;
-  return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden transition-colors">
-      <div className="h-0.5" style={{ background: activity.color }} />
-      <div className="px-2.5 py-2">
-        <div className="flex items-center justify-between gap-1">
-          <span className="text-xs font-bold truncate" style={{ color: activity.color }}>
-            {activity.emoji} {activity.name}
-          </span>
-          <span className="num text-[10px] text-[var(--color-fg-muted)] shrink-0">{activity.startTime}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2 mt-1.5">
-          <span className="text-[10px] text-[var(--color-fg-dim)] num">{names.length} merg</span>
-          <button
-            onClick={onToggle}
-            disabled={!isBooked && full}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all active:scale-95 ${
-              isBooked
-                ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
-                : full
-                  ? 'text-[var(--color-fg-dim)] border border-[var(--color-border)] cursor-not-allowed'
-                  : 'border border-[var(--color-border)] text-[var(--color-fg)] hover:border-[var(--color-accent)]/60 hover:text-[var(--color-accent)]'
-            }`}
-          >
-            {isBooked ? '✓ Merg' : full ? 'Plin' : 'Mă duc 💪'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IdeasMini() {
-  const [ideas, setIdeas] = useState<Idea[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/ideas', { cache: 'no-store' })
-      .then(r => (r.ok ? r.json() : { ideas: [] }))
-      .then((j: { ideas?: Idea[] }) => { if (alive) setIdeas(j.ideas ?? []); })
-      .catch(() => { if (alive) setIdeas([]); });
-    return () => { alive = false; };
-  }, []);
-
-  const top = (ideas ?? [])
-    .slice()
-    .sort((a, b) => (b.up.length - b.down.length) - (a.up.length - a.down.length))
-    .slice(0, 4);
-
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-2">
-        <span className="label">💡 Idei</span>
-        <Link href="/ideas" className="text-[10px] text-[var(--color-accent)] hover:underline flex items-center gap-0.5">
-          toate <ChevronRight size={11} />
-        </Link>
-      </div>
-
-      {ideas === null ? (
-        <div className="text-[11px] text-[var(--color-fg-dim)]">se încarcă...</div>
-      ) : top.length === 0 ? (
-        <Link href="/ideas" className="block text-[11px] text-[var(--color-fg-dim)] rounded-lg border border-dashed border-[var(--color-border)]/60 px-3 py-4 text-center hover:text-[var(--color-fg)] transition-colors">
-          Nicio idee încă. Scrie prima →
-        </Link>
-      ) : (
-        <div className="space-y-1.5">
-          {top.map(idea => {
-            const score = idea.up.length - idea.down.length;
+        <div className="space-y-2">
+          {dates.map((date, dayIdx) => {
+            const classes = getActivitiesForDay(dayIdx);
+            const today = isToday(date);
+            const past = isPast(date);
             return (
-              <Link
-                key={idea.id}
-                href="/ideas"
-                className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2.5 py-2 hover:border-[var(--color-accent)]/50 transition-colors"
-              >
-                <span className="num text-xs font-bold w-6 text-center shrink-0" style={{ color: score > 0 ? 'var(--color-good)' : 'var(--color-fg-dim)' }}>
-                  {score > 0 ? `+${score}` : score}
-                </span>
-                <span className="text-[11px] text-[var(--color-fg)] truncate flex-1 min-w-0">{idea.title}</span>
-                <span className="text-[11px] shrink-0" title={idea.status}>{STATUS_ICON[idea.status] ?? ''}</span>
-              </Link>
+              <div key={date} className={past ? 'opacity-55' : ''}>
+                <div className="flex items-baseline gap-1.5 mb-1">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${today ? 'text-[var(--color-accent)]' : 'text-[var(--color-fg-muted)]'}`}>
+                    {RO_DAYS_SHORT[dayIdx]}
+                  </span>
+                  <span className="num text-[10px] text-[var(--color-fg-dim)]">{date.slice(8)}</span>
+                  {today && <span className="text-[8px] font-bold text-[var(--color-accent)] uppercase">azi</span>}
+                </div>
+                {classes.length === 0 ? (
+                  <div className="text-[10px] text-[var(--color-fg-dim)] pl-1">—</div>
+                ) : (
+                  <div className="space-y-1">
+                    {classes.map(c => (
+                      <RailClass
+                        key={c.id}
+                        activity={c}
+                        names={getNames(c.id, date)}
+                        user={user}
+                        past={past}
+                        onToggle={() => { if (user && !past) toggleBooking(c.id, date, user); }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
       )}
-
-      <Link
-        href="/ideas"
-        className="mt-2 block text-center text-[10px] font-bold text-[var(--color-accent)] hover:underline"
-      >
-        + adaugă o idee
-      </Link>
     </section>
+  );
+}
+
+function RailClass({ activity, names, user, past, onToggle }: {
+  activity: Activity; names: string[]; user: string | null; past: boolean; onToggle: () => void;
+}) {
+  const isBooked = !!user && names.includes(user);
+  const full = names.length >= activity.capacity;
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] pl-2 pr-1 py-1">
+      <span className="w-0.5 self-stretch rounded-full shrink-0" style={{ background: activity.color }} aria-hidden />
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-bold truncate" style={{ color: activity.color }}>{activity.emoji} {activity.name}</div>
+        <div className="text-[9px] text-[var(--color-fg-dim)] num">{activity.startTime} · {names.length} merg</div>
+      </div>
+      {past ? (
+        isBooked && <span className="text-[10px] text-[var(--color-fg-dim)] pr-1">✓</span>
+      ) : (
+        <button
+          onClick={onToggle}
+          disabled={!isBooked && full}
+          className={`text-[10px] font-bold px-1.5 py-1 rounded-md shrink-0 transition-all active:scale-95 ${
+            isBooked
+              ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
+              : full
+                ? 'text-[var(--color-fg-dim)] border border-[var(--color-border)] cursor-not-allowed'
+                : 'border border-[var(--color-border)] text-[var(--color-fg)] hover:border-[var(--color-accent)]/60 hover:text-[var(--color-accent)]'
+          }`}
+        >
+          {isBooked ? '✓ Merg' : full ? 'Plin' : 'Mă duc'}
+        </button>
+      )}
+    </div>
   );
 }
