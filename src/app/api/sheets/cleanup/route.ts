@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSheetsApi, withToken } from '@/lib/config';
+import { ensureSchema, hasPostgres } from '@/lib/db';
 
 /**
  * POST /api/sheets/cleanup
- * Calls the Apps Script with `action=cleanup` to physically remove
- * duplicate (date, name) rows from the Sheet, keeping the most-complete one.
  *
- * DESTRUCTIVE + unauthenticated-by-default is a bad combination: this deletes
- * rows the UI may be showing (incl. journal-bearing ones). It is gated behind
- * CRON_SECRET and has no UI caller — run it deliberately, never on a whim.
+ * Historically removed duplicate (date, name) rows from the Google Sheet. On
+ * Neon the primary key is (date, name), so duplicates are structurally
+ * impossible — this is now a no-op kept only so the existing client helper
+ * (`cleanupDuplicates`) keeps working. Always reports `removed: 0`.
  *
- * Returns: { ok: boolean, removed: number }
+ * Still gated behind CRON_SECRET, mirroring the old destructive contract.
  */
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -29,11 +28,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
   try {
-    const url = withToken(`${requireSheetsApi()}?action=cleanup`);
-    const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-    if (!res.ok) throw new Error(`Sheets cleanup ${res.status}`);
-    const json = (await res.json()) as { status?: string; removed?: number };
-    return NextResponse.json({ ok: json.status === 'ok', removed: json.removed ?? 0 });
+    if (hasPostgres()) await ensureSchema();
+    return NextResponse.json({ ok: true, removed: 0 });
   } catch (err) {
     console.error('[/api/sheets/cleanup]', err);
     return NextResponse.json(
