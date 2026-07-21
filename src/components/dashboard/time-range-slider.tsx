@@ -5,15 +5,15 @@ import { fmtDuration } from '@/lib/sleep';
 /**
  * TimeRangeSlider — drag bedtime + wake on a sleep timeline (18:00 → 12:00),
  * same visual language as the team "Program de somn". Snaps to 5 min, shows the
- * live duration, and a green "sweet spot" band (22:30–06:30) so you place
+ * live duration, and a green "sweet spot" band (22:00–06:00) so you place
  * yourself against the ideal window. Pointer-drag + keyboard (←/→ = ±5 min).
  *
  * Values are "HH:MM" strings; internally everything is minutes-from-18:00 so the
  * past-midnight wrap is linear.
  */
 const SPAN = 1080;        // 18:00 → 12:00 next day
-const SWEET_START = 270;  // 22:30
-const SWEET_END = 750;    // 06:30
+const SWEET_START = 240;  // 22:00
+const SWEET_END = 720;    // 06:00
 const AXIS = [120, 360, 600, 840]; // 20:00 · 00:00 · 04:00 · 08:00
 const STEP = 5;
 const MIN_SLEEP = 60;     // keep at least 1h between the two handles
