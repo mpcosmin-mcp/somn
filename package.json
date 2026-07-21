@@ -12,6 +12,7 @@
   "dependencies": {
     "@gooin/garmin-connect": "^1.8.7",
     "@vercel/kv": "^3.0.0",
+    "@vercel/postgres": "^0.10.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.16.0",

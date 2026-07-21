@@ -6,7 +6,7 @@ import {
 } from '@/lib/sleep';
 import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
 import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor, godMode } from '@/lib/gamify';
-import { fmtDate } from '@/lib/utils';
+import { fmtDate, fmtDateShort } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
 import { Sparkline } from '@/components/ui/sparkline';
@@ -379,9 +379,15 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
       {latestEntry && (
         <div className="mt-0.5 ml-[34px]">
           {latestEntry.journal && (
-            <p className="text-xs text-[var(--color-fg-muted)] italic mb-1 whitespace-pre-line break-words">
-              “{latestEntry.journal}”
-            </p>
+            <div className="mb-1">
+              <div className="text-[9px] num text-[var(--color-fg-dim)] mb-0.5">
+                {fmtDateShort(latestEntry.date)}
+                {latestEntry.end && <span> · {latestEntry.end}</span>}
+              </div>
+              <p className="text-xs text-[var(--color-fg-muted)] italic whitespace-pre-line break-words">
+                “{latestEntry.journal}”
+              </p>
+            </div>
           )}
           <EntryReactions entry={latestEntry} currentUser={currentUser} />
         </div>

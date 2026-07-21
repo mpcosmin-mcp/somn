@@ -3,9 +3,9 @@ import { FIRST_NAME, personColor } from '@/lib/sleep';
 
 /**
  * Sleep Schedule — a timeline of who sleeps from when to when, against the
- * bedtime "sweet spot" (22:00–23:30). Each person gets a bar from bedtime to
- * wake; the green band marks the ideal window to fall asleep in, so you
- * instantly see who goes to bed late / on time.
+ * "sweet spot" (22:00–06:00). Each person gets a bar from bedtime to
+ * wake; the green band marks the ideal sleep window, so you instantly see
+ * who's asleep on time vs. drifting outside it.
  *
  * Times are passed as minutes-from-18:00 (so evening→morning is linear and the
  * midnight wrap is already handled upstream).
@@ -17,8 +17,8 @@ export interface ScheduleRow {
 }
 
 const SPAN = 1080;        // 18:00 → 12:00 next day, in minutes
-const SWEET_START = 240;  // 22:00 — ideal bedtime window opens
-const SWEET_END = 330;    // 23:30 — and closes
+const SWEET_START = 240;  // 22:00 — ideal sleep window opens
+const SWEET_END = 720;    // 06:00 — and closes
 const AXIS = [120, 360, 600, 840]; // 20:00 · 00:00 · 04:00 · 08:00
 
 const clampPct = (m: number) => Math.max(0, Math.min(100, (m / SPAN) * 100));
@@ -37,7 +37,7 @@ export function SleepSchedule({ rows, currentUser }: { rows: ScheduleRow[]; curr
       <div className="flex items-baseline justify-between mb-3 gap-2">
         <span className="label">Program de somn</span>
         <span className="text-[10px] num font-bold" style={{ color: 'var(--color-good)' }}>
-          ★ culcare ideală 22:00–23:30
+          ★ somn ideal 22:00–06:00
         </span>
       </div>
 
