@@ -76,11 +76,11 @@ export function PlayerAchievements({ entries, name }: { entries: SleepEntry[]; n
         </span>
       </button>
 
-      {/* Full detail grid — only when expanded */}
+      {/* Expanded: just the level per achievement. One tap on a row → full detail. */}
       {expanded && (
-        <div className="grid grid-cols-5 gap-1 mt-2 rail-in">
+        <div className="flex flex-col gap-1 mt-2 rail-in">
           {progress.map(p => (
-            <AchievementCard key={p.achievement.id} p={p} name={name} onOpen={() => setOpen(p)} />
+            <AchievementRow key={p.achievement.id} p={p} name={name} onOpen={() => setOpen(p)} />
           ))}
         </div>
       )}
@@ -90,68 +90,45 @@ export function PlayerAchievements({ entries, name }: { entries: SleepEntry[]; n
   );
 }
 
-function AchievementCard({ p, name, onOpen }: { p: AchievementProgress; name: string; onOpen: () => void }) {
+/**
+ * One row = one achievement, showing only the level you're at (Bronz/Argint/
+ * Aur/Platină) or MAX. Everything else — thresholds, XP %, progress — lives in
+ * the detail modal, one tap away.
+ */
+function AchievementRow({ p, name, onOpen }: { p: AchievementProgress; name: string; onOpen: () => void }) {
   const a = p.achievement;
   const tier = p.currentTier;
-  const next = p.nextTier;
   const tint = tier?.color ?? '#3f3f46';
   const locked = p.tiersReached === 0;
-
-  const prevThreshold = tier?.threshold ?? 0;
-  const nextThreshold = next?.threshold ?? tier?.threshold ?? 1;
-  const span = nextThreshold - prevThreshold || 1;
-  const fill = next ? Math.max(0, Math.min(1, (p.count - prevThreshold) / span)) : 1;
+  const maxed = p.nextTier == null;
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`${a.name} — ${achievementHint(a, name)}. ${tier ? `${tier.label}, +${Math.round(tier.pct * 100)}% XP permanent` : 'neînceput'}, ${p.count} nopți.`}
-      className="rounded-lg border px-1.5 py-1.5 flex flex-col gap-1 text-left transition-all hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+      aria-label={`${a.name} — ${tier ? `nivel ${tier.label}` : 'neînceput'}. ${achievementHint(a, name)}. Apasă pentru detalii.`}
+      className="w-full flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
       style={{
         borderColor: locked ? 'var(--color-border)' : tint + '55',
         background: locked ? 'var(--color-surface)' : `color-mix(in srgb, ${tint} 8%, var(--color-surface))`,
         opacity: locked ? 0.6 : 1,
       }}
     >
-      <div className="flex items-start gap-1">
-        <span className="text-base leading-none" aria-hidden style={{ filter: locked ? 'grayscale(1)' : 'none' }}>{a.icon}</span>
-        {p.count > 0 && (
-          <span className="num text-[9px] font-bold text-[var(--color-fg-muted)] ml-auto shrink-0">×{p.count}</span>
-        )}
-      </div>
+      <span className="text-base leading-none shrink-0" aria-hidden style={{ filter: locked ? 'grayscale(1)' : 'none' }}>{a.icon}</span>
+      <span className="text-[11px] font-bold text-[var(--color-fg)] leading-tight truncate flex-1 min-w-0">{a.name}</span>
 
-      <div className="text-[9px] font-bold text-[var(--color-fg)] leading-tight truncate">{a.name}</div>
-
-      {/* Tier ladder — 4 segments colored by whether reached */}
-      <div className="flex items-center gap-0.5">
-        {a.tiers.map((t, i) => (
-          <div
-            key={i}
-            className="flex-1 h-1 rounded-full"
-            style={{ background: i < p.tiersReached ? t.color : 'var(--color-border)' }}
-          />
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between text-[8px] gap-0.5">
-        {tier ? (
-          <span className="num font-bold shrink-0" style={{ color: tint }}>+{Math.round(tier.pct * 100)}%</span>
-        ) : (
-          <span className="text-[var(--color-fg-dim)] italic truncate">—</span>
-        )}
-        {next ? (
-          <span className="num text-[var(--color-fg-dim)] shrink-0">{p.count}/{next.threshold}</span>
-        ) : (
-          <span className="num font-bold shrink-0" style={{ color: '#22d3ee' }}>MAX</span>
-        )}
-      </div>
-
-      {next && (
-        <div className="h-0.5 rounded-full bg-[var(--color-border)] overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${fill * 100}%`, background: next.color }} />
-        </div>
+      {/* The one thing that matters here: what level you're at. */}
+      {tier ? (
+        <span
+          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-1"
+          style={{ color: tint, background: tint + '1f' }}
+        >
+          {tier.label}{maxed && ' · MAX'}
+        </span>
+      ) : (
+        <span className="text-[10px] text-[var(--color-fg-dim)] shrink-0">blocat</span>
       )}
+      <span aria-hidden className="text-[var(--color-fg-dim)] text-[11px] shrink-0">›</span>
     </button>
   );
 }

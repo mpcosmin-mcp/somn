@@ -32,11 +32,18 @@ export async function GET(req: NextRequest) {
 
     let entries: SleepEntry[] = [];
     if (hasPostgres()) {
-      entries = await getAllEntries();
+      // A Neon hiccup (cold start, transient timeout) must NOT take the app
+      // down — swallow it here so the Sheet fallback below can still fire,
+      // rather than letting it bubble to a 500.
+      try {
+        entries = await getAllEntries();
+      } catch (e) {
+        console.error('[/api/sheets GET] neon read failed', e);
+      }
     }
 
-    // Cutover fallback: Neon not linked yet, or linked but not migrated. Serve
-    // the Sheet so nothing breaks in the meantime.
+    // Cutover fallback: Neon not linked yet, linked but not migrated, or the
+    // read above failed. Serve the Sheet so nothing breaks in the meantime.
     if (entries.length === 0 && hasSheetsSource()) {
       try {
         entries = await fetchSheetEntries();
