@@ -469,16 +469,23 @@ function LeaderRow({ row, rank, isMe, entries, dayEntry, singleDay, currentUser,
             </div>
           </div>
 
+          {/* Metric modules as diagonal parallelograms (skewX -18°): the fill
+              runs to the slanted edge, content is counter-skewed back upright.
+              Last module fades out to the right. Per the Claude Design handoff. */}
           <span className="flex-1 min-w-0 flex items-stretch overflow-x-auto no-scrollbar">
             {metrics.map((m, i) => (
-              <span key={i} className="contents">
-                {/* diagonal separator */}
-                <span
-                  className="w-px shrink-0 self-stretch"
-                  style={{ background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-fg) 16%, transparent), transparent)', transform: 'skewX(-18deg)' }}
-                  aria-hidden
-                />
-                <span className="flex flex-col justify-center gap-0.5 px-2.5 sm:px-3 py-2 whitespace-nowrap shrink-0">
+              <span
+                key={i}
+                className="self-stretch flex items-center px-3.5 sm:px-4 whitespace-nowrap shrink-0"
+                style={{
+                  transform: 'skewX(-18deg)',
+                  borderLeft: '1px solid color-mix(in srgb, var(--color-fg) 14%, transparent)',
+                  background: i === metrics.length - 1
+                    ? 'linear-gradient(90deg, color-mix(in srgb, var(--color-fg) 5%, transparent), transparent 88%)'
+                    : 'color-mix(in srgb, var(--color-fg) 4%, transparent)',
+                }}
+              >
+                <span className="flex flex-col gap-0.5" style={{ transform: 'skewX(18deg)' }}>
                   <span className="text-[9px] font-bold tracking-[.14em] text-[var(--color-fg-dim)] uppercase">{m.k}</span>
                   <span className="text-[13px] font-bold" style={{ color: m.c }}>{m.v}</span>
                 </span>

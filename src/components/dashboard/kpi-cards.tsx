@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   type SleepEntry,
-  ssColor, hrvColor, remColor, rhrColor, durationColor, personSex, rhrCutoffs,
+  personSex, rhrCutoffs,
   sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
@@ -18,7 +18,9 @@ import type { MetricKey } from '@/components/dashboard/metric-detail-modal';
  *  - delta vs yesterday + inline sparkline
  *  - colored bottom-border accent (data-ink ratio: minimal chrome)
  *
- * The bottom border glows in the metric's semantic color.
+ * The headline number, sparkline and bottom-border accent all glow in the
+ * STATUS color (green on/above target, yellow just under, red further below) —
+ * so the card reads on/off-target at a glance, per the design handoff.
  */
 export function KpiCards({ entries, user, onMetricClick }: {
   entries: SleepEntry[];
@@ -78,8 +80,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
         target={75}
         series={ssSeries}
         dates={dates}
-        color={ssColor(last.ss)}
-        accentVar="var(--color-accent)"
         onClick={onMetricClick ? () => onMetricClick('ss') : undefined}
       />
       <KpiCard
@@ -93,8 +93,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
         target={90}
         series={remSeries}
         dates={dates}
-        color={last.rem != null ? remColor(last.rem) : 'var(--color-fg-dim)'}
-        accentVar="#a78bfa"
         onClick={onMetricClick ? () => onMetricClick('rem') : undefined}
       />
       <KpiCard
@@ -108,8 +106,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
         target={45}
         series={hrvSeries}
         dates={dates}
-        color={hrvColor(last.hrv)}
-        accentVar="#fbbf24"
         onClick={onMetricClick ? () => onMetricClick('hrv') : undefined}
       />
       <KpiCard
@@ -123,8 +119,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
         target={rhrCutoffs(personSex(user))[1]}
         series={rhrSeries}
         dates={dates}
-        color={last.rhr > 0 ? rhrColor(last.rhr, personSex(user)) : 'var(--color-fg-dim)'}
-        accentVar="#fb7185"
         onClick={onMetricClick ? () => onMetricClick('rhr') : undefined}
       />
       <KpiCard
@@ -139,8 +133,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
         target={DUR_TARGET}
         series={durSeries}
         dates={dates}
-        color={durationColor(lastDur)}
-        accentVar="#34d399"
         onClick={onMetricClick ? () => onMetricClick('dur') : undefined}
       />
     </div>
@@ -149,7 +141,7 @@ export function KpiCards({ entries, user, onMetricClick }: {
 
 function KpiCard({
   label, value, displayValue, unit, sparkUnit, delta, deltaUnit,
-  higherBetter, target, series, dates, color, accentVar, onClick, className = '',
+  higherBetter, target, series, dates, onClick, className = '',
 }: {
   className?: string;
   label: string;
@@ -165,14 +157,24 @@ function KpiCard({
   target: number;
   series: (number | null)[];
   dates: string[];
-  color: string;
-  accentVar: string;
   onClick?: () => void;
 }) {
   const deltaPositive = delta != null && (higherBetter ? delta > 0 : delta < 0);
   const deltaNegative = delta != null && (higherBetter ? delta < 0 : delta > 0);
   const deltaColor = deltaPositive ? 'var(--color-good)' : deltaNegative ? 'var(--color-bad)' : 'var(--color-fg-muted)';
   const deltaArrow = delta == null ? '·' : delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+
+  // ─── Status vs target (3-tier) — the design handoff drives the headline
+  // number, the sparkline AND the bottom accent bar off this, not the metric's
+  // fixed brand color: green on/above target, yellow within 10% under, red
+  // further below. So a red glow at the base reads "off target" at a glance.
+  const statusColor = (() => {
+    if (value == null) return 'var(--color-fg-dim)';
+    const diff = higherBetter ? value - target : target - value;
+    if (diff >= 0) return 'var(--color-good)';
+    if (diff >= -target * 0.1) return 'var(--color-warn)';
+    return 'var(--color-bad)';
+  })();
 
   // ─── Target vs actual ───────────────────────────────────
   // Positive `vsTarget` = above target in the "good" direction.
@@ -222,7 +224,7 @@ function KpiCard({
       type={onClick ? 'button' : undefined}
       aria-label={onClick ? `Vezi detalii ${label}` : undefined}
       className={`kpi card w-full px-4 lg:px-5 py-4 lg:py-5 flex flex-col text-left ${className} ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] active:scale-[0.99] transition-all' : ''}`}
-      style={{ ['--kpi-accent' as string]: accentVar }}
+      style={{ ['--kpi-accent' as string]: statusColor }}
     >
       {/* Top row — label + target pill */}
       <div className="flex items-center justify-between mb-2 gap-1.5">
@@ -246,7 +248,7 @@ function KpiCard({
       <div className="flex items-baseline gap-1.5">
         <span
           className={`num font-bold leading-none tracking-tight ${displayValue ? 'text-3xl lg:text-4xl' : 'text-4xl lg:text-5xl'}`}
-          style={{ color: value == null ? 'var(--color-fg-dim)' : color }}
+          style={{ color: statusColor }}
         >
           {displayValue ?? value ?? '—'}
         </span>
@@ -266,7 +268,7 @@ function KpiCard({
             <span className="text-[var(--color-fg-dim)]">prima măsurătoare</span>
           )}
         </span>
-        <Sparkline values={series} dates={dates} unit={sparkUnit} width={56} height={20} color={color} />
+        <Sparkline values={series} dates={dates} unit={sparkUnit} width={56} height={20} color={statusColor} />
       </div>
     </Tag>
 
@@ -275,11 +277,11 @@ function KpiCard({
         <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-2xl shadow-black/40 p-3 pointer-events-none fade-in-up">
           <div className="flex items-baseline justify-between gap-2 mb-2">
             <span className="label">{label}</span>
-            <span className="num font-bold text-lg leading-none" style={{ color: value == null ? 'var(--color-fg-dim)' : color }}>
+            <span className="num font-bold text-lg leading-none" style={{ color: statusColor }}>
               {displayValue ?? value ?? '—'}{unit && <span className="text-[10px] text-[var(--color-fg-dim)] font-medium ml-0.5">{unit}</span>}
             </span>
           </div>
-          <Sparkline values={series} dates={dates} unit={sparkUnit} color={color} width={232} height={44} />
+          <Sparkline values={series} dates={dates} unit={sparkUnit} color={statusColor} width={232} height={44} />
           <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[var(--color-border)]/60 text-[11px] num">
             <span className="flex items-center gap-1 font-bold" style={{ color: deltaColor }}>
               <span aria-hidden>{deltaArrow}</span>
