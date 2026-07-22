@@ -1,12 +1,12 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
-  type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
+  type SleepEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
   sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18, personSex, rhrCutoffs,
 } from '@/lib/sleep';
 import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
 import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor, godMode } from '@/lib/gamify';
-import { fmtDate, fmtDateShort } from '@/lib/utils';
+import { fmtDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
 import { Sparkline } from '@/components/ui/sparkline';
@@ -14,7 +14,19 @@ import { Modal } from '@/components/ui/modal';
 import { PlayerDrawer, PlayerDrawerTitle } from '@/components/dashboard/player-drawer';
 import { EntryReactions } from '@/components/dashboard/entry-reactions';
 
-type Period = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all';
+/**
+ * Clasament — implements the Claude Design project "Restructurare modul
+ * clasament" (Clasament Somn.dc.html):
+ *
+ *   • JetBrains Mono, rank squares with gold/silver/bronze glow
+ *   • one horizontal "banner" per player: avatar+name | diagonal separators |
+ *     metric modules | slanted SS block with sparkline
+ *   • single-day views (Azi / a calendar-picked day) show that day's journal
+ *     quote + reactions + comment thread; period views (7z/30z/3 luni/An/Total)
+ *     show ONLY averages — no messages.
+ */
+
+type Period = 'today' | 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all';
 const PERIODS: { id: Period; label: string; days: number | null }[] = [
   { id: 'today', label: 'Azi', days: null },
   { id: 'week', label: '7 zile', days: 7 },
@@ -23,6 +35,15 @@ const PERIODS: { id: Period; label: string; days: number | null }[] = [
   { id: 'year', label: 'An', days: 365 },
   { id: 'all', label: 'Total', days: null },
 ];
+
+/** Rank square looks — straight from the design (RANK map). */
+const RANK_LOOK = [
+  { bg: 'linear-gradient(135deg,#ffe08a,#f5b722)', glow: '0 0 14px rgba(245,183,34,.35)' },
+  { bg: 'linear-gradient(135deg,#eef2f8,#9aa7b8)', glow: '0 0 12px rgba(154,167,184,.3)' },
+  { bg: 'linear-gradient(135deg,#e6a06b,#b06a3b)', glow: '0 0 12px rgba(176,106,59,.35)' },
+];
+
+const JB_FONT = 'var(--font-jbmono), var(--font-geist-mono), ui-monospace, monospace';
 
 interface Row {
   name: string;
@@ -48,18 +69,30 @@ interface Row {
 
 export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; currentUser: string }) {
   const [period, setPeriod] = useState<Period>('today');
+  const [selectedDay, setSelectedDay] = useState<string>('');
   const [openRow, setOpenRow] = useState<Row | null>(null);
+  const dayInputRef = useRef<HTMLInputElement>(null);
 
-  const { rows, latestDate, periodLabel, schedule, scopedEntries } = useMemo(() => {
-    const spec = PERIODS.find(p => p.id === period)!;
+  // "Azi" and a calendar-picked day are SINGLE-DAY views — the only ones where
+  // journals + reactions belong. Every other tab is an averages view.
+  const singleDay = period === 'today' || period === 'day';
+
+  const { minDate, maxDate } = useMemo(() => {
+    const dates = [...new Set(entries.map(e => e.date))].sort();
+    return { minDate: dates[0] || '', maxDate: dates[dates.length - 1] || '' };
+  }, [entries]);
+
+  const { rows, periodLabel, schedule, dayEntries } = useMemo(() => {
+    const spec = PERIODS.find(p => p.id === period);
     let scoped: SleepEntry[];
     let label = '';
     if (period === 'today') {
-      const dates = [...new Set(entries.map(e => e.date))].sort();
-      const last = dates[dates.length - 1] || '';
-      scoped = entries.filter(e => e.date === last);
-      label = last ? fmtDate(last) : '—';
-    } else if (spec.days != null) {
+      scoped = entries.filter(e => e.date === maxDate);
+      label = maxDate ? fmtDate(maxDate) : '—';
+    } else if (period === 'day') {
+      scoped = entries.filter(e => e.date === selectedDay);
+      label = selectedDay ? fmtDate(selectedDay) : '—';
+    } else if (spec?.days != null) {
       scoped = lastNDays(entries, spec.days);
       label = `ultimele ${spec.days} zile`;
     } else {
@@ -107,8 +140,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
     const streakBest = bestBy(NAMES.map(n => ({ name: n, val: maxStreakFor(entries, n) })), r => r.val);
 
     // ── Period leaders — the COMPETITIVE layer, recomputed for the selected tab.
-    // Deliberately separate from the permanent all-time distinctions above: those
-    // never move, these are this week's / month's crown and are meant to be taken.
     const perDur = new Map<string, number>();
     for (const n of NAMES) {
       const ds = scoped.filter(e => e.name === n).map(e => sleepDurationMin(e.start, e.end)).filter((d): d is number => d != null);
@@ -184,66 +215,142 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       };
     }).sort((a, b) => b.ss - a.ss);
 
-    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label, schedule, scopedEntries: scoped };
-  }, [entries, period]);
+    // In single-day mode, each player's entry FOR THAT DAY drives the
+    // journal + reactions strip. Period views deliberately get none.
+    const dayEntries = new Map<string, SleepEntry>();
+    if (period === 'today' || period === 'day') {
+      for (const e of scoped) dayEntries.set(e.name, e);
+    }
+
+    return { rows: built, periodLabel: label, schedule, dayEntries };
+  }, [entries, period, selectedDay, maxDate]);
 
   const champion = rows[0]?.hasData ? rows[0] : null;
+
+  const pickDay = () => {
+    const el = dayInputRef.current;
+    if (!el) return;
+    if ('showPicker' in el && typeof el.showPicker === 'function') el.showPicker();
+    else el.click();
+  };
 
   return (
     <>
     <Card className="overflow-hidden">
+    <div style={{ fontFamily: JB_FONT }}>
+      {/* ===== Champion header ===== */}
       {champion && (
         <button
           type="button"
           onClick={() => setOpenRow(champion)}
-          className="w-full text-left px-4 sm:px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-3 hover:bg-[var(--color-surface)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
-          style={{ background: `linear-gradient(90deg, ${personColor(champion.name)}18, transparent 70%)` }}
+          className="w-full text-left px-4 sm:px-6 py-4 border-b border-[var(--color-border)] flex items-center gap-4 hover:brightness-110 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]"
+          style={{ background: `linear-gradient(90deg, rgba(255,200,98,.07), ${personColor(champion.name)}0d 45%, transparent 75%)` }}
         >
-          <span className="text-2xl shrink-0">🏆</span>
+          <span
+            className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-2xl"
+            style={{ background: RANK_LOOK[0].bg, boxShadow: '0 0 18px rgba(245,183,34,.3)' }}
+            aria-hidden
+          >🏆</span>
           <div className="flex-1 min-w-0">
-            <div className="label truncate" style={{ color: personColor(champion.name) }}>
+            <div className="text-[10px] font-bold tracking-[.16em] uppercase truncate" style={{ color: personColor(champion.name) }}>
               campion · {periodLabel}
             </div>
-            <div className="font-bold text-sm truncate">
-              {FIRST_NAME[champion.name]} <span className="num text-[var(--color-fg-muted)] font-medium">· SS {champion.ss}</span>
+            <div className="flex items-baseline gap-2.5 mt-0.5">
+              <span className="font-extrabold text-lg leading-none">{FIRST_NAME[champion.name]}</span>
+              <span className="text-xs font-semibold text-[var(--color-fg-muted)]">SS</span>
+              <span className="font-extrabold text-lg leading-none" style={{ color: ssColor(champion.ss) }}>{champion.ss}</span>
             </div>
           </div>
           {champion.rem != null && (
             <div className="text-right shrink-0">
-              <div className="label">REM</div>
-              <div className="num font-bold text-sm" style={{ color: remColor(champion.rem) }}>{champion.rem}m</div>
+              <div className="text-[10px] font-bold tracking-[.14em] text-[var(--color-fg-muted)]">REM</div>
+              <div className="font-extrabold text-[17px]" style={{ color: remColor(champion.rem) }}>{champion.rem}m</div>
             </div>
           )}
         </button>
       )}
 
-      <div className="px-5 pt-4 pb-2 flex items-center gap-1 flex-wrap">
-        <span className="label mr-1">clasament</span>
+      {/* ===== Period tabs + calendar day picker ===== */}
+      <div className="flex items-center gap-1.5 px-4 sm:px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]/40 flex-wrap">
+        <span className="text-[11px] font-bold tracking-[.14em] text-[var(--color-fg-muted)] mr-1.5">CLASAMENT</span>
         {PERIODS.map(p => (
           <button
             key={p.id}
             onClick={() => setPeriod(p.id)}
-            className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
               period === p.id
-                ? 'bg-[var(--color-accent)] text-[var(--color-bg)]'
+                ? 'text-white'
                 : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]'
             }`}
+            style={period === p.id ? { background: '#5b5bd6' } : undefined}
           >
             {p.label}
           </button>
         ))}
-        {latestDate && period === 'today' && (
-          <span className="ml-auto text-[9px] num text-[var(--color-fg-muted)]">{fmtDate(latestDate)}</span>
-        )}
+        {/* Calendar — pick ANY day, enters single-day mode (journal + reactions). */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={pickDay}
+            aria-label="Alege o zi din calendar"
+            title="Alege o zi din calendar"
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+              period === 'day'
+                ? 'text-white'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]'
+            }`}
+            style={period === 'day' ? { background: '#5b5bd6' } : undefined}
+          >
+            📅{period === 'day' && selectedDay ? <span className="num">{fmtDate(selectedDay)}</span> : null}
+          </button>
+          <input
+            ref={dayInputRef}
+            type="date"
+            value={selectedDay}
+            min={minDate || undefined}
+            max={maxDate || undefined}
+            onChange={e => {
+              const v = e.target.value;
+              if (!v) return;
+              setSelectedDay(v);
+              setPeriod('day');
+            }}
+            className="absolute left-0 bottom-0 w-px h-px opacity-0 pointer-events-none"
+            tabIndex={-1}
+            aria-hidden
+          />
+        </div>
       </div>
 
       <SleepSchedule rows={schedule} currentUser={currentUser} />
 
-      <div className="px-3 pb-3 pt-1 space-y-1">
+      {/* ===== Section title ===== */}
+      <div className="flex items-baseline justify-between gap-2 px-4 sm:px-6 pt-3.5 pb-1">
+        <span className="text-[11px] font-bold tracking-[.16em] text-[var(--color-fg-muted)] uppercase truncate">
+          clasament · {periodLabel}
+        </span>
+        <span className="hidden sm:block text-[10px] text-[var(--color-fg-dim)] shrink-0">
+          {singleDay ? 'ziua selectată · mesaje + reacții' : 'medii pe interval · fără mesaje'}
+        </span>
+      </div>
+
+      {/* ===== Player rows ===== */}
+      <div>
         {rows.map((r, i) => (
-          <LeaderRow key={r.name} row={r} rank={i} isMe={r.name === currentUser} entries={entries} scopedEntries={scopedEntries} currentUser={currentUser} period={period} onOpen={setOpenRow} />
+          <LeaderRow
+            key={r.name}
+            row={r}
+            rank={i}
+            isMe={r.name === currentUser}
+            entries={entries}
+            dayEntry={singleDay ? dayEntries.get(r.name) ?? null : null}
+            singleDay={singleDay}
+            currentUser={currentUser}
+            onOpen={setOpenRow}
+          />
         ))}
       </div>
+    </div>
     </Card>
 
     <Modal
@@ -257,15 +364,27 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
   );
 }
 
-function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, period, onOpen }: { row: Row; rank: number; isMe: boolean; entries: SleepEntry[]; scopedEntries: SleepEntry[]; currentUser: string; period: Period; onOpen: (row: Row) => void }) {
-  const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉';
-  const tier = tierFor(row.level);
-  const c = personColor(row.name);
+/* ─── One player row: rank square + banner + (single-day) journal/social ── */
 
-  // Tiny SS sparkline for last 7 days
+function LeaderRow({ row, rank, isMe, entries, dayEntry, singleDay, currentUser, onOpen }: {
+  row: Row;
+  rank: number;
+  isMe: boolean;
+  entries: SleepEntry[];
+  /** The entry for the selected day — null in period (averages) views. */
+  dayEntry: SleepEntry | null;
+  singleDay: boolean;
+  currentUser: string;
+  onOpen: (row: Row) => void;
+}) {
+  const c = personColor(row.name);
+  const tier = tierFor(row.level);
+  const look = RANK_LOOK[Math.min(rank, RANK_LOOK.length - 1)];
+  const sc = row.hasData ? ssColor(row.ss) : '#52525b';
+
+  // SS sparkline for the last 7 days — lives inside the slanted score block.
   const { sparkValues, sparkDates } = useMemo(() => {
-    const personEntries = entries.filter(e => e.name === row.name);
-    const last7 = lastNDays(personEntries, 7);
+    const last7 = lastNDays(entries.filter(e => e.name === row.name), 7);
     const dates = [...new Set(last7.map(e => e.date))].sort();
     return {
       sparkValues: dates.map(d => last7.find(e => e.date === d)?.ss ?? null),
@@ -273,131 +392,154 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
     };
   }, [entries, row.name]);
 
-  const latestEntry = useMemo(() => {
-    const mine = scopedEntries.filter(e => e.name === row.name);
-    if (!mine.length) return null;
-    return mine.sort((a, b) => b.date.localeCompare(a.date))[0];
-  }, [scopedEntries, row.name]);
+  // Metric modules — averages/counters on period views, the day's raw numbers
+  // on single-day views. (XP/serie are all-time by nature, shown in both.)
+  const metrics: { k: string; v: string; c: string }[] = [];
+  if (row.hasData) {
+    if (!singleDay) {
+      metrics.push({ k: 'xp', v: String(row.xp), c: '#a78bfa' });
+      if (row.nights90 > 0) metrics.push({ k: '90+', v: `${row.nights90}×`, c: 'var(--color-good)' });
+      if (row.nights80 > 0) metrics.push({ k: '80+', v: `${row.nights80}×`, c: '#5aa7ff' });
+    } else if (row.rem != null) {
+      metrics.push({ k: 'rem', v: `${row.rem}m`, c: remColor(row.rem) });
+    }
+    if (row.rhr > 0) metrics.push({ k: 'rhr', v: String(row.rhr), c: rhrColor(row.rhr, personSex(row.name)) });
+    if (row.hrv != null) metrics.push({ k: 'hrv', v: String(row.hrv), c: hrvColor(row.hrv) });
+    if (row.dur != null) metrics.push({ k: 'somn', v: fmtDuration(row.dur), c: durationColor(row.dur) });
+    metrics.push({ k: 'serie', v: `${row.streak}d`, c: 'var(--color-fg-muted)' });
+  }
 
   return (
     <div
-      className={`rounded-xl px-3 py-1.5 transition-all ${
+      className={`flex gap-3 sm:gap-3.5 px-3 sm:px-6 py-4 border-t border-[var(--color-border)]/60 items-start ${
         row.godMode ? 'god-aura' : row.elite ? 'elite-glow' : ''
-      } ${isMe ? 'ring-1 ring-[var(--color-accent)]/30' : ''} ${
-        isMe && !row.godMode && !row.elite ? 'bg-[var(--color-accent)]/8' : ''
       }`}
+      style={isMe ? { background: 'color-mix(in srgb, var(--color-accent) 4%, transparent)' } : undefined}
     >
-      <button
-        type="button"
-        onClick={() => onOpen(row)}
-        className="block w-full text-left cursor-pointer rounded-lg hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+      {/* Rank square — gold / silver / bronze with glow */}
+      <div
+        className="w-9 h-9 shrink-0 rounded-[10px] flex items-center justify-center font-extrabold text-base mt-2"
+        style={{ background: look.bg, boxShadow: look.glow, color: '#131320' }}
+        aria-label={`locul ${rank + 1}`}
       >
-        <div className="flex items-center gap-2.5">
-          <span className="text-base w-5 text-center shrink-0">{medal}</span>
-          <Avi name={row.name} size="sm" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-sm truncate" style={{ color: c }}>
-                {FIRST_NAME[row.name]}
-              </span>
-              {isMe && <span className="text-[8px] uppercase tracking-wider text-[var(--color-accent)] font-bold">tu</span>}
-              <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
-                {tier.icon} Lv{row.level}
-              </span>
-              {row.godMode && (
-                <span className="god-text text-[9px] font-black tracking-wider" title="God Mode activ — a prins o noapte de 95+ în ultimele 7 zile">💯 GOD</span>
-              )}
-              {row.elite && (
-                <span className="text-[9px] font-bold" style={{ color: '#fbbf24' }} title="Noapte de 90+ în ultimele 7 zile">🌟</span>
-              )}
-              {row.badges.slice(0, 3).map((b, i) => (
-                <span key={i} className="text-[10px]" title={b.label} aria-label={b.label}>{b.emoji}</span>
-              ))}
-              {/* Period crowns sit in a ringed chip so they read as "this window",
-                  not as another permanent distinction. */}
-              {row.periodBadges.length > 0 && period !== 'today' && (
-                <span
-                  className="inline-flex items-center gap-0.5 text-[9px] px-1 py-px rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10"
-                  title={`Lider ${periodLabelShort(period)}: ${row.periodBadges.map(b => b.label).join(', ')}`}
-                  aria-label={`Lider ${periodLabelShort(period)}: ${row.periodBadges.map(b => b.label).join(', ')}`}
-                >
-                  {row.periodBadges.slice(0, 4).map((b, i) => <span key={i}>{b.emoji}</span>)}
-                </span>
-              )}
-            </div>
-            <div className="text-[10px] text-[var(--color-fg-muted)] flex items-center gap-1.5 mt-0.5 flex-wrap">
-              {row.hasData ? (
-                <>
-                  <span className="num font-bold" style={{ color: 'var(--color-accent)' }}>{row.xp} XP</span>
-                  {row.nights90 > 0 && (
-                    <>
-                      <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num"><strong style={{ color: 'var(--color-good)' }}>{row.nights90}</strong>×90+</span>
-                    </>
-                  )}
-                  {row.nights80 > 0 && (
-                    <>
-                      <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num"><strong style={{ color: 'var(--color-accent)' }}>{row.nights80}</strong>×80+</span>
-                    </>
-                  )}
-                  <span className="text-[var(--color-fg-dim)]">·</span>
-                  <span className="num">RHR <strong style={{ color: rhrColor(row.rhr, personSex(row.name)) }}>{row.rhr}</strong></span>
-                  {row.hrv != null && (
-                    <>
-                      <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num">HRV <strong style={{ color: hrvColor(row.hrv) }}>{row.hrv}</strong></span>
-                    </>
-                  )}
-                  {row.dur != null && (
-                    <>
-                      <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num"><strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
-                    </>
-                  )}
-                  <span className="text-[var(--color-fg-dim)] ml-auto">{row.entries}d</span>
-                </>
-              ) : (
-                <span className="italic text-[var(--color-fg-dim)]">niciun log în interval</span>
-              )}
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="num font-bold text-xl leading-none" style={{ color: row.hasData ? ssColor(row.ss) : '#52525b' }}>
-              {row.hasData ? row.ss : '—'}
-            </div>
-            {row.rem != null && period === 'today' && (
-              <div className="num text-[9px] mt-0.5" style={{ color: remColor(row.rem) }}>
-                {row.rem}m REM
-              </div>
-            )}
-          </div>
-          <Sparkline values={sparkValues} dates={sparkDates} width={36} height={18} color={c} className="shrink-0 hidden sm:block" />
-        </div>
-      </button>
+        {rank + 1}
+      </div>
 
-      {latestEntry && (
-        <div className="mt-0.5 ml-[34px]">
-          {latestEntry.journal && (
-            <div className="mb-1">
-              <div className="text-[9px] num text-[var(--color-fg-dim)] mb-0.5">
-                {fmtDateShort(latestEntry.date)}
-                {latestEntry.end && <span> · {latestEntry.end}</span>}
+      <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+        {/* Banner — identity | diagonal separators | metric modules | slanted SS block */}
+        {/* Identity and the SS score stay pinned; only the middle metric strip
+            scrolls when there isn't room — the score is never pushed off-screen. */}
+        <button
+          type="button"
+          onClick={() => onOpen(row)}
+          className="w-full text-left flex items-stretch rounded-xl overflow-hidden min-h-[56px] bg-[var(--color-surface)] cursor-pointer hover:brightness-110 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+          style={{ border: `1px solid ${isMe ? 'color-mix(in srgb, var(--color-accent) 35%, transparent)' : 'var(--color-border)'}` }}
+        >
+          <div className="flex items-center gap-2.5 px-3 py-2 min-w-0 shrink-0">
+            <Avi name={row.name} size="md" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="font-extrabold text-sm" style={{ color: c }}>{FIRST_NAME[row.name]}</span>
+                {isMe && (
+                  <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent) 18%, transparent)', color: 'var(--color-accent)' }}>TU</span>
+                )}
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: `${tier.color}15`, color: tier.color }}>
+                  {tier.icon} Lv{row.level}
+                </span>
+                {row.godMode && (
+                  <span className="god-text text-[9px] font-black tracking-wider" title="God Mode activ — a prins o noapte de 95+ în ultimele 7 zile">💯</span>
+                )}
+                {row.elite && (
+                  <span className="text-[9px] font-bold" style={{ color: '#fbbf24' }} title="Noapte de 90+ în ultimele 7 zile">🌟</span>
+                )}
               </div>
-              <p className="text-xs text-[var(--color-fg-muted)] italic whitespace-pre-line break-words">
-                “{latestEntry.journal}”
-              </p>
+              <div className="text-[11px] mt-0.5 tracking-[2px] opacity-90 whitespace-nowrap">
+                {row.badges.slice(0, 4).map((b, i) => (
+                  <span key={i} title={b.label} aria-label={b.label}>{b.emoji}</span>
+                ))}
+                {row.periodBadges.length > 0 && !singleDay && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-[9px] px-1 py-px ml-1 rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10 align-middle"
+                    title={`Lider în interval: ${row.periodBadges.map(b => b.label).join(', ')}`}
+                  >
+                    {row.periodBadges.slice(0, 4).map((b, i) => <span key={i}>{b.emoji}</span>)}
+                  </span>
+                )}
+              </div>
             </div>
-          )}
-          <EntryReactions entry={latestEntry} currentUser={currentUser} />
-        </div>
-      )}
+          </div>
+
+          {/* Metric modules as diagonal parallelograms (skewX -18°): the fill
+              runs to the slanted edge, content is counter-skewed back upright.
+              Last module fades out to the right. Per the Claude Design handoff. */}
+          <span className="flex-1 min-w-0 flex items-stretch overflow-x-auto no-scrollbar">
+            {metrics.map((m, i) => (
+              <span
+                key={i}
+                className="self-stretch flex items-center px-3.5 sm:px-4 whitespace-nowrap shrink-0"
+                style={{
+                  transform: 'skewX(-18deg)',
+                  borderLeft: '1px solid color-mix(in srgb, var(--color-fg) 14%, transparent)',
+                  background: i === metrics.length - 1
+                    ? 'linear-gradient(90deg, color-mix(in srgb, var(--color-fg) 5%, transparent), transparent 88%)'
+                    : 'color-mix(in srgb, var(--color-fg) 4%, transparent)',
+                }}
+              >
+                <span className="flex flex-col gap-0.5" style={{ transform: 'skewX(18deg)' }}>
+                  <span className="text-[9px] font-bold tracking-[.14em] text-[var(--color-fg-dim)] uppercase">{m.k}</span>
+                  <span className="text-[13px] font-bold" style={{ color: m.c }}>{m.v}</span>
+                </span>
+              </span>
+            ))}
+          </span>
+
+          {/* Slanted SS score block + sparkline — pinned, always visible */}
+          <span
+            className="shrink-0 flex items-center gap-2.5 pl-6 pr-4 py-2"
+            style={{ background: `${sc}14`, clipPath: 'polygon(16px 0, 100% 0, 100% 100%, 0 100%)' }}
+          >
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold tracking-[.14em] text-[var(--color-fg-dim)]">SS</span>
+              <span className="font-extrabold text-[22px] leading-none" style={{ color: sc }}>
+                {row.hasData ? row.ss : '—'}
+              </span>
+            </span>
+            <Sparkline values={sparkValues} dates={sparkDates} width={54} height={22} color={sc} className="hidden sm:block" />
+          </span>
+        </button>
+
+        {!row.hasData && !singleDay && (
+          <div className="text-xs italic text-[var(--color-fg-dim)] px-1">niciun log în interval</div>
+        )}
+
+        {/* Journal + social — ONLY on single-day views. Period tabs show averages. */}
+        {singleDay && dayEntry && (
+          <div className="px-0.5">
+            <div className="text-[10px] text-[var(--color-fg-dim)]">
+              {dayLabel(dayEntry.date)}{dayEntry.end ? ` · ${dayEntry.end}` : ''}
+            </div>
+            {dayEntry.journal && (
+              <p className="text-[13px] italic text-[var(--color-fg)]/75 mt-1 whitespace-pre-line break-words">
+                “{dayEntry.journal}”
+              </p>
+            )}
+            <EntryReactions entry={dayEntry} currentUser={currentUser} />
+          </div>
+        )}
+        {singleDay && !dayEntry && (
+          <div className="text-[11px] italic text-[var(--color-fg-dim)] px-1">fără log în ziua asta</div>
+        )}
+      </div>
     </div>
   );
 }
 
-function periodLabelShort(p: Period): string {
-  return PERIODS.find(x => x.id === p)?.label.toLowerCase() ?? '';
+/** "mie · 22 iul" — the date line under the banner, matching the design. */
+function dayLabel(date: string): string {
+  const d = new Date(date + 'T12:00:00');
+  const wd = d.toLocaleDateString('ro-RO', { weekday: 'short' }).replace('.', '');
+  const dm = d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' }).replace('.', '');
+  return `${wd} · ${dm}`;
 }
 
 function bestBy<T>(arr: T[], score: (x: T) => number): T | null {
