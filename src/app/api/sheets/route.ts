@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { type SleepEntry } from '@/lib/sleep';
 import { getCachedEntries, setCachedEntries, invalidateEntriesCache } from '@/lib/sheets-cache';
-import { getAllEntries, upsertEntry, deleteEntry, hasPostgres } from '@/lib/db';
-import { fetchSheetEntries, hasSheetsSource, parseInRange, RANGES } from '@/lib/sheets-source';
+import { upsertEntry, deleteEntry } from '@/lib/db';
+import { parseInRange, RANGES } from '@/lib/sheets-source';
+import { getMergedEntries } from '@/lib/entries-store';
 
 /**
  * /api/sheets — sleep entries, now backed by Neon (Vercel Postgres).
@@ -10,10 +11,9 @@ import { fetchSheetEntries, hasSheetsSource, parseInRange, RANGES } from '@/lib/
  * The route name is kept for backwards-compat with the client; the backend is
  * Postgres. Response shape is unchanged: { entries: SleepEntry[] }.
  *
- * Read path: Neon first. While Neon is still empty (before the one-time
- * migration has run) it falls back to the Google Sheet, so the cutover has zero
- * downtime — prod keeps serving Sheet data until `/api/migrate` populates Neon,
- * then switches over on its own.
+ * Read path: Neon ∪ Sheet via getMergedEntries — serves complete data even
+ * mid-cutover (history still in the Sheet, new writes in Neon) and backfills
+ * Neon as a side effect until the Sheet has nothing Neon doesn't.
  *
  * 60s in-memory cache still coalesces burst reloads.
  */
@@ -30,27 +30,7 @@ export async function GET(req: NextRequest) {
       if (cached) return NextResponse.json({ entries: cached });
     }
 
-    let entries: SleepEntry[] = [];
-    if (hasPostgres()) {
-      // A Neon hiccup (cold start, transient timeout) must NOT take the app
-      // down — swallow it here so the Sheet fallback below can still fire,
-      // rather than letting it bubble to a 500.
-      try {
-        entries = await getAllEntries();
-      } catch (e) {
-        console.error('[/api/sheets GET] neon read failed', e);
-      }
-    }
-
-    // Cutover fallback: Neon not linked yet, linked but not migrated, or the
-    // read above failed. Serve the Sheet so nothing breaks in the meantime.
-    if (entries.length === 0 && hasSheetsSource()) {
-      try {
-        entries = await fetchSheetEntries();
-      } catch (e) {
-        console.error('[/api/sheets GET] sheet fallback failed', e);
-      }
-    }
+    const entries: SleepEntry[] = await getMergedEntries();
 
     setCachedEntries(entries);
     return NextResponse.json({ entries });

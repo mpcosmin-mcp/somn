@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSheetsApi, withToken } from '@/lib/config';
-import { normalizeDate, type Cell } from '@/lib/sheet-parse';
 import { invalidateEntriesCache } from '@/lib/sheets-cache';
-import { fetchWithRetry } from '@/lib/fetch-retry';
 import { accountFromEnv, garminLogin, fetchNight } from '@/lib/garmin';
+import { upsertEntry, hasPostgres } from '@/lib/db';
+import { getMergedEntries } from '@/lib/entries-store';
 import type { SleepEntry } from '@/lib/sleep';
 
 /**
  * GET /api/garmin/sync — pulls the last few nights from Garmin Connect and
- * writes any MISSING (date, name) rows to the Sheet. Existing rows are never
+ * writes any MISSING (date, name) rows to the entries store (Neon; the Sheet
+ * only when Neon isn't linked, e.g. local dev). Existing rows are never
  * touched, so manual edits (journal, corrections) are safe and the endpoint
  * is idempotent — the daily Vercel cron can fire it blindly.
  *
@@ -35,19 +36,19 @@ function authorized(req: NextRequest): boolean {
   );
 }
 
-/** (date, name) pairs already in the Sheet — the only thing we need to read. */
+/** (date, name) pairs already in the store — Neon ∪ Sheet, so a night that
+ *  only exists in the not-yet-backfilled Sheet is still seen and skipped. */
 async function existingKeys(): Promise<Set<string>> {
-  const res = await fetchWithRetry(`${requireSheetsApi()}?v=${Date.now()}`, {
-    cache: 'no-store', retries: 2, timeoutMs: 15_000,
-  });
-  if (!res.ok) throw new Error(`Sheets API ${res.status}`);
-  const json = (await res.json()) as { data?: { date?: Cell; name?: Cell }[] };
-  return new Set(
-    (json.data ?? []).map(r => `${normalizeDate(r.date)}::${String(r.name ?? '').trim()}`),
-  );
+  const entries = await getMergedEntries();
+  return new Set(entries.map(e => `${e.date}::${e.name}`));
 }
 
 async function writeEntry(e: SleepEntry): Promise<void> {
+  if (hasPostgres()) {
+    await upsertEntry(e);
+    return;
+  }
+  // Legacy path — no Neon linked (local dev): write to the Sheet as before.
   const params = new URLSearchParams({
     action: 'write',
     date: e.date,
