@@ -344,3 +344,7 @@ button { touch-action: manipulation; }
 
 /* Prevent rubber-band overscroll on iOS for the main scroll area */
 html, body { overscroll-behavior-y: none; }
+
+/* Hide scrollbar on horizontally-scrollable strips (clasament banner on mobile) */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

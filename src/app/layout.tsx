@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, JetBrains_Mono } from 'next/font/google';
 import { NO_FLASH_SCRIPT, SW_REGISTER_SCRIPT } from '@/lib/theme';
 import { UserProvider } from '@/lib/user';
 import { EntriesProvider } from '@/lib/entries-provider';
@@ -16,6 +16,14 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+// Clasament (Claude Design "Restructurare modul clasament") is set in
+// JetBrains Mono — scoped via this variable, the rest of the app stays Geist.
+const jbMono = JetBrains_Mono({
+  variable: '--font-jbmono',
   subsets: ['latin'],
   display: 'swap',
 });
@@ -69,7 +77,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     // between SSR and client — silence the warning here only.
     <html
       lang="ro"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable} ${jbMono.variable}`}
       suppressHydrationWarning
     >
       <head>
