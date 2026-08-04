@@ -117,7 +117,7 @@ function PickerStep({
         {sortedNames.map((n, idx) => {
           const xp = calcXP(entries, n);
           const lvl = xpLevel(xp);
-          const tier = tierFor(lvl);
+          const tier = tierFor(xp);
           const streak = streakFor(entries, n);
           const c = personColor(n);
           const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';

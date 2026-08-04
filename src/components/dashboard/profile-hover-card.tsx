@@ -25,7 +25,7 @@ export function ProfileHoverCard({
   const fn = FIRST_NAME[name] ?? name.split(' ')[0];
   const xp = calcXP(entries, name);
   const lvl = xpLevel(xp);
-  const tier = tierFor(lvl);
+  const tier = tierFor(xp);
   const { into, need, pct, maxed } = levelProgress(xp);
   const streak = streakFor(entries, name);
   const best = bestAtFor(entries, name);

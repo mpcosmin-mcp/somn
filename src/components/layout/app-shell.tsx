@@ -4,9 +4,7 @@ import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { TopBar } from '@/components/layout/top-bar';
 import { UserPicker } from '@/components/dashboard/user-picker';
-import { LeftRail } from '@/components/layout/left-rail';
 import { RightRail } from '@/components/layout/right-rail';
-import { RailProvider, useRail } from '@/lib/rail';
 
 /**
  * App shell — full-width single page.
@@ -47,37 +45,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <RailProvider>
-      <div className="min-h-dvh flex flex-col" data-page-content>
-        {/* Ambient indigo depth — fixed, behind everything */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 -z-10"
-          style={{
-            background:
-              'radial-gradient(72% 44% at 50% -8%, rgba(99,102,241,0.13), transparent 70%), radial-gradient(42% 36% at 88% 3%, rgba(129,140,248,0.07), transparent 65%)',
-          }}
-        />
-        <TopBar />
-        <LeftRail />
-        <RightRail />
-        <ShellMain>{children}</ShellMain>
-      </div>
-    </RailProvider>
-  );
-}
-
-/** Main column — indents to clear the left rail (unless collapsed) and the
- *  right rail (xl+ only), so the dashboard sits balanced between them. */
-function ShellMain({ children }: { children: ReactNode }) {
-  const { collapsed } = useRail();
-  return (
-    <main
-      className={`flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe transition-[padding] duration-300 xl:pr-[316px] ${
-        collapsed ? 'lg:pl-6' : 'lg:pl-[316px]'
-      }`}
-    >
-      {children}
-    </main>
+    <div className="min-h-dvh flex flex-col" data-page-content>
+      {/* Ambient indigo depth — fixed, behind everything */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(72% 44% at 50% -8%, rgba(99,102,241,0.13), transparent 70%), radial-gradient(42% 36% at 88% 3%, rgba(129,140,248,0.07), transparent 65%)',
+        }}
+      />
+      <TopBar />
+      <RightRail />
+      {/* Main column — only indent left is gone with the Aria rail; the right
+          rail (xl+) still needs its gutter. */}
+      <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5 pb-safe xl:pr-[316px]">
+        {children}
+      </main>
+    </div>
   );
 }

@@ -5,7 +5,7 @@ import {
   sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18, personSex, rhrCutoffs,
 } from '@/lib/sleep';
 import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
-import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor, godMode } from '@/lib/gamify';
+import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor } from '@/lib/gamify';
 import { fmtDate, fmtDateShort } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Avi } from '@/components/ui/avi';
@@ -41,8 +41,7 @@ interface Row {
   badges: { emoji: string; label: string }[];
   /** Crowns for the SELECTED period — the competitive layer, meant to change hands. */
   periodBadges: { emoji: string; label: string }[];
-  godMode: boolean;   // God night (SS ≥ 95) in the last 7 days
-  elite: boolean;     // SS ≥ 90 in the last 7 days (but no God night)
+  elite: boolean;     // SS ≥ 90 in the last 7 days
   hasData: boolean;
 }
 
@@ -129,15 +128,12 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       const xp = bd.total;
       const lvl = xpLevel(xp);
       const streak = streakFor(entries, n);
-      // The XP bands are exclusive; the row chips read "×90+" / "×80+", so show
-      // them cumulatively or the numbers contradict their own label.
-      const nights90 = bd.count100 + bd.count95 + bd.count90;
-      const nights80 = nights90 + bd.count85 + bd.count80;
-      // God Mode flair follows the real mechanic (a God night in the last 7 days),
-      // not the selected tab — so it doesn't flip when you switch periods.
-      const godActive = godMode(entries, n).active;
+      // The XP bands are exclusive; the row chips read "×90+" / "×80+", so the
+      // engine hands back the cumulative counts those labels actually promise.
+      const nights90 = bd.nights90;
+      const nights80 = bd.nights80;
       const my7 = lastNDays(entries.filter(e => e.name === n), 7).map(e => e.ss);
-      const elite = !godActive && (my7.length ? Math.max(...my7) : 0) >= 90;
+      const elite = (my7.length ? Math.max(...my7) : 0) >= 90;
 
       // Permanent all-time distinctions — independent of the scoped period.
       const aAll = allAgg.find(x => x.name === n);
@@ -178,7 +174,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         nights80,
         badges,
         periodBadges,
-        godMode: godActive,
         elite,
         hasData: !!a,
       };
@@ -259,7 +254,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
 
 function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, period, onOpen }: { row: Row; rank: number; isMe: boolean; entries: SleepEntry[]; scopedEntries: SleepEntry[]; currentUser: string; period: Period; onOpen: (row: Row) => void }) {
   const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉';
-  const tier = tierFor(row.level);
+  const tier = tierFor(row.xp);
   const c = personColor(row.name);
 
   // Tiny SS sparkline for last 7 days
@@ -282,9 +277,9 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
   return (
     <div
       className={`rounded-xl px-3 py-1.5 transition-all ${
-        row.godMode ? 'god-aura' : row.elite ? 'elite-glow' : ''
+        row.elite ? 'elite-glow' : ''
       } ${isMe ? 'ring-1 ring-[var(--color-accent)]/30' : ''} ${
-        isMe && !row.godMode && !row.elite ? 'bg-[var(--color-accent)]/8' : ''
+        isMe && !row.elite ? 'bg-[var(--color-accent)]/8' : ''
       }`}
     >
       <button
@@ -304,9 +299,6 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
               <span className="text-[9px] num font-bold px-1 py-0.5 rounded shrink-0" style={{ color: tier.color, background: tier.color + '15' }}>
                 {tier.icon} Lv{row.level}
               </span>
-              {row.godMode && (
-                <span className="god-text text-[9px] font-black tracking-wider" title="God Mode activ — a prins o noapte de 95+ în ultimele 7 zile">💯 GOD</span>
-              )}
               {row.elite && (
                 <span className="text-[9px] font-bold" style={{ color: '#fbbf24' }} title="Noapte de 90+ în ultimele 7 zile">🌟</span>
               )}

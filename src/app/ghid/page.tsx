@@ -1,22 +1,23 @@
 'use client';
-import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Zap } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useUser } from '@/lib/user';
 import { useEntries } from '@/lib/entries-provider';
 import { FIRST_NAME } from '@/lib/sleep';
 import {
-  xpBreakdown, levelProgress, tierFor, godMode, achievementHint,
-  ACHIEVEMENTS, TIERS, GOD_WINDOW_DAYS, GOD_TRIGGER_SS, STREAK_MILESTONES,
-  TIER_PCT, MASTERY_MAX, masteryFor, xpForLevel, xpToNextLevel, MAX_LEVEL, XP_FOR_MAX_LEVEL,
+  xpBreakdown, levelProgress, tierFor, ACHIEVEMENTS, TIERS, TIER_STEP, STREAK_MILESTONES,
+  BASE_XP_PER_LOG, SS_BANDS,
+  xpToNextLevel, MAX_LEVEL, XP_FOR_MAX_LEVEL,
 } from '@/lib/gamify';
-import { MOMENTUM_WINDOW, MOMENTUM_CEILING } from '@/lib/momentum';
 import { Card } from '@/components/ui/card';
 
 /**
- * /ghid — the in-app rulebook. Every scoring rule, category and threshold the
- * app uses, in one place users can read. Also hosts the current user's live
- * XP / God Mode status at the top.
+ * /ghid — the whole rulebook, on one screen you can read in a minute.
+ *
+ * It used to run eight sections deep (Ascension, God Mode, five score bands,
+ * Momentum, Mastery percentages, thirteen badges, ten tiers) and still left
+ * people unable to say where their XP came from. Now it's three rules, three
+ * badges, four rungs — and your own numbers plugged into them at the top.
  */
 export default function GhidPage() {
   const { user } = useUser();
@@ -24,8 +25,7 @@ export default function GhidPage() {
 
   const bd = user ? xpBreakdown(entries, user) : null;
   const { level, into, need, pct, maxed } = levelProgress(bd?.total ?? 0);
-  const tier = tierFor(level);
-  const god = user ? godMode(entries, user) : { active: false, daysLeft: 0 };
+  const tier = tierFor(bd?.total ?? 0);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-5 flex flex-col gap-4">
@@ -33,10 +33,10 @@ export default function GhidPage() {
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors">
           <ArrowLeft size={16} /> înapoi
         </Link>
-        <h1 className="text-sm font-bold text-[var(--color-fg)]">📖 Ghid & Reguli</h1>
+        <h1 className="text-sm font-bold text-[var(--color-fg)]">📖 Ghid</h1>
       </div>
 
-      {/* Your status */}
+      {/* Your status — the three rules, with YOUR numbers in them. */}
       {bd && user && (
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">
@@ -54,157 +54,63 @@ export default function GhidPage() {
           <div className="h-1.5 mt-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--color-accent)' }} />
           </div>
-          <div className="flex items-center justify-between mt-2 text-[11px]">
-            <span className="text-[var(--color-fg-muted)]">Măiestrie (din badge-uri)</span>
-            <span className="num font-bold" style={{ color: '#a3e635' }}>+{Math.round(masteryFor(entries, user) * 100)}% la fiecare noapte</span>
-          </div>
-          {god.active && (
-            <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 god-aura">
-              <Zap size={16} className="shrink-0" style={{ color: '#fbbf24' }} />
-              <span className="text-xs font-bold god-text">GOD MODE ACTIV</span>
-              <span className="text-[11px] num text-[var(--color-fg-muted)] ml-auto">+20% XP · {god.daysLeft}z rămase</span>
+
+          <div className="mt-3 flex flex-col gap-1 text-[11px]">
+            <Line n="1" what={`${bd.logs} nopți logate × ${BASE_XP_PER_LOG}`} xp={bd.base} />
+            <Line n="2" what="calitatea nopților" xp={bd.qualityXP} />
+            {bd.bands.filter(b => b.count > 0).map(b => (
+              <div key={b.min} className="flex items-center gap-2 pl-[22px] text-[10px] text-[var(--color-fg-dim)]">
+                <span className="truncate">{b.count} × SS {b.min}+ · {b.xp} XP</span>
+                <span className="num ml-auto shrink-0">+{b.total}</span>
+              </div>
+            ))}
+            <Line n="3" what={`serie record ${bd.streakMax} zile`} xp={bd.streakBonus} />
+            <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-1.5 mt-0.5">
+              <span className="font-bold text-[var(--color-fg)]">Total</span>
+              <span className="num font-bold" style={{ color: 'var(--color-accent)' }}>{bd.total} XP</span>
             </div>
-          )}
+          </div>
         </Card>
       )}
 
-      {/* Ascension — the headline reward */}
-      <Card className="p-4" style={{ borderColor: '#f472b655', background: '#f472b60a' }}>
-        <SectionTitle icon="💯" title="Ascensiune — o noapte perfectă = un nivel" />
-        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
-          Un <strong className="text-[var(--color-fg)]">Sleep Score de 100</strong> îți dă <strong style={{ color: '#f472b6' }}>UN NIVEL ÎNTREG, garantat</strong> —
-          indiferent la ce nivel ești. Nu primești o sumă fixă de XP, ci <strong className="text-[var(--color-fg)]">exact cât costă nivelul tău curent</strong>,
-          deci treci pragul oriunde te-ai afla în interiorul lui.
-        </p>
-        <div className="grid grid-cols-3 gap-1.5 mt-3">
-          {[5, 20, 40].map(l => (
-            <div key={l} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-center">
-              <div className="text-[9px] text-[var(--color-fg-dim)]">la Lv {l}</div>
-              <div className="num font-bold text-xs" style={{ color: '#f472b6' }}>+{xpToNextLevel(l)} XP</div>
-            </div>
-          ))}
-        </div>
-        <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-          De ce nu o sumă fixă: {xpToNextLevel(1)} XP ar însemna <strong>un nivel întreg</strong> la Lv 1, dar
-          {' '}<strong>doar un sfert</strong> lângă plafon (unde un nivel costă {xpToNextLevel(MAX_LEVEL - 1)} XP) — o sumă fixă se devalorizează
-          pe măsură ce urci. Legând premiul de costul nivelului, recompensa crește odată cu tine.
-          Promisiunea rămâne simplă: <strong className="text-[var(--color-fg)]">un 100 e un nivel</strong> (până la plafonul de Lv {MAX_LEVEL}).
-          {' '}(Și fiind ≥ 95, îți pornește și God Mode.)
-        </p>
-      </Card>
-
-      {/* God Mode explainer */}
+      {/* THE rules — all of them */}
       <Card className="p-4">
-        <SectionTitle icon="⚡" title="God Mode" />
-        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
-          O noapte cu <strong className="text-[var(--color-fg)]">Sleep Score ≥ {GOD_TRIGGER_SS}</strong> îți pornește <span className="god-text font-bold">God Mode</span> pentru
-          următoarele <strong className="text-[var(--color-fg)]">{GOD_WINDOW_DAYS} zile</strong>: tot XP-ul câștigat în acea fereastră primește un
-          <strong className="text-[var(--color-fg)]"> boost de +20%</strong>. O nouă noapte de {GOD_TRIGGER_SS}+ reîmprospătează fereastra (ferestrele nu se cumulează).
-        </p>
-        <p className="text-[10px] text-[var(--color-fg-dim)] mt-2 leading-snug">
-          Pragul era <strong>100</strong> — un scor pe care ceasurile echipei nu l-au produs niciodată, deci mecanica era literalmente moartă. Acum e rar, dar posibil.
-          Suta rămâne specială: e <strong>Ascensiune</strong> (vezi mai sus).
-        </p>
-      </Card>
-
-      {/* XP rules */}
-      <Card className="p-4">
-        <SectionTitle icon="✨" title="Cum câștigi XP" />
-        <p className="text-[10px] text-[var(--color-fg-dim)] mb-2 leading-snug">
-          Benzile de scor sunt <strong>exclusive</strong> — o noapte intră într-o singură bandă, cea mai mare pe care o atinge.
-        </p>
-        <ul className="text-xs text-[var(--color-fg-muted)] space-y-1.5">
-          <Rule>Loghezi o noapte <Xp v="+10" /></Rule>
-          <Rule>💯 Sleep Score = 100 <Xp v="UN NIVEL ÎNTREG" c="#f472b6" /></Rule>
-          <Rule>⚡ Sleep Score 95+ (God Mode) <Xp v="+150" c="#fbbf24" /></Rule>
-          <Rule>👑 Sleep Score 90–94 <Xp v="+60" c="var(--color-good)" /></Rule>
-          <Rule>🌟 Sleep Score 85–89 <Xp v="+25" c="var(--color-good)" /></Rule>
-          <Rule>✨ Sleep Score 80–84 <Xp v="+10" c="var(--color-accent)" /></Rule>
-          <Rule>🌙 Culcare înainte de 23:00 <Xp v="+5" c="var(--color-good)" /></Rule>
-          <Rule>
-            🔥 Streak {STREAK_MILESTONES.map(m => `${m.days}z`).join(' / ')}
-            <Xp v={STREAK_MILESTONES.map(m => `+${m.bonus}`).join(' · ')} c="#f59e0b" />
-          </Rule>
-          <Rule>🏅 Măiestrie (badge-uri) <Xp v={`+${Math.round(TIER_PCT.bronze * 100)}% … +${Math.round(TIER_PCT.platinum * 100)}% PERMANENT`} c="#a3e635" /></Rule>
-          <Rule>⚡ God Mode (fereastră de {GOD_WINDOW_DAYS}z) <Xp v="+20% la tot" c="#fbbf24" /></Rule>
-        </ul>
-      </Card>
-
-      {/* Levels */}
-      <Card className="p-4">
-        <SectionTitle icon="📈" title={`Nivelele — și de ce se opresc la ${MAX_LEVEL}`} />
-        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
-          Fiecare nivel costă mai mult decât cel dinainte: <strong className="text-[var(--color-fg)]">Lv 1 → 2</strong> cere {xpToNextLevel(1)} XP,{' '}
-          <strong className="text-[var(--color-fg)]">Lv 30 → 31</strong> cere {xpToNextLevel(30)} XP. Un vârf de formă de o săptămână nu te catapultează
-          în capul clasamentului — palierele înalte cer ani de consistență.
-          {bd && !maxed && <> Tu ești la <strong className="text-[var(--color-fg)]">Lv {level}</strong>, iar următorul nivel costă <strong className="text-[var(--color-fg)]">{need} XP</strong>.</>}
-        </p>
-        <div className="rounded-xl border px-3 py-2.5 mt-3" style={{ borderColor: '#22d3ee55', background: '#22d3ee0d' }}>
-          <div className="text-xs font-bold text-[var(--color-fg)] mb-1">
-            ✺ Lv {MAX_LEVEL} e MAXIMUL. Capătul drumului.
-          </div>
-          <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed">
-            <strong className="num text-[var(--color-fg)]">{XP_FOR_MAX_LEVEL} XP</strong> — calibrat pe ritmul vostru real de somn ca să fie
-            <strong className="text-[var(--color-fg)]"> aproximativ doi ani</strong> de logat constant. Nu e o cursă de sprint și nu e nici imposibil.
-            Cine ajunge acolo e <strong style={{ color: '#22d3ee' }}>Zeu al Somnului</strong> și n-are ce demonstra nimănui.
-          </p>
-        </div>
-      </Card>
-
-      {/* Momentum */}
-      <Card className="p-4">
-        <SectionTitle icon="🚀" title="Momentum — cât de repede progresezi" />
-        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
-          Clasamentul arată cine a <em>adunat</em> cel mai mult. Momentumul arată cine <em>merge</em> cel mai repede acum —
-          poți fi pe locul 1 din inerție, în timp ce altcineva te depășește în viteză.
-        </p>
-        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed mt-2">
-          <strong className="text-[var(--color-fg)]">1.00×</strong> = ai logat noaptea și atât, fără niciun badge. Tot ce e peste vine din calitatea somnului,
-          culcarea devreme, God Mode și <strong className="text-[var(--color-fg)]">Măiestrie</strong>. Se măsoară pe <strong className="text-[var(--color-fg)]">{MOMENTUM_WINDOW} de zile calendaristice</strong>,
-          deci nopțile nelogate îl trag în jos — un singur număr prinde și consistența, și calitatea.
-        </p>
-        <div className="text-[10px] text-[var(--color-fg-dim)] mt-3 mb-1">Scala de mai jos e la <strong>măiestrie 0</strong> — badge-urile tale se înmulțesc peste ea.</div>
-        <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-          <MomentumEx what="loghezi zilnic, sub 80" v="1.0×" />
-          <MomentumEx what="zilnic, nopți de 80-84" v="2.0×" />
-          <MomentumEx what="zilnic, 85-89 + devreme" v="4.0×" />
-          <MomentumEx what="zilnic, 90-94 + devreme" v="7.5×" />
-          <MomentumEx what="zilnic, 95+ (God Mode)" v={`${MOMENTUM_CEILING.toFixed(1)}×`} hot />
-          <MomentumEx what="o zi din două, 80-84" v="1.0×" />
-        </div>
-        <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-          <strong>Important:</strong> momentumul numără doar XP-ul <strong>care se repetă</strong> în fiecare noapte — iar Măiestria intră aici,
-          fiindcă un badge îți dă un procent pe <em>fiecare</em> noapte, la nesfârșit. Singurul lucru lăsat pe dinafară sunt milestone-urile de streak:
-          alea se plătesc o dată și nu se mai repetă, deci nu sunt „viteză".
-          Și ține minte: nivelele costă tot mai mult, deci <strong>același XP/zi îți dă tot mai puține nivele</strong> pe măsură ce urci — de-aia îți
-          arătăm și în câte zile prinzi următorul nivel, nu doar multiplicatorul.
-        </p>
-      </Card>
-
-      {/* Achievement categories */}
-      <Card className="p-4">
-        <SectionTitle icon="🏅" title="Realizări (cumulative, personale)" />
-        <div className="rounded-xl border px-3 py-2.5 mb-3" style={{ borderColor: '#a3e63555', background: '#a3e6350d' }}>
-          <div className="text-xs font-bold text-[var(--color-fg)] mb-1">Badge-urile nu-ți dau XP. Îți dau un PROCENT permanent.</div>
-          <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed">
-            Fiecare badge îți adaugă un boost <strong className="text-[var(--color-fg)]">permanent</strong> la XP-ul <strong className="text-[var(--color-fg)]">fiecărei nopți</strong> pe care o loghezi:
-            {' '}<strong style={{ color: '#b45309' }}>Bronz +{Math.round(TIER_PCT.bronze * 100)}%</strong> ·{' '}
-            <strong style={{ color: '#94a3b8' }}>Argint +{Math.round(TIER_PCT.silver * 100)}%</strong> ·{' '}
-            <strong style={{ color: '#eab308' }}>Aur +{Math.round(TIER_PCT.gold * 100)}%</strong> ·{' '}
-            <strong style={{ color: '#22d3ee' }}>Platină +{Math.round(TIER_PCT.platinum * 100)}%</strong>.
-            Contează doar tier-ul cel mai înalt de pe fiecare badge (Aur nu se adună peste Bronz).
-          </p>
-          <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed mt-1.5">
-            Toate la un loc formează <strong className="text-[var(--color-fg)]">Măiestria</strong> ta — maximum <strong className="num text-[var(--color-fg)]">+{Math.round(MASTERY_MAX * 100)}%</strong> dacă
-            duci toate cele {ACHIEVEMENTS.length} badge-uri la Platină. Cine e cu adevărat bun câștigă mai mult din <em>fiecare</em> noapte.
-          </p>
-          <p className="text-[10px] text-[var(--color-fg-dim)] mt-1.5 leading-snug">
-            De ce nu XP fix: un bonus unic e o <strong>rezervă finită</strong> — o consumi și ritmul tău scade degeaba, deși dormi la fel de bine.
-            Ca procent, badge-urile nu se termină niciodată și se compun cu tot restul. Sunt un <strong>motor</strong>, nu o grămadă.
-          </p>
-        </div>
+        <SectionTitle icon="✨" title="Cele 3 reguli. Astea sunt toate." />
         <p className="text-[11px] text-[var(--color-fg-dim)] mb-3 leading-snug">
-          Fiecare se numără o dată pentru fiecare noapte care se califică. Nimeni nu ți le poate „fura" — sunt ale tale.
+          Nu există multiplicatori ascunși, ferestre de bonus sau procente din badge-uri. Poți aduna XP-ul de mai jos cu mâna ta
+          și îți dă exact cifra din clasament.
+        </p>
+        <div className="flex flex-col gap-2">
+          <RuleCard
+            n="1"
+            title="Apari"
+            body="Orice noapte logată, indiferent de scor."
+            xp={`+${BASE_XP_PER_LOG} XP`}
+            color="var(--color-accent)"
+          />
+          <RuleCard
+            n="2"
+            title="Dormi bine"
+            body="Benzile sunt exclusive — o noapte e plătită o singură dată, de cea mai mare bandă pe care o atinge. Un 100 valorează un palier întreg; recordul echipei e 95, deci nimeni nu l-a prins încă."
+            xp={[...SS_BANDS].reverse().map(b => `${b.min}+ → +${b.xp}`).join(' · ')}
+            color="var(--color-good)"
+          />
+          <RuleCard
+            n="3"
+            title="Nu rupe seria"
+            body="Se ia în calcul cea mai lungă serie din istoria ta, deci o pauză nu-ți șterge ce ai construit. Fiecare prag se plătește o singură dată."
+            xp={STREAK_MILESTONES.map(m => `${m.days}z → +${m.bonus}`).join(' · ')}
+            color="#f59e0b"
+          />
+        </div>
+      </Card>
+
+      {/* Badges — one per rule, paying nothing */}
+      <Card className="p-4">
+        <SectionTitle icon="🏅" title="Cele 3 realizări" />
+        <p className="text-[11px] text-[var(--color-fg-muted)] mb-3 leading-snug">
+          Câte una pentru fiecare regulă. <strong className="text-[var(--color-fg)]">Nu dau XP</strong> — arată doar cât de departe ai dus
+          fiecare regulă. Sunt personale și cumulative: nimeni nu ți le poate lua.
         </p>
         <div className="flex flex-col gap-2">
           {ACHIEVEMENTS.map(a => (
@@ -212,7 +118,7 @@ export default function GhidPage() {
               <span className="text-lg shrink-0" aria-hidden>{a.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-[var(--color-fg)]">{a.name}</div>
-                <div className="text-[10px] text-[var(--color-fg-muted)]">{user ? achievementHint(a, user) : a.hint}</div>
+                <div className="text-[10px] text-[var(--color-fg-muted)]">{a.hint}</div>
               </div>
               <div className="num text-[10px] text-[var(--color-fg-dim)] shrink-0 text-right">
                 {a.tiers.map(t => t.threshold).join(' · ')}
@@ -221,7 +127,55 @@ export default function GhidPage() {
           ))}
         </div>
         <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-          🫀 <strong>Puls Odihnit</strong> are pragul calibrat pe sex (&lt; 55 bpm bărbați, &lt; 60 femei) — la aceeași condiție fizică, același badge. Apasă orice badge din profil pentru explicația completă.
+          Patru praguri fiecare: <strong style={{ color: '#b45309' }}>Bronz</strong> · <strong style={{ color: '#94a3b8' }}>Argint</strong> ·{' '}
+          <strong style={{ color: '#eab308' }}>Aur</strong> · <strong style={{ color: '#22d3ee' }}>Platină</strong>.
+          Pragurile de la 🔥 Serie sunt aceleași cu bonusurile de la regula 3 — badge-ul ȘI plata sunt același lucru.
+        </p>
+      </Card>
+
+      {/* Paliere — the ladder people actually watch */}
+      <Card className="p-4">
+        <SectionTitle icon="🪜" title={`Cele ${TIERS.length} paliere — unul la fiecare ${TIER_STEP} XP`} />
+        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
+          Fiecare palier costă exact <strong className="text-[var(--color-fg)]">{TIER_STEP} XP</strong>, de la primul la ultimul. Nicio surpriză,
+          nicio curbă: știi mereu cât mai ai de mers.
+          {bd && (() => {
+            const nx = TIERS.find(t => t.minXP > bd.total);
+            return nx ? <> Tu mai ai <strong className="text-[var(--color-fg)]">{nx.minXP - bd.total} XP</strong> până la <strong style={{ color: nx.color }}>{nx.name}</strong>.</> : <> Ești pe ultima treaptă.</>;
+          })()}
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 mt-3">
+          {TIERS.map(t => {
+            const reached = !!bd && bd.total >= t.minXP;
+            return (
+              <div
+                key={t.name}
+                className="rounded-lg px-2 py-1.5 border flex items-center gap-1.5"
+                style={{ borderColor: t.color + '30', background: t.color + '0d', opacity: reached ? 1 : 0.5 }}
+              >
+                <span className="text-sm shrink-0" style={{ color: t.color }}>{t.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-bold truncate" style={{ color: t.color }}>{t.name}</div>
+                  <div className="text-[9px] num text-[var(--color-fg-dim)] leading-none">{t.minXP} XP</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Levels — the slower, separate ladder */}
+      <Card className="p-4">
+        <SectionTitle icon="📈" title={`Nivelele — altă scară, mai lentă`} />
+        <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
+          Palierele vin din {TIER_STEP} în {TIER_STEP} XP. <strong className="text-[var(--color-fg)]">Nivelele</strong> nu: fiecare costă mai mult decât
+          cel dinainte — <strong className="text-[var(--color-fg)]">Lv 1 → 2</strong> cere {xpToNextLevel(1)} XP, <strong className="text-[var(--color-fg)]">Lv 30 → 31</strong> cere {xpToNextLevel(30)} XP.
+          Palierul e recompensa vizibilă; nivelul e cursa lungă.
+          {bd && !maxed && <> Tu ești la <strong className="text-[var(--color-fg)]">Lv {level}</strong>, iar următorul costă <strong className="text-[var(--color-fg)]">{need} XP</strong>.</>}
+        </p>
+        <p className="text-[11px] text-[var(--color-fg-muted)] leading-relaxed mt-2">
+          <strong className="text-[var(--color-fg)]">✺ Lv {MAX_LEVEL} e maximul</strong> — <strong className="num text-[var(--color-fg)]">{XP_FOR_MAX_LEVEL} XP</strong>.
+          Cine ajunge acolo n-are ce demonstra nimănui.
         </p>
       </Card>
 
@@ -237,24 +191,9 @@ export default function GhidPage() {
           <Metric name="Durată somn" better="7-9h ideal" bands="<6h slab · 6-7h sub · 7-9h bun · >9h prea mult" />
         </div>
         <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
-          RHR e calibrat pe sex — femeile au un puls de repaus mai mare cu ~5 bpm la bază. Vârsta și fitness-ul contează și ele; o calibrare pe baseline personal va urma.
+          RHR e calibrat pe sex — femeile au un puls de repaus mai mare cu ~5 bpm la bază. Doar Sleep Score-ul intră în XP; restul metricilor
+          sunt pentru citit, nu pentru punctat.
         </p>
-      </Card>
-
-      {/* Tier ladder */}
-      <Card className="p-4">
-        <SectionTitle icon="🪜" title="Paliere (10 nivele)" />
-        <div className="grid grid-cols-2 gap-1.5">
-          {TIERS.map(t => (
-            <div key={t.name} className="rounded-lg px-2 py-1.5 border flex items-center gap-1.5" style={{ borderColor: t.color + '30', background: t.color + '0d' }}>
-              <span className="text-sm shrink-0" style={{ color: t.color }}>{t.icon}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold truncate" style={{ color: t.color }}>{t.name}</div>
-                <div className="text-[9px] num text-[var(--color-fg-dim)] leading-none">Lv {t.minLevel}+ · {xpForLevel(t.minLevel)} XP</div>
-              </div>
-            </div>
-          ))}
-        </div>
       </Card>
     </main>
   );
@@ -264,25 +203,29 @@ function SectionTitle({ icon, title }: { icon: string; title: string }) {
   return <div className="text-sm font-bold text-[var(--color-fg)] mb-2 flex items-center gap-1.5"><span aria-hidden>{icon}</span> {title}</div>;
 }
 
-function Rule({ children }: { children: ReactNode }) {
-  return <li className="flex items-center justify-between gap-2"><span>{children}</span></li>;
-}
-
-function Xp({ v, c = 'var(--color-fg)' }: { v: string; c?: string }) {
-  return <span className="num font-bold ml-2 shrink-0" style={{ color: c }}>{v}</span>;
-}
-
-function MomentumEx({ what, v, hot = false }: { what: string; v: string; hot?: boolean }) {
+/** One rule of the economy — number, name, what it pays. */
+function RuleCard({ n, title, body, xp, color }: {
+  n: string; title: string; body: string; xp: string; color: string;
+}) {
   return (
-    <div
-      className="rounded-lg border px-2 py-1.5 flex items-center justify-between gap-1"
-      style={{
-        borderColor: hot ? '#fbbf2455' : 'var(--color-border)',
-        background: hot ? '#fbbf240d' : 'var(--color-surface)',
-      }}
-    >
+    <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: color + '40', background: color + '0a' }}>
+      <div className="flex items-center gap-2">
+        <span className="num text-[10px] font-black w-5 h-5 rounded-full grid place-items-center shrink-0" style={{ color, background: color + '22' }}>{n}</span>
+        <span className="text-xs font-bold text-[var(--color-fg)]">{title}</span>
+        <span className="num text-[11px] font-bold ml-auto text-right" style={{ color }}>{xp}</span>
+      </div>
+      <p className="text-[10px] text-[var(--color-fg-muted)] leading-snug mt-1.5">{body}</p>
+    </div>
+  );
+}
+
+/** A line of the live breakdown at the top. */
+function Line({ n, what, xp }: { n: string; what: string; xp: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="num text-[9px] font-bold w-3.5 h-3.5 rounded grid place-items-center shrink-0 bg-[var(--color-border)] text-[var(--color-fg-muted)]">{n}</span>
       <span className="text-[var(--color-fg-muted)] truncate">{what}</span>
-      <span className="num font-bold shrink-0" style={{ color: hot ? '#fbbf24' : 'var(--color-fg)' }}>{v}</span>
+      <span className="num font-bold ml-auto shrink-0 text-[var(--color-fg)]">+{xp}</span>
     </div>
   );
 }

@@ -1,39 +1,35 @@
 /* ─────────────────────────────────────────────────────────
-   Gamification engine — XP economy, achievements, tiers, streaks.
+   Gamification engine — THREE rules, nothing else.
 
-   XP = logs × 10 + SS band bonus + early bird + streak milestones
-        + achievement-tier unlocks, all × God Mode boost.
+   The old engine had eight overlapping sources of XP (bands, early bird,
+   God Mode windows, Ascension, badge tiers, a Mastery multiplier...) and
+   nobody could say where a number came from. It is now one sentence:
 
-   Achievements are Garmin-style: personal, cumulative, repeatable.
-   Everyone earns their own — no zero-sum "best-at" gating. Thresholds
-   that depend on physiology (RHR) are calibrated per person's sex, so
-   the same relative fitness earns the same badge.
+     1. Loghezi o noapte  → +10 XP
+     2. Calitatea nopții  → 80+ : +10 · 90+ : +20 · 95+ : +30 · 100 : +1000 XP
+     3. Serie fără pauză  → 7 / 30 / 100 / 365 zile : +50 / +200 / +600 / +2000 XP
+
+   Badges do NOT pay XP. They are the trophy shelf for exactly the same three
+   behaviours, so a badge can never be a hidden economy: whatever you see in
+   the breakdown IS your XP.
    ───────────────────────────────────────────────────────── */
-import {
-  type SleepEntry, bedtimeFrom18, sleepDurationMin, personSex, rhrCutoffs,
-} from '@/lib/sleep';
+import { type SleepEntry } from '@/lib/sleep';
 
 /* ─── Level curve ───
  *
- * Levelling used to cost a flat 100 XP forever, which made the ladder
- * meaningless: one perfect night jumped you 5 levels and a steady logger
- * blew past the top tier inside a year. Now each level costs more than the
- * last, so the ladder paces a multi-year climb.
+ * Each level costs more than the last, so the ladder paces a multi-year climb:
  *
  *   cost(L → L+1) = LEVEL_BASE + LEVEL_STEP × (L − 1)
  *   totalFor(L)   = Σ cost(1..L−1)
+ *
+ * Left untouched by the simplification. The old economy multiplied a small
+ * per-night sum by Mastery; the new one pays that value straight (a good night
+ * is 25-50 XP instead of 15 × 1.6), so a consistent logger still lands near the
+ * cap around the two-year mark — the pacing the curve was calibrated for.
  */
 export const LEVEL_BASE = 100;
 
-/**
- * MAX_LEVEL = 46. The ceiling, and the end of the ladder — an inside joke.
- *
- * LEVEL_STEP is calibrated, not guessed: resampling each player's OWN real
- * sleep distribution over 730 days puts them at 16.5k–25k XP after two years.
- * A step of 16 prices Lv 46 at 20,340 XP, so the two consistent loggers top out
- * right around the two-year mark and the third arrives a few months later.
- * Reaching the cap should take being good, not merely showing up.
- */
+/** MAX_LEVEL = 46. The ceiling, and the end of the ladder — an inside joke. */
 export const LEVEL_STEP = 16;
 export const MAX_LEVEL = 46;
 
@@ -83,84 +79,64 @@ export function levelProgress(xp: number): LevelProgress {
   return { level, into, need, pct: need ? Math.min(100, (into / need) * 100) : 0, maxed: false };
 }
 
-/* ─── Streaks ───
- * Extended past 30 days: for a daily tracker, the long unbroken run is the
- * single behaviour most worth paying for. Awarded once, on the best run ever.
- */
+/* ─── RULE 1 — showing up ─── */
+export const BASE_XP_PER_LOG = 10;
+
+/* ─── RULE 2 — the quality of the night ───
+ *
+ * Four bands, exclusive: a night is paid once, by the highest band it reaches.
+ * The steps stay small and round (10 / 20 / 30) so you can still add a month up
+ * in your head — except the last one.
+ *
+ * A perfect 100 pays 1000 XP: an entire palier in one night. Across the team's
+ * whole history the best score ever recorded is 95, so this is deliberately a
+ * carrot nobody has picked yet, not a plank of the economy. */
+export const GOOD_SS = 80;
+export const GREAT_SS = 90;
+
+export const SS_BANDS = [
+  { min: 100, xp: 1000, label: 'Noapte perfectă'     },
+  { min: 95,  xp: 30,   label: 'Noapte excepțională' },
+  { min: 90,  xp: 20,   label: 'Noapte excelentă'    },
+  { min: 80,  xp: 10,   label: 'Noapte bună'         },
+] as const;
+
+/** Per-night quality bonus (exclusive bands). */
+export function qualityXP(ss: number): number {
+  for (const b of SS_BANDS) if (ss >= b.min) return b.xp;
+  return 0;
+}
+
+/* ─── RULE 3 — the unbroken run ───
+ * Awarded once, on the best run ever. Same four thresholds as the Serie badge,
+ * on purpose: the badge tier IS the payout, so there's nothing to look up. */
 export const STREAK_MILESTONES = [
   { days: 7, bonus: 50 },
-  { days: 14, bonus: 100 },
   { days: 30, bonus: 200 },
-  { days: 60, bonus: 350 },
   { days: 100, bonus: 600 },
   { days: 365, bonus: 2000 },
 ] as const;
 
-export const EARLY_BIRD_CUTOFF = 300; // 23:00 = 300 min past 18:00
-export const EARLY_BIRD_XP = 5;
-export const BASE_XP_PER_LOG = 10;
-
-/* ─── Achievement system ───
+/* ─── Badges — three, and they pay nothing ───
  *
- * Each achievement is a repeatable metric with tiered thresholds.
- * Awarded XP is FLAT per tier crossed — no per-event double-count with
- * the base/quality bonuses. Reaching a tier gives its `xp` bonus once;
- * the total for a badge is the sum of all reached tiers.
- *
- * `count` receives the person's name so physiological thresholds can be
- * calibrated per sex — a woman's resting heart rate sits ~5 bpm above a
- * man's at identical fitness, so a unisex "RHR < 55" badge silently
- * priced Clara out of it. `description` is the long-form text the badge
- * detail modal shows; `hint` stays the one-line grid caption.
+ * One badge per XP rule. They mark how far you've taken each behaviour; the XP
+ * for that behaviour was already paid by the rule. Tiers stay Garmin-style:
+ * personal, cumulative, repeatable — nobody's badge blocks anybody else's.
  */
-
-/* ─── MASTERY ───
- *
- * A badge tier does not pay a flat lump of XP. It grants a PERMANENT percentage
- * boost to every night you log, forever.
- *
- * The old flat reward (+25/50/100/200 once) had two problems: it was small
- * enough to be ignorable, and — worse — it was a *finite reserve*. Once you had
- * clawed through the tiers there was nothing left, so your rate of progress
- * quietly sagged even though you were sleeping just as well. Badges were a pile,
- * not an engine.
- *
- * As a multiplier they compound with everything and never run out: someone who
- * is genuinely good at this earns a bigger slice of every single night. It also
- * counteracts the rising level cost, so the late game doesn't stall.
- *
- * Only the HIGHEST tier per badge counts (Gold does not stack on top of Bronze).
- *
- * Calibration: the first pass used 5/10/15/20, which across 13 badges compounded
- * to +260% and made Mastery ~60% of everyone's XP — a consistent logger hit the
- * top tier inside a year, undoing the whole level rebalance. Trimmed to
- * 3/6/10/15: a ceiling of +195% that no one will reach (the 95+ and 100 badges
- * alone are years of work), and a realistic one-year figure around +60-90%. */
-export const TIER_PCT = {
-  bronze:   0.03,
-  silver:   0.06,
-  gold:     0.10,
-  platinum: 0.15,
-} as const;
-
 export interface AchievementTier {
   threshold: number;
   label: string;   // "Bronz" / "Argint" / "Aur" / "Platină"
   color: string;
-  /** Permanent boost to ALL night XP while this is your highest tier on the badge. */
-  pct: number;
 }
 
 export interface Achievement {
   id: string;
   icon: string;
   name: string;         // Romanian display name
-  hint: string;         // one-line caption — may depend on the person (RHR)
+  hint: string;         // one-line caption
   description: string;  // long-form explainer for the detail modal
   tiers: AchievementTier[];
   count: (data: SleepEntry[], name: string) => number;
-  /** Per-person caption when the threshold is calibrated (e.g. RHR by sex). */
-  hintFor?: (name: string) => string;
 }
 
 const TIER_COLORS = {
@@ -170,26 +146,13 @@ const TIER_COLORS = {
   platinum: '#22d3ee',  // cyan-400
 } as const;
 
-/** Build a 4-tier ladder with escalating permanent boosts. */
+/** Build the 4-rung ladder every badge uses. */
 const ladder = (t1: number, t2: number, t3: number, t4: number): AchievementTier[] => ([
-  { threshold: t1, label: 'Bronz',    color: TIER_COLORS.bronze,   pct: TIER_PCT.bronze },
-  { threshold: t2, label: 'Argint',   color: TIER_COLORS.silver,   pct: TIER_PCT.silver },
-  { threshold: t3, label: 'Aur',      color: TIER_COLORS.gold,     pct: TIER_PCT.gold },
-  { threshold: t4, label: 'Platină',  color: TIER_COLORS.platinum, pct: TIER_PCT.platinum },
+  { threshold: t1, label: 'Bronz',   color: TIER_COLORS.bronze },
+  { threshold: t2, label: 'Argint',  color: TIER_COLORS.silver },
+  { threshold: t3, label: 'Aur',     color: TIER_COLORS.gold },
+  { threshold: t4, label: 'Platină', color: TIER_COLORS.platinum },
 ]);
-
-/** The "elite" RHR cutoff for this person — 55 bpm for men, 60 for women. */
-export function eliteRhrFor(name: string): number {
-  return rhrCutoffs(personSex(name))[0];
-}
-
-/** Median bedtime (minutes past 18:00) across the person's logged nights. */
-function medianBedtime(data: SleepEntry[]): number | null {
-  const bts = data.map(e => bedtimeFrom18(e.start)).filter((v): v is number => v != null).sort((a, b) => a - b);
-  if (bts.length < 5) return null;   // not enough history to have a "usual" hour
-  const mid = Math.floor(bts.length / 2);
-  return bts.length % 2 ? bts[mid] : Math.round((bts[mid - 1] + bts[mid]) / 2);
-}
 
 export const ACHIEVEMENTS: Achievement[] = [
   {
@@ -197,141 +160,29 @@ export const ACHIEVEMENTS: Achievement[] = [
     icon: '📝',
     name: 'Logger',
     hint: 'nopți logate',
-    description: 'Se numără fiecare noapte pe care o loghezi, indiferent de scor. Cel mai simplu badge din joc — apari, notezi, crește. Consistența bate perfecțiunea.',
+    description: 'Fiecare noapte pe care o loghezi, indiferent de scor. E oglinda regulii 1: +10 XP de fiecare dată când apari. Consistența bate perfecțiunea.',
     tiers: ladder(10, 50, 200, 500),
     count: (data) => data.length,
   },
   {
-    id: 'ascension',
-    icon: '💯',
-    name: 'Ascensiune',
-    hint: 'nopți perfecte (SS = 100)',
-    description: 'Somnul perfect. O noapte de 100 îți dă un NIVEL ÎNTREG, garantat — indiferent la ce nivel ești. Nu e o sumă fixă de XP: primești exact cât costă nivelul tău curent — puțin la începuturi, sute de XP lângă plafon. Recompensa crește odată cu tine și nu se devalorizează niciodată. Cel mai rar și mai puternic eveniment din joc.',
-    tiers: ladder(1, 2, 5, 10),
-    count: (data) => data.filter(e => e.ss >= 100).length,
-  },
-  {
-    id: 'god-mode',
-    icon: '⚡',
-    name: 'God Mode',
-    hint: 'nopți cu SS ≥ 95',
-    description: 'O noapte cu Sleep Score ≥ 95 pornește God Mode: +20% XP pentru următoarele 7 zile, plus cel mai mare bonus de bandă din joc. Rar, dar accesibil.',
-    tiers: ladder(1, 3, 10, 30),
-    count: (data) => data.filter(e => e.ss >= 95).length,
-  },
-  {
-    id: 'near-perfect',
-    icon: '👑',
-    name: 'Aproape Perfect',
-    hint: 'nopți cu SS ≥ 90',
-    description: 'Nopțile de 90+ sunt vârful realist: rare, dar accesibile dacă îți respecți orarul. Aduc un bonus solid și te apropie de pragul God Mode.',
-    tiers: ladder(1, 8, 30, 100),
-    count: (data) => data.filter(e => e.ss >= 90).length,
-  },
-  {
-    id: 'elite',
-    icon: '🌟',
-    name: 'Noapte Elită',
-    hint: 'nopți cu SS ≥ 85',
-    description: 'Peste 85 înseamnă că ai dormit clar peste target. Un obiectiv săptămânal sănătos — nu o loterie.',
-    tiers: ladder(3, 20, 80, 250),
-    count: (data) => data.filter(e => e.ss >= 85).length,
-  },
-  {
-    id: 'great',
+    id: 'good-nights',
     icon: '✨',
-    name: 'Noapte Bună',
-    hint: 'nopți cu SS ≥ 80',
-    description: 'Pragul de bază al unei nopți bune. Aici se câștigă războiul pe termen lung: multe nopți de 80 bat două nopți de 95 urmate de o săptămână proastă.',
+    name: 'Nopți bune',
+    hint: `nopți cu SS ≥ ${GOOD_SS}`,
+    description: `Nopțile de ${GOOD_SS}+ sunt pragul unei nopți bune — și regula 2 din economia de XP: +10 XP peste 80, +20 peste 90, +30 peste 95, iar un 100 perfect plătește 1000 XP, adică un palier întreg. Aici se câștigă războiul pe termen lung: multe nopți de 80 bat două de 95 urmate de o săptămână proastă.`,
     tiers: ladder(5, 30, 120, 350),
-    count: (data) => data.filter(e => e.ss >= 80).length,
+    count: (data) => data.filter(e => e.ss >= GOOD_SS).length,
   },
   {
-    id: 'early-bird',
-    icon: '🌙',
-    name: 'Ciocârlie',
-    hint: 'nopți culcare < 23:00',
-    description: 'Culcarea înainte de 23:00 prinde primele cicluri de somn profund, cele mai reparatoare ale nopții. Fiecare astfel de noapte îți dă și +5 XP direct.',
-    tiers: ladder(5, 25, 100, 300),
-    count: (data) => data.filter(e => {
-      const bt = bedtimeFrom18(e.start);
-      return bt != null && bt < EARLY_BIRD_CUTOFF;
-    }).length,
-  },
-  {
-    id: 'metronome',
-    icon: '⏱️',
-    name: 'Metronom',
-    hint: 'nopți la ora ta obișnuită (±30m)',
-    description: 'Se numără nopțile în care te-ai culcat la maximum 30 de minute de ora ta mediană. Regularitatea orarului e cel mai bun predictor al calității somnului — mai bun decât durata. Se activează după 5 nopți cu ore notate.',
-    tiers: ladder(5, 30, 120, 365),
-    count: (data) => {
-      const med = medianBedtime(data);
-      if (med == null) return 0;
-      return data.filter(e => {
-        const bt = bedtimeFrom18(e.start);
-        return bt != null && Math.abs(bt - med) <= 30;
-      }).length;
-    },
-  },
-  {
-    id: 'long-sleep',
-    icon: '💤',
-    name: 'Somn Lung',
-    hint: 'nopți ≥ 8h somn',
-    description: 'Opt ore reale de somn, nu opt ore în pat. Se calculează din ora de culcare și ora de trezire pe care le notezi.',
-    tiers: ladder(3, 20, 80, 250),
-    count: (data) => data.filter(e => {
-      const d = sleepDurationMin(e.start, e.end);
-      return d != null && d >= 480;
-    }).length,
-  },
-  {
-    id: 'rem-master',
-    icon: '🧠',
-    name: 'Maestru REM',
-    hint: 'nopți cu REM ≥ 90m',
-    description: 'REM-ul e faza în care creierul consolidează memoria și procesează emoțional ziua. 90 de minute e targetul; alcoolul și culcarea târzie îl taie primul.',
-    tiers: ladder(3, 20, 75, 220),
-    count: (data) => data.filter(e => e.rem != null && e.rem >= 90).length,
-  },
-  {
-    id: 'low-rhr',
-    icon: '🫀',
-    name: 'Puls Odihnit',
-    hint: 'nopți cu puls de repaus elită',
-    description: 'Pulsul de repaus scăzut arată recuperare bună și stres cardiovascular mic. Pragul e calibrat pe sex — femeile au un RHR bazal mai mare cu ~5 bpm la aceeași condiție fizică, deci pragul lor e < 60, al bărbaților < 55. Aceeași formă fizică, același badge.',
-    hintFor: (name) => `nopți cu RHR < ${eliteRhrFor(name)}`,
-    tiers: ladder(3, 20, 75, 220),
-    count: (data, name) => {
-      const elite = eliteRhrFor(name);
-      return data.filter(e => e.rhr > 0 && e.rhr < elite).length;
-    },
-  },
-  {
-    id: 'high-hrv',
-    icon: '💓',
-    name: 'HRV Elită',
-    hint: 'nopți cu HRV ≥ 60',
-    description: 'Variabilitatea ritmului cardiac măsoară cât de bine îți comută sistemul nervos pe „odihnă". HRV mare = recuperare bună. Scade la stres, alcool și antrenamente grele.',
-    tiers: ladder(3, 20, 75, 220),
-    count: (data) => data.filter(e => e.hrv != null && e.hrv >= 60).length,
-  },
-  {
-    id: 'journaler',
-    icon: '📓',
-    name: 'Jurnalist',
-    hint: 'nopți cu jurnal scris',
-    description: 'Notează ce ai făcut înainte de culcare. Peste câteva săptămâni, jurnalul e singurul lucru care îți explică DE CE a fost o noapte bună sau proastă — cifrele singure nu spun asta.',
-    tiers: ladder(3, 20, 80, 250),
-    count: (data) => data.filter(e => e.journal && e.journal.trim().length > 0).length,
+    id: 'streak',
+    icon: '🔥',
+    name: 'Serie',
+    hint: 'cea mai lungă serie fără pauză',
+    description: 'Cea mai lungă serie de zile consecutive logate, din toată istoria ta. Pragurile ei SUNT bonusurile de serie: 7 zile = +50 XP, 30 = +200, 100 = +600, un an întreg = +2000. Se ia în calcul recordul, deci o pauză nu-ți șterge ce ai construit.',
+    tiers: ladder(7, 30, 100, 365),
+    count: (data, name) => maxStreakFor(data, name),
   },
 ];
-
-/** The caption to show for a badge, resolved for a specific person. */
-export function achievementHint(a: Achievement, name: string): string {
-  return a.hintFor ? a.hintFor(name) : a.hint;
-}
 
 export interface AchievementProgress {
   achievement: Achievement;
@@ -339,8 +190,6 @@ export interface AchievementProgress {
   tiersReached: number;       // 0–4
   currentTier: AchievementTier | null;
   nextTier: AchievementTier | null;
-  /** This badge's permanent contribution — the highest reached tier's pct. */
-  pct: number;
 }
 
 /** Compute progress for every achievement for a given user. */
@@ -350,175 +199,40 @@ export function computeAchievements(data: SleepEntry[], name: string): Achieveme
     const c = a.count(mine, name);
     let tiersReached = 0;
     for (const t of a.tiers) if (c >= t.threshold) tiersReached++;
-    const currentTier = tiersReached > 0 ? a.tiers[tiersReached - 1] : null;
     return {
       achievement: a,
       count: c,
       tiersReached,
-      currentTier,
+      currentTier: tiersReached > 0 ? a.tiers[tiersReached - 1] : null,
       nextTier: tiersReached < a.tiers.length ? a.tiers[tiersReached] : null,
-      // Highest tier only — Gold does not stack on top of Bronze and Silver.
-      pct: currentTier?.pct ?? 0,
     };
   });
 }
 
-/** Your Mastery: the permanent multiplier your badges add to every night's XP.
- *  0.35 means +35% on top of everything you earn from sleeping. */
-export function masteryFor(data: SleepEntry[], name: string): number {
-  return computeAchievements(data, name).reduce((s, p) => s + p.pct, 0);
-}
-
-/** The ceiling — every badge at Platinum. Nobody gets here; that's the point. */
-export const MASTERY_MAX = ACHIEVEMENTS.length * TIER_PCT.platinum;
-
-/* ─── God Mode ───
- *
- * Trigger recalibrated 2026-07-13. It used to require SS = 100, which the
- * team's devices never produce — across 97 logged nights nobody had ever
- * scored 95+, so the whole mechanic (and its +500 jackpot) was dead content.
- * The trigger is now SS ≥ 95: rare, but reachable.
- *
- * A God night turns on GOD MODE for the next 7 days: every night logged in
- * that window earns +20% XP. Logging another God night refreshes the window.
- * The trigger night itself is not boosted — it already banks the big flat
- * bonus. Overlapping windows do NOT stack (the boost is applied once).
- */
-export const GOD_TRIGGER_SS = 95;    // the score that opens a God window
-export const GOD_WINDOW_DAYS = 7;
-export const GOD_BOOST = 0.20;       // +20% XP inside the window
-
-/* Per-night flat SS bonus (exclusive bands).
- *
- * Rebalanced against the real score distribution: 90+ is a ~5% event for this
- * team and used to pay a laughable +10, while the never-occurring 100 paid
- * +500 and single-handedly dominated the economy. The curve is now steep but
- * bounded, so one lucky night can't erase a month of consistency.
- *
- * A 100 pays the same band as any 95+ night. Its real prize is the Ascension
- * below — a flat jackpot would be worth five levels at Lv 5 and not even one
- * at Lv 50, which is exactly the lottery the rebalance removed. */
-export const SS_BANDS = [
-  { min: 95,  xp: 150, icon: '⚡', label: 'God Mode'         },
-  { min: 90,  xp: 60,  icon: '👑', label: 'Aproape perfect'  },
-  { min: 85,  xp: 25,  icon: '🌟', label: 'Noapte elită'     },
-  { min: 80,  xp: 10,  icon: '✨', label: 'Noapte bună'      },
-] as const;
-
-/** Per-night flat SS bonus (exclusive bands). */
-export function ssBandBonus(ss: number): number {
-  for (const b of SS_BANDS) if (ss >= b.min) return b.xp;
-  return 0;
-}
-
-/* ─── ASCENSION — the reward for a flawless night ───
- *
- * A Sleep Score of 100 grants **an entire level, guaranteed, at whatever level
- * you happen to be**. The XP awarded is exactly the cost of your current level
- * (xpToNextLevel), so you always cross the boundary no matter where inside the
- * level you were standing.
- *
- * Why not a flat jackpot: at Lv 5 a level costs 200 XP and at Lv 50 it costs
- * 1325. Any fixed number is therefore five levels early and a rounding error
- * late — the exact failure the level curve was rebalanced to kill. Tying the
- * prize to the level cost makes it scale with you forever, and makes the promise
- * to the user dead simple: *a 100 is a level. Always.*
- *
- * The cost: XP is no longer a plain sum — the bonus depends on the level you
- * were at THAT NIGHT, so `xpBreakdown` folds chronologically. It stays a pure
- * function of the entries; it just has to walk them in order. */
-export const ASCENSION_SS = 100;
-
-const DAY_MS = 86400000;
-const dayNum = (d: string) => Math.round(new Date(d + 'T12:00:00').getTime() / DAY_MS);
-
-/** The RECURRING XP a single night pays, split by source.
- *
- *  This is the engine's one definition of "what a night is worth" — the XP
- *  breakdown and the Momentum meter both read it, so the headline rate can
- *  never drift from the XP actually banked.
- *
- *  Deliberately excludes badge tiers and streak milestones: those are one-time
- *  unlocks, not a rate. Folding them in would inflate a "speed" number that
- *  then silently decays as the tiers run out. */
-export function nightParts(e: SleepEntry): { base: number; quality: number; earlyBird: number; total: number } {
-  const bt = bedtimeFrom18(e.start);
-  const base = BASE_XP_PER_LOG;
-  const quality = ssBandBonus(e.ss);
-  const earlyBird = bt != null && bt < EARLY_BIRD_CUTOFF ? EARLY_BIRD_XP : 0;
-  return { base, quality, earlyBird, total: base + quality + earlyBird };
-}
-
-/** The dates on which this person's nights are God-boosted (+20%) — i.e. that
- *  fall 1..7 days after one of their own God nights. */
-export function boostedDates(data: SleepEntry[], name: string): Set<string> {
-  const mine = data.filter(d => d.name === name);
-  const godDays = new Set(mine.filter(e => e.ss >= GOD_TRIGGER_SS).map(e => dayNum(e.date)));
-  const out = new Set<string>();
-  if (!godDays.size) return out;
-  for (const e of mine) {
-    const t = dayNum(e.date);
-    for (let back = 1; back <= GOD_WINDOW_DAYS; back++) {
-      if (godDays.has(t - back)) { out.add(e.date); break; }
-    }
-  }
-  return out;
-}
-
-/** Today as YYYY-MM-DD in LOCAL time. `toISOString()` would report the UTC day,
- *  which is the previous calendar day between 00:00 and 03:00 in Romania — that
- *  made streaks and God windows look a day off overnight. */
-export function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** Is God Mode active for this user RIGHT NOW, and how many days remain?
- *  Active while today is within GOD_WINDOW_DAYS of a logged God night. */
-export function godMode(data: SleepEntry[], name: string): { active: boolean; daysLeft: number } {
-  const today = dayNum(todayISO());
-  let daysLeft = 0;
-  for (const e of data) {
-    if (e.name !== name || e.ss < GOD_TRIGGER_SS) continue;
-    const since = today - dayNum(e.date);
-    if (since >= 0 && since <= GOD_WINDOW_DAYS) daysLeft = Math.max(daysLeft, GOD_WINDOW_DAYS - since);
-  }
-  return { active: daysLeft > 0, daysLeft };
+/* ─── The breakdown ───
+ * Three rules in, three lines out. Every field here is a number you can add up
+ * by hand from your own history — that is the whole point of the rewrite. */
+export interface BandTally {
+  min: number;
+  xp: number;
+  label: string;
+  count: number;   // nights that landed in THIS band (exclusive)
+  total: number;   // count × xp
 }
 
 export interface XPBreakdown {
   logs: number;
-  base: number;
-  count100: number;
-  bonus100: number;
-  count95: number;
-  bonus95: number;
-  count90: number;
-  bonus90: number;
-  count85: number;
-  bonus85: number;
-  count80: number;
-  bonus80: number;
-  earlyBirdCount: number;
-  earlyBirdBonus: number;
-  godBoost: number;             // extra XP from the +20% God Mode window
-  godActive: boolean;           // God Mode live right now
-  godDaysLeft: number;
-  ascensionCount: number;       // flawless nights (SS = 100)
-  ascensionXP: number;          // a full level per flawless night
+  base: number;          // rule 1
+  bands: BandTally[];    // rule 2, highest band first
+  qualityXP: number;     // rule 2 total
+  nights80: number;      // cumulative ≥ 80 — what the "×80+" chips mean
+  nights90: number;      // cumulative ≥ 90
   streakMax: number;
-  streakBonus: number;
-  achievementsCount: number;    // total tiers reached across all badges
-  /** Your badge multiplier, e.g. 0.35 = +35% on every night. */
-  mastery: number;
-  /** The XP that multiplier actually added. */
-  masteryXP: number;
-  /** Night XP before Mastery (base + bands + early bird + God boost). */
-  nightsXP: number;
+  streakBonus: number;   // rule 3
   total: number;
 }
 
-/** Streak-milestone XP — the only flat lump left in the economy. */
+/** Streak-milestone XP for this person's best run ever. */
 export function streakXP(data: SleepEntry[], name: string): number {
   const best = maxStreakFor(data, name);
   let xp = 0;
@@ -526,111 +240,34 @@ export function streakXP(data: SleepEntry[], name: string): number {
   return xp;
 }
 
-
-/**
- * The Ascension XP granted on each flawless night, keyed by date.
- *
- * Must be walked chronologically: the prize is the cost of the level you were
- * standing on that night, and that level depends on every Ascension before it.
- * Recomputing the running total is O(n), but only on a flawless night — a rare
- * event — so this never becomes the hot path.
- *
- * The single source of truth for Ascension: `xpBreakdown` and the Momentum
- * meter both read it, so the two can't disagree about what a 100 was worth.
- */
-export function ascensionsFor(data: SleepEntry[], name: string): Map<string, number> {
-  const entries = data.filter(d => d.name === name).sort((a, b) => a.date.localeCompare(b.date));
-  const out = new Map<string, number>();
-  if (!entries.some(e => e.ss >= ASCENSION_SS)) return out;
-
-  const boosted = boostedDates(data, name);
-  let granted = 0;
-  let nightsRaw = 0, boostRaw = 0;   // running prefix sums — O(1) per night
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    const p = nightParts(e);
-    nightsRaw += p.total;
-    if (boosted.has(e.date)) boostRaw += p.total * GOD_BOOST;
-    if (e.ss < ASCENSION_SS) continue;
-
-    // Price it at the level this person actually stood on that night — Mastery
-    // and streaks as they were back then, not as they are today. The O(n) lump
-    // recount only runs on a flawless night, which is the rarest event in the game.
-    const soFar = entries.slice(0, i + 1);
-    const nights = nightsRaw + Math.round(boostRaw);
-    const running = Math.round(nights * (1 + masteryFor(soFar, name))) + granted + streakXP(soFar, name);
-    const grant = xpToNextLevel(xpLevel(running));
-    out.set(e.date, (out.get(e.date) ?? 0) + grant);
-    granted += grant;
-  }
-  return out;
-}
-
 export function xpBreakdown(data: SleepEntry[], name: string): XPBreakdown {
-  const entries = data.filter(d => d.name === name).sort((a, b) => a.date.localeCompare(b.date));
+  const entries = data.filter(d => d.name === name);
   const logs = entries.length;
   const base = logs * BASE_XP_PER_LOG;
 
-  // Set-based: a linear scan per night turned quadratic when most nights were
-  // God nights (15k entries went from 1.2s to 0.2s).
-  const boosted = boostedDates(data, name);
-
-  let count100 = 0, count95 = 0, count90 = 0, count85 = 0, count80 = 0, earlyBirdCount = 0;
-  let godBoostRaw = 0;
-
+  // Exclusive tally: each night falls into the highest band it reaches, so the
+  // per-band counts sum to the number of nights and the XP sums to the total.
+  const counts = new Map<number, number>(SS_BANDS.map(b => [b.min, 0]));
   for (const e of entries) {
-    if (e.ss >= 100) count100++;
-    else if (e.ss >= 95) count95++;
-    else if (e.ss >= 90) count90++;
-    else if (e.ss >= 85) count85++;
-    else if (e.ss >= 80) count80++;
-
-    const parts = nightParts(e);
-    if (parts.earlyBird) earlyBirdCount++;
-    if (boosted.has(e.date)) godBoostRaw += parts.total * GOD_BOOST;
+    const band = SS_BANDS.find(b => e.ss >= b.min);
+    if (band) counts.set(band.min, (counts.get(band.min) ?? 0) + 1);
   }
-
-  const ascensions = ascensionsFor(data, name);
-  const ascensionCount = ascensions.size;
-  const ascensionXP = [...ascensions.values()].reduce((s, v) => s + v, 0);
-
-  const godBoost = Math.round(godBoostRaw);
-  const earlyBirdBonus = earlyBirdCount * EARLY_BIRD_XP;
-  const bonus100 = count100 * ssBandBonus(100);
-  const bonus95 = count95 * ssBandBonus(95);
-  const bonus90 = count90 * ssBandBonus(90);
-  const bonus85 = count85 * ssBandBonus(85);
-  const bonus80 = count80 * ssBandBonus(80);
-
-  const { active: godActive, daysLeft: godDaysLeft } = godMode(data, name);
+  const bands: BandTally[] = SS_BANDS.map(b => {
+    const count = counts.get(b.min) ?? 0;
+    return { min: b.min, xp: b.xp, label: b.label, count, total: count * b.xp };
+  });
+  const qualityXP = bands.reduce((s, b) => s + b.total, 0);
+  const nights90 = bands.filter(b => b.min >= GREAT_SS).reduce((s, b) => s + b.count, 0);
+  const nights80 = bands.reduce((s, b) => s + b.count, 0);
 
   const streakMax = maxStreakFor(data, name);
   const streakBonus = streakXP(data, name);
 
-  const achievements = computeAchievements(data, name);
-  const achievementsCount = achievements.reduce((s, p) => s + p.tiersReached, 0);
-
-  // Mastery multiplies every night you have ever logged — earning a Gold badge
-  // makes your whole history worth more, not just the nights that come after.
-  const mastery = achievements.reduce((s, p) => s + p.pct, 0);
-  const nightsXP = base + bonus100 + bonus95 + bonus90 + bonus85 + bonus80 + earlyBirdBonus + godBoost;
-  const masteryXP = Math.round(nightsXP * mastery);
-
-  const total = nightsXP + masteryXP + ascensionXP + streakBonus;
-
   return {
     logs, base,
-    count100, bonus100,
-    count95, bonus95,
-    count90, bonus90,
-    count85, bonus85,
-    count80, bonus80,
-    earlyBirdCount, earlyBirdBonus,
-    godBoost, godActive, godDaysLeft,
-    ascensionCount, ascensionXP,
+    bands, qualityXP, nights80, nights90,
     streakMax, streakBonus,
-    achievementsCount, mastery, masteryXP, nightsXP,
-    total,
+    total: base + qualityXP + streakBonus,
   };
 }
 
@@ -638,42 +275,63 @@ export function calcXP(data: SleepEntry[], name: string): number {
   return xpBreakdown(data, name).total;
 }
 
-/* Tier system — 10 paliere, cu descrieri pentru modalul de detaliu.
+/* ─── Paliere — ten rungs, one every 1000 XP ───
  *
- * minLevel-urile au fost re-scalate odată cu curba de nivel (2026-07-13):
- * pe curba veche, plată, oricine loga constant trecea de „Zeu" într-un an.
- * Acum Zeu (Lv 50) cere ~34.000 XP — un obiectiv de câțiva ani. */
+ * Keyed on RAW XP, not on level. Levels cost more as you climb, so a palier
+ * pinned to a level number drifts further apart the higher you go; pinned to XP,
+ * every rung is the same amount of work — "încă 1000 XP" is the whole rule.
+ *
+ * TIER_STEP is the promise. The names and colours are the flavour. */
+export const TIER_STEP = 1000;
+
 export interface Tier {
   name: string;
   color: string;
   icon: string;
-  minLevel: number;
+  minXP: number;
   blurb: string;
 }
 
-export const TIERS: Tier[] = [
-  { name: 'Somnoros',           color: '#a1a1aa', icon: '·', minLevel: 1,  blurb: 'Ai deschis aplicația. E un început.' },
-  { name: 'Visător',            color: '#94a3b8', icon: '˚', minLevel: 4,  blurb: 'Loghezi constant. Datele încep să spună ceva.' },
-  { name: 'Somnambul',          color: '#60a5fa', icon: '◆', minLevel: 8,  blurb: 'Ai un obicei, nu un experiment.' },
-  { name: 'Ursulețul de Pat',   color: '#a78bfa', icon: '◇', minLevel: 12, blurb: 'Nopțile bune nu mai sunt accident.' },
-  { name: 'Guru de Pernă',      color: '#c084fc', icon: '★', minLevel: 16, blurb: 'Îți știi tiparele mai bine decât ceasul.' },
-  { name: 'Maestru al Nopții',  color: '#a3e635', icon: '☾', minLevel: 21, blurb: 'Orar de fier. Scoruri pe măsură.' },
-  { name: 'Sensei REM',         color: '#facc15', icon: '❈', minLevel: 26, blurb: 'Somnul tău e o disciplină, nu o întâmplare.' },
-  { name: 'Legendă a Somnului', color: '#fb923c', icon: '✦', minLevel: 32, blurb: 'Ani de consistență. Se vede.' },
-  { name: 'Semizeu Hipnos',     color: '#f472b6', icon: '❋', minLevel: 39, blurb: 'Aproape nimeni nu ajunge aici.' },
-  { name: 'Zeu al Somnului',    color: '#22d3ee', icon: '✺', minLevel: MAX_LEVEL, blurb: 'Nivelul 46. Capătul drumului. Nu mai ai ce demonstra nimănui.' },
+const TIER_FLAVOUR: Omit<Tier, 'minXP'>[] = [
+  { name: 'Somnoros',           color: '#a1a1aa', icon: '·', blurb: 'Ai deschis aplicația. E un început.' },
+  { name: 'Visător',            color: '#94a3b8', icon: '˚', blurb: 'Loghezi constant. Datele încep să spună ceva.' },
+  { name: 'Somnambul',          color: '#60a5fa', icon: '◆', blurb: 'Ai un obicei, nu un experiment.' },
+  { name: 'Ursulețul de Pat',   color: '#a78bfa', icon: '◇', blurb: 'Nopțile bune nu mai sunt accident.' },
+  { name: 'Guru de Pernă',      color: '#c084fc', icon: '★', blurb: 'Îți știi tiparele mai bine decât ceasul.' },
+  { name: 'Maestru al Nopții',  color: '#a3e635', icon: '☾', blurb: 'Orar de fier. Scoruri pe măsură.' },
+  { name: 'Sensei REM',         color: '#facc15', icon: '❈', blurb: 'Somnul tău e o disciplină, nu o întâmplare.' },
+  { name: 'Legendă a Somnului', color: '#fb923c', icon: '✦', blurb: 'Ani de consistență. Se vede.' },
+  { name: 'Semizeu Hipnos',     color: '#f472b6', icon: '❋', blurb: 'Aproape nimeni nu ajunge aici.' },
+  { name: 'Zeu al Somnului',    color: '#22d3ee', icon: '✺', blurb: 'Capătul scării. Nu mai ai ce demonstra nimănui.' },
 ];
 
-export function tierFor(level: number): Tier {
+/** Palier `i` starts at `i × 1000` XP — the first one at 0. */
+export const TIERS: Tier[] = TIER_FLAVOUR.map((t, i) => ({ ...t, minXP: i * TIER_STEP }));
+
+/** The top rung's threshold — 9000 XP. */
+export const TIER_MAX_XP = TIERS[TIERS.length - 1].minXP;
+
+export function tierFor(xp: number): Tier {
   for (let i = TIERS.length - 1; i >= 0; i--) {
-    if (level >= TIERS[i].minLevel) return TIERS[i];
+    if (xp >= TIERS[i].minXP) return TIERS[i];
   }
   return TIERS[0];
 }
 
-/** The next tier up from `level`, or null at the top. */
-export function nextTierFor(level: number): Tier | null {
-  return TIERS.find(t => t.minLevel > level) ?? null;
+/** The next tier up from `xp`, or null once you're on the top rung. */
+export function nextTierFor(xp: number): Tier | null {
+  return TIERS.find(t => t.minXP > xp) ?? null;
+}
+
+const DAY_MS = 86400000;
+const dayNum = (d: string) => Math.round(new Date(d + 'T12:00:00').getTime() / DAY_MS);
+
+/** Today as YYYY-MM-DD in LOCAL time. `toISOString()` would report the UTC day,
+ *  which is the previous calendar day between 00:00 and 03:00 in Romania — that
+ *  made streaks look a day off overnight. */
+export function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /**

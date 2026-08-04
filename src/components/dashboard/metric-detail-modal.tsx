@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   type SleepEntry,
   ssColor, remColor, hrvColor, rhrColor, durationColor,
@@ -88,6 +88,13 @@ const SPECS: Record<MetricKey, MetricSpec> = {
  * Sections (from top): header → headline + delta + target pill → 30d trend
  * chart with target line → 4 quick stats (avg 7d / avg 30d / best ever /
  * total logs) → full descending history list.
+ *
+ * The module is STATIC. Everything above "Toate măsurătorile" is pinned with
+ * `shrink-0` and never moves; only the history rows scroll, inside their own
+ * `flex-1 min-h-0 overflow-y-auto` box. `min-h-0` is load-bearing on both the
+ * section and the list — a flex child defaults to `min-height:auto`, so without
+ * it the list refuses to shrink, the scroll never engages, and the panel's
+ * `overflow-hidden` silently clips rows off the bottom.
  */
 const ORDER = Object.keys(SPECS) as MetricKey[];
 
@@ -118,6 +125,49 @@ export function MetricDetailModal({
       document.removeEventListener('keydown', handler);
     };
   }, [metric, onClose, onNavigate]);
+
+  // The static block is pinned, so whatever it takes, the history list does not
+  // get. The chart is the only elastic thing in it, so it absorbs the squeeze —
+  // but by how much can't be a constant: at phone width the header and the
+  // headline row wrap, and the static block grows ~100px. So MEASURE it.
+  //
+  // `staticRest` deliberately excludes the chart's own box, which is what makes
+  // this converge: the number we budget against doesn't move when the chart
+  // resizes or disappears. One extra layout pass, no oscillation.
+  const staticRef = useRef<HTMLDivElement>(null);
+  const chartBoxRef = useRef<HTMLDivElement>(null);
+  const [chartHeight, setChartHeight] = useState<number | null>(200);
+  // Escape hatch: on a viewport too short to hold the static block AND a usable
+  // list (a phone in landscape), pinning would leave a 25px scroll strip. There
+  // the whole panel scrolls again — a cramped module beats an unusable one.
+  const [cramped, setCramped] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!metric) return;
+    const measure = () => {
+      const s = staticRef.current;
+      const panel = s?.parentElement;
+      const header = panel?.firstElementChild as HTMLElement | undefined;
+      if (!s || !panel || !header) return;
+
+      const LIST_MIN = 170;    // ~4 rows — the fewest that still reads as a list
+      const LIST_CHROME = 55;  // the section's own label + padding
+      const CHART_FRAME = 58;  // the chart's label, border and inner padding
+
+      const staticRest = s.offsetHeight - (chartBoxRef.current?.offsetHeight ?? 0);
+      const free = panel.clientHeight - header.offsetHeight - staticRest - LIST_CHROME;
+      setCramped(prev => (prev === free < 110 ? prev : free < 110));
+
+      const room = free - LIST_MIN;
+      // Below ~80px there is no chart worth drawing — on a short screen the
+      // numbers and the list win, and the chart steps aside.
+      const next = room - CHART_FRAME < 80 ? null : Math.min(200, room - CHART_FRAME);
+      setChartHeight(prev => (prev === next ? prev : next));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [metric, chartHeight]);
 
   // RHR thresholds are sex-calibrated — women's bands sit ~5 bpm higher.
   const sex = personSex(user);
@@ -252,14 +302,16 @@ export function MetricDetailModal({
       role="presentation"
     >
       <div
-        className="bg-[var(--color-bg)] w-full md:max-w-2xl max-h-[92vh] rounded-t-3xl md:rounded-2xl border border-[var(--color-border)] shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
+        className={`bg-[var(--color-bg)] w-full md:max-w-2xl max-h-[92vh] rounded-t-3xl md:rounded-2xl border border-[var(--color-border)] shadow-2xl shadow-black/50 flex flex-col ${
+          cramped ? 'overflow-y-auto' : 'overflow-hidden'
+        }`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={`${spec.label} — detalii`}
       >
-        {/* Header */}
-        <header className="px-5 pt-5 pb-3 border-b border-[var(--color-border)]">
+        {/* Header — pinned */}
+        <header className="shrink-0 px-5 pt-5 pb-3 border-b border-[var(--color-border)]">
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -326,20 +378,21 @@ export function MetricDetailModal({
           )}
         </header>
 
-        <div className="overflow-y-auto px-5 py-4 flex-1">
+        {/* Static block — pinned, never scrolls */}
+        <div ref={staticRef} className="shrink-0 px-5 pt-4">
           {/* Headline + delta + target pill */}
-          <div className="flex items-end justify-between gap-4 mb-5">
+          <div className="flex items-end justify-between gap-4 mb-3">
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
                 <span
-                  className={`num font-bold leading-none tracking-tight ${spec.format ? 'text-4xl' : 'text-5xl'}`}
+                  className={`num font-bold leading-none tracking-tight ${spec.format ? 'text-3xl' : 'text-4xl'}`}
                   style={{ color: valueColor }}
                 >
                   {renderVal(lastValue)}
                 </span>
                 {spec.unit && <span className="text-sm text-[var(--color-fg-muted)] font-medium">{spec.unit}</span>}
               </div>
-              <div className="text-[11px] num mt-2 flex items-center gap-3 flex-wrap">
+              <div className="text-[11px] num mt-1.5 flex items-center gap-3 flex-wrap">
                 <span className="flex items-center gap-1" style={{ color: deltaColor }}>
                   <span aria-hidden>{deltaArrow}</span>
                   {delta != null ? (
@@ -366,29 +419,30 @@ export function MetricDetailModal({
             )}
           </div>
 
-          {/* Narrative insight — deterministic, instant, holistic read */}
+          {/* Narrative insight — one line. The label above it was a second row of
+              chrome for a word the colour already says. */}
           {trendNote && (
             <div
-              className="mb-5 px-3.5 py-3 rounded-xl border"
+              className="mb-3 px-3 py-2 rounded-xl border flex items-center gap-2"
               style={{
                 background: `color-mix(in srgb, ${toneColor} 9%, transparent)`,
                 borderColor: `color-mix(in srgb, ${toneColor} 28%, transparent)`,
               }}
             >
-              <div className="label mb-1" style={{ color: toneColor }}>insight</div>
-              <div className="text-sm leading-snug text-[var(--color-fg)]">{trendNote.text}</div>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: toneColor }} aria-hidden />
+              <span className="text-[13px] leading-snug text-[var(--color-fg)]">{trendNote.text}</span>
             </div>
           )}
 
           {/* 30-day trend chart — rich tooltip + crosshair (hover/touch) */}
-          {present.length >= 2 && (
-            <div className="mb-5">
-              <div className="label mb-2">Evoluție · ultimele 30 de zile</div>
+          {present.length >= 2 && chartHeight != null && (
+            <div ref={chartBoxRef} className="mb-3">
+              <div className="label mb-1.5">Evoluție · ultimele 30 de zile</div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 px-3 pt-3 pb-2">
                 <TeamChart
                   series={[{ name: spec.label, color: valueColor === 'var(--color-fg-dim)' ? '#a3e635' : valueColor, values: series30 }]}
                   dates={dates30}
-                  height={200}
+                  height={chartHeight}
                   target={spec.target}
                   targetLabel="target"
                   unit={spec.key === 'ss' ? '' : spec.unit}
@@ -401,46 +455,50 @@ export function MetricDetailModal({
           )}
 
           {/* Quick stats grid */}
-          <div className="grid grid-cols-4 gap-2 mb-5">
+          <div className="grid grid-cols-4 gap-2">
             <StatCell label="medie 7z" value={avg7} unit={spec.unit} color={spec.color(avg7)} format={spec.format} />
             <StatCell label="medie 30z" value={avg30} unit={spec.unit} color={spec.color(avg30)} format={spec.format} />
             <StatCell label={spec.higherBetter ? 'best' : 'cel mai mic'} value={best} unit={spec.unit} color={spec.color(best)} format={spec.format} />
             <StatCell label="total loguri" value={present.length} unit="" color="var(--color-fg)" />
           </div>
+        </div>
 
-          {/* History list */}
-          <div>
-            <div className="label mb-2">Toate măsurătorile</div>
-            <div className="space-y-1.5">
-              {[...present].reverse().map((p) => {
-                const tier = spec.tier(p.v);
-                return (
-                  <div
-                    key={p.date}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]/60"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: tier.color }}
-                        aria-hidden
-                      />
-                      <span className="text-xs text-[var(--color-fg)] truncate">{fmtDate(p.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="num font-bold text-sm" style={{ color: spec.color(p.v) }}>
-                        {spec.format ? spec.format(p.v) : p.v}{spec.unit && <span className="text-[10px] text-[var(--color-fg-dim)] font-normal ml-0.5">{spec.unit}</span>}
-                      </span>
-                    </div>
+        {/* The ONLY scrolling region — the history rows. Label stays pinned above
+            them so you always know what you're scrolling through. */}
+        <div className={`px-5 pt-4 pb-4 ${cramped ? 'shrink-0' : 'flex-1 min-h-0 flex flex-col'}`}>
+          <div className="label mb-2 shrink-0 flex items-baseline justify-between">
+            <span>Toate măsurătorile</span>
+            <span className="num text-[9px] normal-case tracking-normal font-normal text-[var(--color-fg-dim)]">{present.length}</span>
+          </div>
+          <div className={`space-y-1.5 pr-1 ${cramped ? '' : 'flex-1 min-h-0 overflow-y-auto'}`}>
+            {[...present].reverse().map((p) => {
+              const tier = spec.tier(p.v);
+              return (
+                <div
+                  key={p.date}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]/60"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ background: tier.color }}
+                      aria-hidden
+                    />
+                    <span className="text-xs text-[var(--color-fg)] truncate">{fmtDate(p.date)}</span>
                   </div>
-                );
-              })}
-              {present.length === 0 && (
-                <div className="text-xs text-[var(--color-fg-muted)] italic text-center py-6">
-                  Niciun log încă pentru această metrică.
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="num font-bold text-sm" style={{ color: spec.color(p.v) }}>
+                      {spec.format ? spec.format(p.v) : p.v}{spec.unit && <span className="text-[10px] text-[var(--color-fg-dim)] font-normal ml-0.5">{spec.unit}</span>}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
+            {present.length === 0 && (
+              <div className="text-xs text-[var(--color-fg-muted)] italic text-center py-6">
+                Niciun log încă pentru această metrică.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -454,13 +512,13 @@ function StatCell({ label, value, unit, color, format }: {
 }) {
   return (
     <div
-      className="rounded-xl px-2 py-2.5 text-center"
+      className="rounded-lg px-2 py-1.5 text-center"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      <div className="num font-bold text-base leading-none" style={{ color: value == null ? 'var(--color-fg-dim)' : color }}>
+      <div className="num font-bold text-sm leading-none" style={{ color: value == null ? 'var(--color-fg-dim)' : color }}>
         {format ? format(value) : (value ?? '—')}
       </div>
-      <div className="text-[9px] text-[var(--color-fg-muted)] mt-1 leading-tight">{label}{unit ? ` · ${unit}` : ''}</div>
+      <div className="text-[9px] text-[var(--color-fg-muted)] mt-0.5 leading-tight">{label}{unit ? ` · ${unit}` : ''}</div>
     </div>
   );
 }

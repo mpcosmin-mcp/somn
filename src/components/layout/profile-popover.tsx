@@ -44,7 +44,7 @@ export function ProfilePopover() {
   const c = personColor(user);
   const xp = calcXP(entries, user);
   const lvl = xpLevel(xp);
-  const tier = tierFor(lvl);
+  const tier = tierFor(xp);
   const streak = streakFor(entries, user);
   const { into, need, pct, maxed } = levelProgress(xp);
 

@@ -1,23 +1,22 @@
 'use client';
 import { type SleepEntry, FIRST_NAME, personColor } from '@/lib/sleep';
 import {
-  type AchievementProgress, achievementHint, levelProgress, tierFor, nextTierFor,
-  xpForLevel, TIERS, xpBreakdown, MAX_LEVEL, XP_FOR_MAX_LEVEL,
+  type AchievementProgress, levelProgress, tierFor, nextTierFor,
+  TIERS, TIER_STEP, BASE_XP_PER_LOG, xpBreakdown, MAX_LEVEL, XP_FOR_MAX_LEVEL,
 } from '@/lib/gamify';
 import { Modal } from '@/components/ui/modal';
 
 /**
  * Drill-downs that open ON TOP of the player modal (the one behind blurs out).
  *
- *  - AchievementDetailModal — tap a badge: what it means, all four tiers with
- *    their thresholds and XP, where you are, what the next tier costs.
- *  - TierLadderModal — tap the level chip: the full 10-tier ladder, your spot
- *    on it, and the XP still owed to the next rung.
+ *  - AchievementDetailModal — tap a badge: what it means, all four thresholds,
+ *    where you are, how far to the next one.
+ *  - TierLadderModal — tap the level chip: the four-rung ladder, your spot on
+ *    it, and the XP still owed to the next rung.
  */
 
-export function AchievementDetailModal({ progress, name, onClose }: {
+export function AchievementDetailModal({ progress, onClose }: {
   progress: AchievementProgress | null;
-  name: string;
   onClose: () => void;
 }) {
   const a = progress?.achievement;
@@ -41,7 +40,7 @@ export function AchievementDetailModal({ progress, name, onClose }: {
               {progress.count}
             </span>
             <span className="text-xs text-[var(--color-fg-muted)] pb-0.5">
-              {achievementHint(a, name)}
+              {a.hint}
             </span>
           </div>
 
@@ -72,9 +71,9 @@ export function AchievementDetailModal({ progress, name, onClose }: {
                       {t.label}
                     </span>
                     <span className="num text-[11px] text-[var(--color-fg-muted)]">{t.threshold}+</span>
-                    <span className="num text-[11px] font-bold ml-auto shrink-0" style={{ color: reached ? '#a3e635' : 'var(--color-fg-dim)' }}>
-                      +{Math.round(t.pct * 100)}% XP{reached ? ' ✓' : ''}
-                    </span>
+                    {reached && (
+                      <span className="num text-[11px] font-bold ml-auto shrink-0" style={{ color: t.color }}>✓</span>
+                    )}
                   </div>
                 );
               })}
@@ -88,9 +87,6 @@ export function AchievementDetailModal({ progress, name, onClose }: {
                 <span className="text-[11px] text-[var(--color-fg-muted)]">
                   Încă <strong className="num text-[var(--color-fg)]">{progress.nextTier.threshold - progress.count}</strong> până la{' '}
                   <strong style={{ color: progress.nextTier.color }}>{progress.nextTier.label}</strong>
-                </span>
-                <span className="num text-[11px] font-bold" style={{ color: progress.nextTier.color }}>
-                  {progress.pct > 0 ? `+${Math.round(progress.nextTier.pct * 100)}%` : `+${Math.round(progress.nextTier.pct * 100)}% XP`}
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-[var(--color-surface)] overflow-hidden">
@@ -109,16 +105,10 @@ export function AchievementDetailModal({ progress, name, onClose }: {
             </div>
           )}
 
-          <div className="rounded-lg border border-[#a3e635]/30 bg-[#a3e635]/5 px-3 py-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[var(--color-fg-muted)]">Ce îți dă badge-ul ăsta ACUM</span>
-              <span className="num font-bold" style={{ color: '#a3e635' }}>+{Math.round(progress.pct * 100)}% XP</span>
-            </div>
-            <p className="text-[10px] text-[var(--color-fg-dim)] mt-1 leading-snug">
-              Nu e un bonus unic — e un <strong>procent permanent</strong> adăugat la XP-ul fiecărei nopți pe care o loghezi, pentru totdeauna.
-              Contează doar tier-ul cel mai înalt (Aur nu se adună peste Bronz). Toate badge-urile la un loc formează <strong>Măiestria</strong> ta.
-            </p>
-          </div>
+          <p className="text-[10px] text-[var(--color-fg-dim)] leading-snug border-t border-[var(--color-border)] pt-2.5">
+            Badge-urile <strong>nu dau XP</strong>. XP-ul vine din cele trei reguli, iar badge-ul arată cât de departe ai dus
+            fiecare regulă. Așa suma din clasament rămâne una pe care o poți verifica singur.
+          </p>
         </div>
       )}
     </Modal>
@@ -133,8 +123,8 @@ export function TierLadderModal({ open, onClose, entries, name }: {
 }) {
   const bd = xpBreakdown(entries, name);
   const { level, into, need, pct, maxed } = levelProgress(bd.total);
-  const cur = tierFor(level);
-  const next = nextTierFor(level);
+  const cur = tierFor(bd.total);
+  const next = nextTierFor(bd.total);
   const c = personColor(name);
   const fn = FIRST_NAME[name] ?? name.split(' ')[0];
 
@@ -165,7 +155,7 @@ export function TierLadderModal({ open, onClose, entries, name }: {
             ) : (
               <>
                 <span className="num font-bold text-[var(--color-fg)]">{into}</span>/<span className="num">{need}</span> până la Lv {level + 1}
-                {next && <> · <span className="num font-bold text-[var(--color-fg)]">{Math.max(0, xpForLevel(next.minLevel) - bd.total)}</span> XP până la <strong style={{ color: next.color }}>{next.name}</strong></>}
+                {next && <> · <span className="num font-bold text-[var(--color-fg)]">{Math.max(0, next.minXP - bd.total)}</span> XP până la <strong style={{ color: next.color }}>{next.name}</strong></>}
               </>
             )}
           </div>
@@ -176,12 +166,35 @@ export function TierLadderModal({ open, onClose, entries, name }: {
 
         <p className="text-xs italic text-[var(--color-fg-muted)] leading-relaxed">„{cur.blurb}"</p>
 
+        {/* Where the XP came from — the three rules, added up in front of you.
+            This is the answer to "de unde vine XP-ul", one tap from the level chip. */}
+        <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
+          <div className="label mb-2">De unde vine XP-ul tău</div>
+          <div className="flex flex-col gap-1 text-[11px]">
+            <XpRow n="1" what={`${bd.logs} nopți logate × ${BASE_XP_PER_LOG}`} xp={bd.base} />
+            <XpRow n="2" what="calitatea nopților" xp={bd.qualityXP} />
+            {/* The bands, indented under rule 2 — only the ones you've actually hit,
+                so nobody reads a wall of zeroes to find their own numbers. */}
+            {bd.bands.filter(b => b.count > 0).map(b => (
+              <div key={b.min} className="flex items-center gap-2 pl-[22px] text-[10px] text-[var(--color-fg-dim)]">
+                <span className="truncate">{b.count} × SS {b.min}+ · {b.xp} XP</span>
+                <span className="num ml-auto shrink-0">+{b.total}</span>
+              </div>
+            ))}
+            <XpRow n="3" what={`serie record ${bd.streakMax} zile`} xp={bd.streakBonus} />
+            <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-1.5 mt-0.5">
+              <span className="font-bold text-[var(--color-fg)]">Total</span>
+              <span className="num font-bold" style={{ color: 'var(--color-accent)' }}>{bd.total} XP</span>
+            </div>
+          </div>
+        </section>
+
         {/* The full ladder */}
         <section>
           <div className="label mb-2">Paliere</div>
           <div className="flex flex-col gap-1">
             {TIERS.map(t => {
-              const reached = level >= t.minLevel;
+              const reached = bd.total >= t.minXP;
               const isCurrent = t.name === cur.name;
               return (
                 <div
@@ -198,10 +211,7 @@ export function TierLadderModal({ open, onClose, entries, name }: {
                     <div className="text-[11px] font-bold truncate" style={{ color: t.color }}>{t.name}</div>
                     <div className="text-[9px] text-[var(--color-fg-dim)] truncate leading-tight">{t.blurb}</div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="num text-[10px] font-bold text-[var(--color-fg-muted)]">Lv {t.minLevel}</div>
-                    <div className="num text-[9px] text-[var(--color-fg-dim)] leading-none">{xpForLevel(t.minLevel)} XP</div>
-                  </div>
+                  <div className="num text-[10px] font-bold shrink-0 text-[var(--color-fg-muted)]">{t.minXP} XP</div>
                   {isCurrent && <span className="text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: t.color }}>aici</span>}
                 </div>
               );
@@ -210,10 +220,22 @@ export function TierLadderModal({ open, onClose, entries, name }: {
         </section>
 
         <p className="text-[10px] text-[var(--color-fg-dim)] leading-snug">
-          Fiecare nivel costă mai mult decât cel dinainte{!maxed && <> (Lv {level} → {level + 1} costă {need} XP)</>}.
-          {' '}<strong className="text-[var(--color-fg-muted)]">Lv {MAX_LEVEL} e maximul</strong> — {XP_FOR_MAX_LEVEL} XP, adică vreo doi ani de somn bun. Nu e o cursă de sprint.
+          Palierele vin din <strong className="text-[var(--color-fg-muted)]">{TIER_STEP} în {TIER_STEP} XP</strong>, deci fiecare treaptă costă
+          exact cât cea dinainte. <strong className="text-[var(--color-fg-muted)]">Nivelele</strong> sunt altceva: ele costă tot mai mult pe măsură ce
+          urci{!maxed && <> (Lv {level} → {level + 1} costă {need} XP)</>}, iar Lv {MAX_LEVEL} e maximul, la {XP_FOR_MAX_LEVEL} XP.
         </p>
       </div>
     </Modal>
+  );
+}
+
+/** One rule of the XP economy, with what it paid you. */
+function XpRow({ n, what, xp }: { n: string; what: string; xp: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="num text-[9px] font-bold w-3.5 h-3.5 rounded grid place-items-center shrink-0 bg-[var(--color-border)] text-[var(--color-fg-muted)]">{n}</span>
+      <span className="text-[var(--color-fg-muted)] truncate">{what}</span>
+      <span className="num font-bold ml-auto shrink-0 text-[var(--color-fg)]">+{xp}</span>
+    </div>
   );
 }

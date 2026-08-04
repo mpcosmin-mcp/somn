@@ -10,7 +10,6 @@ import { coachInsights, type InsightTone } from '@/lib/coach';
 import { tierFor, maxStreakFor, todayISO, MAX_LEVEL } from '@/lib/gamify';
 import { Avi } from '@/components/ui/avi';
 import { PlayerAchievements } from '@/components/dashboard/player-achievements';
-import { PlayerMomentum } from '@/components/dashboard/player-momentum';
 import { TierLadderModal } from '@/components/dashboard/achievement-detail';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
@@ -18,9 +17,9 @@ import { BookOpen } from 'lucide-react';
 /**
  * Player card — deliberately fits without scrolling.
  *
- * Everything that needs a paragraph to explain (Momentum, each badge, the tier
- * ladder) lives behind a tap, in its own modal. What stays here is only what you
- * read at a glance: who, how fast, last night, what you lead, what you've earned.
+ * Everything that needs a paragraph to explain (each badge, the tier ladder)
+ * lives behind a tap, in its own modal. What stays here is only what you read at
+ * a glance: who, what level, last night, what you lead, what you've earned.
  */
 export interface PlayerSummary {
   name: string;
@@ -46,7 +45,7 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.le
 /** Compact header chip for the Modal's sticky title bar. */
 export function PlayerDrawerTitle({ player }: { player: PlayerSummary }) {
   const c = personColor(player.name);
-  const tier = tierFor(player.level);
+  const tier = tierFor(player.xp);
   return (
     <div className="flex items-center gap-2.5 min-w-0">
       <Avi name={player.name} size="sm" />
@@ -68,7 +67,7 @@ export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
   const c = personColor(player.name);
   const isMe = player.name === currentUser;
   const fn = FIRST_NAME[player.name] ?? player.name.split(' ')[0];
-  const tier = tierFor(player.level);
+  const tier = tierFor(player.xp);
   const maxed = player.level >= MAX_LEVEL;
 
   const mine = entries.filter(e => e.name === player.name).sort((a, b) => a.date.localeCompare(b.date));
@@ -128,8 +127,6 @@ export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
         </div>
       </div>
 
-      <PlayerMomentum entries={entries} name={player.name} />
-
       {/* Last night — five numbers, one row */}
       {last && (
         <section>
@@ -184,7 +181,7 @@ export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
         href="/ghid"
         className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] font-bold text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-accent)]/40 transition-colors"
       >
-        <BookOpen size={12} /> Reguli & categorii →
+        <BookOpen size={12} /> De unde vine XP-ul →
       </Link>
 
       <TierLadderModal
