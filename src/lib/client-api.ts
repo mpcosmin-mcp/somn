@@ -32,3 +32,24 @@ export async function cleanupDuplicates(): Promise<{ ok: boolean; removed: numbe
   const json = (await res.json()) as { ok: boolean; removed: number };
   return json;
 }
+
+export interface BulkResult {
+  written: string[];
+  rejected: { date: string; error: string }[];
+}
+
+/** Write several nights at once. Each night is judged on its own server-side,
+ *  so the result tells us which dates landed and which came back with a
+ *  message to show next to that row. */
+export async function submitEntries(entries: SleepEntry[]): Promise<BulkResult> {
+  const res = await fetch('/api/sheets/bulk', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entries }),
+  });
+  if (!res.ok) {
+    const msg = await res.json().then(j => j?.error).catch(() => null);
+    throw new Error(msg || `Eroare la salvare (${res.status})`);
+  }
+  return (await res.json()) as BulkResult;
+}

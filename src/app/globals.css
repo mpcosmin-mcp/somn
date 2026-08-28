@@ -323,3 +323,17 @@ button { touch-action: manipulation; }
 
 /* Prevent rubber-band overscroll on iOS for the main scroll area */
 html, body { overscroll-behavior-y: none; }
+
+/* Typing caret in the logger's value slots — the one place the interface
+   claims the next keystroke belongs to it. */
+@keyframes caret-blink {
+  0%, 45%   { opacity: 1; }
+  55%, 100% { opacity: 0; }
+}
+.caret-blink {
+  animation: caret-blink 1.05s steps(1, end) infinite;
+  color: var(--color-accent) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .caret-blink { animation: none; }
+}

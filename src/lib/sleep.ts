@@ -316,3 +316,69 @@ export function bedtimeFrom18(start?: string | null): number | null {
 /* Personal trend / pattern note + the coach insight engine now live in
    ./coach.ts — a single deterministic rule engine (no double work).
    `personalTrendNote` is re-exported from there for the metric modal. */
+
+/* ─────────────────────────────────────────────────────────
+   Logging input spec — one home for the numbers we accept.
+
+   RANGES lived in sheets-source.ts (a server module that pulls in the Apps
+   Script config); the logger needs the same bounds on the client, so they moved
+   here, to the stated source of truth, and sheets-source re-exports them.
+
+   The bounds do double duty: they validate on both sides of the wire AND drive
+   the keypad's auto-advance — a field is full the moment one more digit would
+   push it past `max`, which is why you can type a whole night without ever
+   reaching for a "next" key.
+   ───────────────────────────────────────────────────────── */
+
+export const RANGES = {
+  ss:  [0, 100],
+  rhr: [25, 150],
+  hrv: [1, 300],
+  rem: [0, 600],
+} as const;
+
+export type RangeKey = keyof typeof RANGES;
+
+/** Sheet cells arrive as strings, numbers, or nothing at all. */
+type RangeCell = string | number | null | undefined;
+
+/** Parse a cell and keep it only if it lands inside the physiological band.
+ *  Out-of-range values become null rather than being clamped — a clamp would
+ *  silently invent a plausible-looking number. */
+export function parseInRange(v: RangeCell, key: RangeKey): number | null {
+  if (v === '' || v == null) return null;
+  const n = parseFloat(String(v));
+  if (isNaN(n)) return null;
+  const [lo, hi] = RANGES[key];
+  return n >= lo && n <= hi ? n : null;
+}
+
+/** The four numbers a night is made of, in typing order. Scor and RHR come
+ *  first because the store rejects a night without them — you can stop typing
+ *  after two numbers and still have a night that saves. */
+export const LOG_FIELDS: {
+  key: RangeKey;
+  label: string;
+  unit: string;
+  required: boolean;
+}[] = [
+  { key: 'ss',  label: 'Scor', unit: '/100', required: true  },
+  { key: 'rhr', label: 'RHR',  unit: 'bpm',  required: true  },
+  { key: 'rem', label: 'REM',  unit: 'min',  required: false },
+  { key: 'hrv', label: 'HRV',  unit: 'ms',   required: false },
+];
+
+/** Dates in the last `days` (ending today) with no entry for this person,
+ *  newest first. This is the whole reason bulk logging exists — a week away
+ *  shows up here as seven holes instead of seven separate trips to the form. */
+export function missingNights(entries: SleepEntry[], user: string, days = 14): string[] {
+  const have = new Set(entries.filter(e => e.name === user).map(e => e.date));
+  const out: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!have.has(key)) out.push(key);
+  }
+  return out;
+}

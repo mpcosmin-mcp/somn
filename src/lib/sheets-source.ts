@@ -11,7 +11,7 @@
  * lives here.
  */
 import { requireSheetsApi, SHEETS_API, DUEL_ROW_MARKER } from '@/lib/config';
-import { type SleepEntry } from '@/lib/sleep';
+import { type SleepEntry, parseInRange } from '@/lib/sleep';
 import { fetchWithRetry } from '@/lib/fetch-retry';
 import { normalizeDate, type Cell } from '@/lib/sheet-parse';
 
@@ -33,30 +33,10 @@ interface RawSheetRow {
   [k: string]: Cell;
 }
 
-function parseNum(v: Cell): number | null {
-  if (v === '' || v == null) return null;
-  const n = parseFloat(String(v));
-  return isNaN(n) ? null : n;
-}
-
-/**
- * Physiological sanity bounds. Hand-edited data, so a fat-fingered "999" used
- * to sail straight into the XP engine. Out-of-range values are dropped (null),
- * not clamped — a clamp would silently invent a plausible-looking number.
- */
-export const RANGES = {
-  ss:  [0, 100],
-  rhr: [25, 150],
-  hrv: [1, 300],
-  rem: [0, 600],
-} as const;
-
-export function parseInRange(v: Cell, key: keyof typeof RANGES): number | null {
-  const n = parseNum(v);
-  if (n == null) return null;
-  const [lo, hi] = RANGES[key];
-  return n >= lo && n <= hi ? n : null;
-}
+/* Physiological sanity bounds + the range parser now live in lib/sleep.ts —
+ * the logger needs them client-side too, and one copy is the whole point.
+ * Re-exported here so the read path and /api/sheets keep their import. */
+export { RANGES, parseInRange } from '@/lib/sleep';
 
 function parseStr(v: Cell): string | null {
   if (v == null) return null;

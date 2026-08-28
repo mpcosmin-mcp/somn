@@ -107,6 +107,40 @@ export async function upsertEntry(e: SleepEntry): Promise<void> {
   `;
 }
 
+/**
+ * Upsert that only fills the optional columns it was actually given.
+ *
+ * `upsertEntry` above sets every column from EXCLUDED, which is right when the
+ * caller loaded the row first and is submitting the whole thing back. The bulk
+ * logger isn't always in that position: after a week away, or on a cold open
+ * where the entry list hasn't landed yet, it can hand us a night carrying only
+ * Scor and RHR — and a plain upsert would blank the HRV, REM and sleep times
+ * Garmin had already synced for that date.
+ *
+ * So here a null means "I don't have this one", not "make it empty". Scor, RHR
+ * and journal are still authoritative; the trade is that the logger can't clear
+ * an optional number back to empty, which is much the rarer intent.
+ */
+export async function upsertEntryFilling(e: SleepEntry): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO entries (date, name, ss, rhr, hrv, rem, journal, bedtime, wake)
+    VALUES (
+      ${e.date}, ${e.name}, ${e.ss}, ${e.rhr},
+      ${e.hrv ?? null}, ${e.rem ?? null}, ${e.journal ?? null},
+      ${e.start ?? null}, ${e.end ?? null}
+    )
+    ON CONFLICT (date, name) DO UPDATE SET
+      ss = EXCLUDED.ss,
+      rhr = EXCLUDED.rhr,
+      hrv = COALESCE(EXCLUDED.hrv, entries.hrv),
+      rem = COALESCE(EXCLUDED.rem, entries.rem),
+      journal = COALESCE(EXCLUDED.journal, entries.journal),
+      bedtime = COALESCE(EXCLUDED.bedtime, entries.bedtime),
+      wake = COALESCE(EXCLUDED.wake, entries.wake)
+  `;
+}
+
 /** Remove one entry by (date, name). Returns how many rows were deleted. */
 export async function deleteEntry(date: string, name: string): Promise<number> {
   await ensureSchema();

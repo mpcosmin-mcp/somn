@@ -1,35 +1,21 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { type SleepEntry, NAMES, FIRST_NAME, personColor } from '@/lib/sleep';
-import { TimeRangeSlider } from '@/components/dashboard/time-range-slider';
+import { useState } from 'react';
+import { type SleepEntry, NAMES, FIRST_NAME, personColor, missingNights } from '@/lib/sleep';
 import { calcXP, xpLevel, tierFor, streakFor } from '@/lib/gamify';
-import { submitEntry } from '@/lib/client-api';
 import { useEntries } from '@/lib/entries-provider';
 import { todayStr } from '@/lib/utils';
 import { Avi } from '@/components/ui/avi';
 import { ProfileHoverCard } from '@/components/dashboard/profile-hover-card';
 import { LoginInstallBanner } from '@/components/layout/login-install-banner';
+import { SleepLogger } from '@/components/dashboard/sleep-logger';
 
-const QUICK_FIELDS: Array<{
-  key: 'ss' | 'rhr' | 'hrv' | 'rem';
-  label: string;
-  unit: string;
-  placeholder: string;
-  min: number;
-  max: number;
-  required?: boolean;
-}> = [
-  { key: 'ss',  label: 'Sleep Score', unit: '/100', placeholder: '78',  min: 0,  max: 100, required: true },
-  { key: 'rem', label: 'REM',         unit: 'min',  placeholder: '92',  min: 0,  max: 300 },
-  { key: 'rhr', label: 'RHR',         unit: 'bpm',  placeholder: '58',  min: 30, max: 150, required: true },
-  { key: 'hrv', label: 'HRV',         unit: 'ms',   placeholder: '52',  min: 0,  max: 200 },
-];
 
 /**
  * Login page — masterpiece edition.
  *
  *   STEP 1: pick your card (3 squad members)
- *   STEP 2: quick log inline (SS / REM / RHR / HRV) OR skip → dashboard
+ *   STEP 2: the same logger the dashboard uses — the night you missed, on the
+ *           keypad — or skip straight through.
  *
  * All on one page. Aurora background, glassmorphism card.
  */
@@ -76,12 +62,21 @@ export function UserPicker({ onPick }: { onPick: (name: string) => void }) {
         )}
 
         {picked && (
-          <LogStep
-            user={picked}
-            entries={entries}
-            onBack={() => setPicked(null)}
-            onDone={() => onPick(picked)}
-          />
+          loading ? (
+            /* The logger prefills from `entries`; mounting it before they land
+               would show a blank night for a date that already has data. */
+            <div className="glass rounded-3xl p-6 flex items-center gap-3">
+              <span className="h-4 w-4 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin" aria-hidden />
+              <span className="text-sm text-[var(--color-fg-muted)]">se încarcă nopțile tale…</span>
+            </div>
+          ) : (
+            <LogStep
+              user={picked}
+              entries={entries}
+              onBack={() => setPicked(null)}
+              onDone={() => onPick(picked)}
+            />
+          )
         )}
 
         <div className="mt-8 text-center">
@@ -185,7 +180,10 @@ function PickerStep({
   );
 }
 
-/* ─── STEP 2: quick log form ───────────────────────────── */
+/* ─── STEP 2: log the night you missed ─────────────────
+   Same pad as the dashboard sheet — one mechanic in the whole app. Opens on
+   the newest night you haven't logged; the strip inside adds the rest of the
+   gap in one tap, which is the case that matters after a week away. */
 function LogStep({
   user, entries, onBack, onDone,
 }: {
@@ -194,224 +192,29 @@ function LogStep({
   onBack: () => void;
   onDone: () => void;
 }) {
-  const fn = FIRST_NAME[user] ?? user.split(' ')[0];
+  const { upsertLocal, refetch } = useEntries();
   const c = personColor(user);
-  const [vals, setVals] = useState<{ ss: string; rem: string; rhr: string; hrv: string; journal: string; start: string; end: string }>({
-    ss: '', rem: '', rhr: '', hrv: '', journal: '', start: '', end: '',
-  });
-  const [date, setDate] = useState(todayStr());
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const isToday = date === todayStr();
-  const already = entries.some(e => e.name === user && e.date === date);
-
-  // Preload the existing row when one exists for (user, date), so
-  // "reactualizează" edits the real values instead of overwriting the whole
-  // line with blanks — which would wipe Garmin-synced HRV/REM/times. Loads
-  // once per target (tracked by ref) so it never clobbers what you're typing.
-  const loadedKey = useRef('');
-  useEffect(() => {
-    const key = `${user}::${date}`;
-    if (loadedKey.current === key) return;
-    const existing = entries.find(e => e.name === user && e.date === date);
-    if (!existing && entries.length === 0) return; // entries not loaded yet — wait
-    loadedKey.current = key;
-    setVals(existing ? {
-      ss: existing.ss ? String(existing.ss) : '',
-      rem: existing.rem != null ? String(existing.rem) : '',
-      rhr: existing.rhr ? String(existing.rhr) : '',
-      hrv: existing.hrv != null ? String(existing.hrv) : '',
-      journal: existing.journal ?? '',
-      start: existing.start ?? '',
-      end: existing.end ?? '',
-    } : { ss: '', rem: '', rhr: '', hrv: '', journal: '', start: '', end: '' });
-  }, [user, date, entries]);
-
-  const canSave = vals.ss.trim() !== '' && vals.rhr.trim() !== '';
-
-  const submit = async () => {
-    if (!canSave) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await submitEntry({
-        date,
-        name: user,
-        ss: Number(vals.ss),
-        rhr: Number(vals.rhr),
-        hrv: vals.hrv.trim() === '' ? null : Number(vals.hrv),
-        rem: vals.rem.trim() === '' ? null : Number(vals.rem),
-        journal: vals.journal.trim() === '' ? null : vals.journal.trim(),
-        start: vals.start || null,
-        end: vals.end || null,
-      });
-      onDone();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'eroare la salvare');
-      setSaving(false);
-    }
-  };
+  const missing = missingNights(entries, user);
+  const initialDates = [missing[0] ?? todayStr()];
 
   return (
-    <div className="glass rounded-3xl p-5 sm:p-6 space-y-4 relative overflow-hidden">
-      {/* Color accent at top */}
-      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${c}, transparent)` }} />
-
-      <div className="flex items-center gap-3">
-        <Avi name={user} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="text-base font-bold" style={{ color: c }}>{fn}</div>
-          <div className="text-[11px] text-[var(--color-fg-muted)]">
-            {already
-              ? (isToday ? 'azi e deja logat — poți reactualiza' : 'log existent pentru data asta — actualizezi')
-              : (isToday ? 'logul de azi · completează ce ai' : 'log retroactiv · completează ce ai')}
-          </div>
-        </div>
-        <button
-          onClick={onBack}
-          className="text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors px-2 py-1"
-        >
-          ← schimbă
-        </button>
-      </div>
-
-      <div>
-        <label className="label block mb-1.5">Data</label>
-        <input
-          type="date"
-          value={date}
-          max={todayStr()}
-          onChange={e => setDate(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm num text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
-        />
-      </div>
-
-      {/* Bedtime / wake — drag on the timeline (optional) */}
-      <div>
-        <label className="label block mb-2">Ore de somn · opțional</label>
-        <div className="px-1">
-          <TimeRangeSlider
-            start={vals.start || '23:00'}
-            end={vals.end || '07:00'}
-            onChange={(s, e) => setVals(v => ({ ...v, start: s, end: e }))}
-          />
-          {(vals.start || vals.end) && (
-            <button
-              type="button"
-              onClick={() => setVals(v => ({ ...v, start: '', end: '' }))}
-              className="text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg)] transition-colors mt-2"
-            >
-              × fără ore
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5">
-        {QUICK_FIELDS.map(f => (
-          <GlassInput
-            key={f.key}
-            label={f.label}
-            unit={f.unit}
-            placeholder={f.placeholder}
-            value={vals[f.key]}
-            onChange={v => setVals(s => ({ ...s, [f.key]: v }))}
-            min={f.min}
-            max={f.max}
-            required={f.required}
-            accent={c}
-          />
-        ))}
-      </div>
-
-      <div>
-        <label className="label block mb-1.5">Jurnal · opțional</label>
-        <input
-          type="text"
-          value={vals.journal}
-          onChange={e => setVals(s => ({ ...s, journal: e.target.value }))}
-          placeholder="cum a fost? (o notă scurtă)"
-          maxLength={500}
-          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] focus:outline-none focus:border-[var(--color-accent)]/60 focus:bg-white/8 transition-all"
-        />
-      </div>
-
-      {error && (
-        <div className="text-xs text-[var(--color-bad)] bg-[var(--color-bad)]/10 border border-[var(--color-bad)]/30 rounded-lg px-3 py-2">
-          {error}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2 pt-1">
-        <button
-          onClick={submit}
-          disabled={!canSave || saving}
-          className="flex-1 rounded-xl px-4 py-3 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{
-            background: canSave ? 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-deep))' : 'rgba(255,255,255,0.06)',
-            color: canSave ? '#fff' : 'var(--color-fg-muted)',
-            boxShadow: canSave ? '0 8px 24px -8px var(--color-accent-glow)' : 'none',
-          }}
-        >
-          {saving
-            ? 'se salvează...'
-            : already
-              ? 'actualizează'
-              : isToday ? 'salvează și intră' : 'salvează retroactiv'}
-        </button>
-        <button
-          onClick={onDone}
-          className="rounded-xl px-4 py-3 text-xs font-semibold text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-white/5 transition-all"
-        >
-          sari peste
-        </button>
-      </div>
-
-    </div>
-  );
-}
-
-/* ─── Glassmorphism input ──────────────────────────────── */
-function GlassInput({
-  label, unit, placeholder, value, onChange, min, max, required, accent,
-}: {
-  label: string;
-  unit: string;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  min: number;
-  max: number;
-  required?: boolean;
-  accent: string;
-}) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div
-      className="rounded-xl px-3 py-2.5 border transition-all"
-      style={{
-        background: focused ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
-        borderColor: focused ? accent : 'rgba(148,163,184,0.14)',
-        boxShadow: focused ? `0 0 0 3px ${accent}22` : 'none',
-      }}
-    >
-      <div className="flex items-center justify-between mb-0.5">
-        <span className="label">{label}{required && <span className="text-[var(--color-accent)] ml-0.5">*</span>}</span>
-        <span className="text-[9px] num text-[var(--color-fg-dim)]">{unit}</span>
-      </div>
-      <input
-        type="number"
-        inputMode="decimal"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        min={min}
-        max={max}
-        placeholder={placeholder}
-        className="w-full bg-transparent outline-none num font-bold text-xl text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] placeholder:font-normal"
+    <div className="glass rounded-3xl overflow-hidden relative">
+      <div
+        className="absolute top-0 left-0 right-0 h-px z-10"
+        style={{ background: `linear-gradient(90deg, transparent, ${c}, transparent)` }}
+      />
+      <SleepLogger
+        user={user}
+        entries={entries}
+        initialDates={initialDates}
+        mode="login"
+        onBack={onBack}
+        onSavedMany={saved => {
+          saved.forEach(upsertLocal);
+          void refetch({ fresh: true });
+        }}
+        onClose={onDone}
       />
     </div>
   );
 }
-
