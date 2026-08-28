@@ -2,8 +2,7 @@
 import { useState } from 'react';
 import {
   type SleepEntry,
-  ssColor, hrvColor, remColor, rhrColor, durationColor, personSex, rhrCutoffs,
-  sleepDurationMin, fmtDuration, DUR_TARGET,
+  ssColor, hrvColor, remColor, rhrColor, personSex, rhrCutoffs,
   lastNDays,
 } from '@/lib/sleep';
 import { Sparkline } from '@/components/ui/sparkline';
@@ -39,7 +38,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
   const remSeries = dates.map(d => get(d)?.rem ?? null);
   const hrvSeries = dates.map(d => get(d)?.hrv ?? null);
   const rhrSeries = dates.map(d => get(d)?.rhr ?? null);
-  const durSeries = dates.map(d => { const e = get(d); return e ? sleepDurationMin(e.start, e.end) : null; });
 
   if (!last) {
     return (
@@ -58,16 +56,10 @@ export function KpiCards({ entries, user, onMetricClick }: {
   const remDelta = (prev && last.rem != null && prev.rem != null) ? last.rem - prev.rem : null;
   const hrvDelta = (prev && last.hrv != null && prev.hrv != null) ? last.hrv - prev.hrv : null;
   const rhrDelta = (prev && last.rhr > 0 && prev.rhr > 0) ? last.rhr - prev.rhr : null;
-  const lastDur = sleepDurationMin(last.start, last.end);
-  const prevDur = prev ? sleepDurationMin(prev.start, prev.end) : null;
-  const durDelta = (lastDur != null && prevDur != null) ? lastDur - prevDur : null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
-      {/* Sleep Score takes the full width on mobile: with five cards in a 2-up
-          grid the last one would otherwise sit alone on a half-empty row. */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       <KpiCard
-        className="col-span-2 lg:col-span-1"
         label="Sleep Score"
         value={last.ss}
         unit="/100"
@@ -126,22 +118,6 @@ export function KpiCards({ entries, user, onMetricClick }: {
         color={last.rhr > 0 ? rhrColor(last.rhr, personSex(user)) : 'var(--color-fg-dim)'}
         accentVar="#fb7185"
         onClick={onMetricClick ? () => onMetricClick('rhr') : undefined}
-      />
-      <KpiCard
-        label="Durată"
-        value={lastDur}
-        displayValue={lastDur != null ? fmtDuration(lastDur) : null}
-        unit=""
-        sparkUnit="m"
-        delta={durDelta}
-        deltaUnit="min"
-        higherBetter
-        target={DUR_TARGET}
-        series={durSeries}
-        dates={dates}
-        color={durationColor(lastDur)}
-        accentVar="#34d399"
-        onClick={onMetricClick ? () => onMetricClick('dur') : undefined}
       />
     </div>
   );

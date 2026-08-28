@@ -11,8 +11,12 @@ export interface SleepEntry {
   hrv: number | null;      // heart rate variability, ms
   rem: number | null;      // REM minutes (NEW in v2)
   journal: string | null;  // free-form daily note (NEW in v2)
-  start?: string | null;   // bedtime "HH:MM" (NEW v3 — optional; absent on older logs)
-  end?: string | null;     // wake time "HH:MM" (NEW v3)
+  /* Bedtime / wake, "HH:MM". Nothing in the app logs, reads or draws them any
+   * more — sleep hours were dropped in v4. The fields stay because the Garmin
+   * sync and the sheet still carry the columns, and because history already
+   * written shouldn't be thrown away for a UI decision. */
+  start?: string | null;
+  end?: string | null;
 }
 
 export interface AggEntry {
@@ -233,86 +237,6 @@ export function lastNDays(entries: SleepEntry[], n: number, from: Date = new Dat
   return entries.filter(e => e.date >= cutStr);
 }
 
-/* ── Sleep timing (bedtime / wake / duration) — NEW v3 ──
- * Times are "HH:MM" 24h strings. Everything tolerates null/undefined so older
- * logs (which have no times) and partial input degrade cleanly.
- */
-
-/** Parse "HH:MM" → minutes since 00:00, or null if missing/invalid. */
-export function hhmmToMin(t?: string | null): number | null {
-  if (!t) return null;
-  const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim());
-  if (!m) return null;
-  const h = +m[1], mm = +m[2];
-  if (h > 23 || mm > 59) return null;
-  return h * 60 + mm;
-}
-
-/** Longest sleep we treat as real. Anything above is a typo, not a night —
- *  most often `start == end`, which the midnight-wrap below turns into 1440
- *  minutes and which used to hand out the "Somn Lung" badge for free. */
-export const MAX_PLAUSIBLE_SLEEP_MIN = 16 * 60;
-
-/** Minutes slept from bedtime→wake. Adds a day when the clock wraps past
- *  midnight (e.g. 22:36 → 07:25 = 529 min). null if either time is missing
- *  or the result is implausible (> 16h). */
-export function sleepDurationMin(start?: string | null, end?: string | null): number | null {
-  const s = hhmmToMin(start), e = hhmmToMin(end);
-  if (s == null || e == null) return null;
-  let d = e - s;
-  if (d <= 0) d += 24 * 60;
-  return d > MAX_PLAUSIBLE_SLEEP_MIN ? null : d;
-}
-
-/** "8h 49m" / "7h" / "40m" / "—". Rounds, so fractional inputs (chart ticks) stay clean. */
-export function fmtDuration(min: number | null): string {
-  if (min == null) return '—';
-  const total = Math.round(min);
-  const h = Math.floor(total / 60), m = total % 60;
-  if (h === 0) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-/** Color for a sleep duration (minutes). Ideal band 7-9h. */
-export function durationColor(min: number | null): string {
-  if (min == null) return C.dim;
-  if (min < 360) return C.bad;     // < 6h
-  if (min < 420) return C.under;   // 6–7h
-  if (min <= 540) return C.good;   // 7–9h sweet spot
-  return C.under;                  // > 9h (oversleep)
-}
-
-/** Sleep-duration target — first-class with the other metrics. 8h. */
-export const DUR_TARGET = 480;
-
-/** Tier label + color for sleep duration (mirror of ssTier/remTier/etc). */
-export function durTier(min: number | null): { label: string; color: string } {
-  if (min == null) return { label: '—', color: C.dim };
-  if (min < 360) return { label: 'Slab', color: C.bad };
-  if (min < 420) return { label: 'Sub target', color: C.under };
-  if (min <= 540) return { label: 'Bun', color: C.good };
-  return { label: 'Oversleep', color: C.under };
-}
-
-/** Above-/below-target status (mirror of ssStatus/etc). */
-export function durStatus(min: number | null): MetricStatus {
-  if (min == null) return { arrow: '→', label: '—', color: C.dim };
-  const c = durationColor(min);
-  const delta = min - DUR_TARGET;
-  if (Math.abs(delta) < 15) return { arrow: '→', label: 'aproape de target', color: c };
-  if (delta > 0) return { arrow: '↑', label: `+${Math.round(delta)}min peste target`, color: c };
-  return { arrow: '↓', label: `${Math.round(delta)}min sub target`, color: c };
-}
-
-/** Bedtime as minutes since 18:00 so evening→early-morning is monotonic
- *  (22:00→240, 00:30→390, 02:00→480). Lets us compare/range bedtimes without
- *  the midnight wrap breaking naive HH:MM math. null if missing. */
-export function bedtimeFrom18(start?: string | null): number | null {
-  const s = hhmmToMin(start);
-  if (s == null) return null;
-  return (s - 18 * 60 + 24 * 60) % (24 * 60);
-}
-
 /* Personal trend / pattern note + the coach insight engine now live in
    ./coach.ts — a single deterministic rule engine (no double work).
    `personalTrendNote` is re-exported from there for the metric modal. */
@@ -353,19 +277,32 @@ export function parseInRange(v: RangeCell, key: RangeKey): number | null {
   return n >= lo && n <= hi ? n : null;
 }
 
-/** The four numbers a night is made of, in typing order. Scor and RHR come
- *  first because the store rejects a night without them — you can stop typing
- *  after two numbers and still have a night that saves. */
+/** The four numbers a night is made of, in typing order.
+ *
+ *  Scor and RHR come first because the store rejects a night without them —
+ *  you can stop typing after two numbers and still have a night that saves.
+ *  REM comes LAST because Garmin Connect keeps it on a different screen than
+ *  the other three: you type what one page shows, then go get one number.
+ */
 export const LOG_FIELDS: {
   key: RangeKey;
   label: string;
   unit: string;
   required: boolean;
+  /** Ceiling for the keypad's auto-advance only — NOT for validation.
+   *  `RANGES` has to stay wide enough to accept everything already stored, but
+   *  a wide ceiling stalls the cursor: with hrv's real max of 300, an HRV of 25
+   *  leaves room for a third digit, so the run stops mid-chain and waits for a
+   *  digit that never comes. This is the highest value we still auto-advance
+   *  past; out-of-band values are typed with → like any other exception. */
+  advanceMax?: number;
+  /** Shown on the field when it isn't where the others are. */
+  hint?: string;
 }[] = [
   { key: 'ss',  label: 'Scor', unit: '/100', required: true  },
   { key: 'rhr', label: 'RHR',  unit: 'bpm',  required: true  },
-  { key: 'rem', label: 'REM',  unit: 'min',  required: false },
-  { key: 'hrv', label: 'HRV',  unit: 'ms',   required: false },
+  { key: 'hrv', label: 'HRV',  unit: 'ms',   required: false, advanceMax: 200 },
+  { key: 'rem', label: 'REM',  unit: 'min',  required: false, advanceMax: 200, hint: 'altă pagină' },
 ];
 
 /** Dates in the last `days` (ending today) with no entry for this person,

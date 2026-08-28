@@ -1,12 +1,12 @@
 /* ─────────────────────────────────────────────────────────
    sleep coach — deterministic insight engine + reading list
    The SINGLE pattern detector in the app. No AI, instant render.
-   Reads ss/rhr/hrv/rem + bedtime/wake (duration). Each nudge is grounded in a
+   Reads ss/rhr/hrv/rem. Each nudge is grounded in a
    principle from one of the reading-list books and carries a `source` citation.
    personalTrendNote() is a thin wrapper kept so the metric-detail
    modal keeps its old signature (one shared engine, no double work).
    ───────────────────────────────────────────────────────── */
-import { type SleepEntry, sleepDurationMin, bedtimeFrom18, fmtDuration } from './sleep';
+import { type SleepEntry } from './sleep';
 
 export type InsightTone = 'good' | 'warn' | 'tip';
 
@@ -172,54 +172,6 @@ export function coachInsights(entries: SleepEntry[], user: string, max = 3): Ins
         id: 'tired-despite-score', tone: 'tip',
         title: 'Scor bun, dar REM mic',
         body: 'Walker: REM-ul vine spre dimineață, în ultimele ore. Tai din final → obosit deși scorul e ok. Somn mai lung.',
-        source: 'Walker · Why We Sleep',
-      });
-    }
-  }
-
-  /* ── Sleep duration (needs start+end on ≥3 recent logs) ── */
-  const durations = last7
-    .map(e => sleepDurationMin(e.start, e.end))
-    .filter((d): d is number => d != null);
-  if (durations.length >= 3) {
-    const avgDur = mean(durations);
-    if (avgDur < 420) {
-      push('duration', 2, {
-        id: 'dur-low', tone: 'warn',
-        title: `Media somn ${fmtDuration(round(avgDur))} · sub 7h`,
-        body: 'Walker: sub 7h cronic taie din REM și recuperare. Țintește 7-9h — culcare cu 30-45 min mai devreme.',
-        source: 'Walker · Why We Sleep',
-      });
-    } else if (avgDur >= 480) {
-      push('duration', 22, {
-        id: 'dur-good', tone: 'good',
-        title: `Media somn ${fmtDuration(round(avgDur))} · în target`,
-        body: 'Littlehales (R90): ~5 cicluri de 90 min ≈ 7h30 — ești fix acolo. Ține ora de trezire fixă.',
-        source: 'Littlehales · Sleep (R90)',
-      });
-    }
-  }
-
-  /* ── Bedtime regularity / lateness (needs start on ≥3 recent logs) ──
-   * bedtimeFrom18 linearizes evening→morning so the range is meaningful. */
-  const bedtimes = last7
-    .map(e => bedtimeFrom18(e.start))
-    .filter((b): b is number => b != null);
-  if (bedtimes.length >= 3) {
-    const range = Math.max(...bedtimes) - Math.min(...bedtimes);
-    if (range >= 90) {
-      push('bedtime', 10, {
-        id: 'bed-irregular', tone: 'tip',
-        title: 'Ora de culcare variază mult',
-        body: 'Littlehales (R90): ancorează ora de TREZIRE; bedtime-ul se aliniază singur. Constanța bate durata.',
-        source: 'Littlehales · Sleep (R90)',
-      });
-    } else if (mean(bedtimes) >= 360) {
-      // avg bedtime at/after 00:00 (360 min past 18:00)
-      push('bedtime', 11, {
-        id: 'bed-late', tone: 'tip',
-        title: 'Te culci după miezul nopții',
-        body: 'Walker: somnul profund domină prima parte a nopții. Culcare după 00:00 → pierzi deep sleep. Trage spre 23:00.',
         source: 'Walker · Why We Sleep',
       });
     }

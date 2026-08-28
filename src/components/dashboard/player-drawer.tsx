@@ -3,8 +3,7 @@ import { useState } from 'react';
 import {
   type SleepEntry,
   FIRST_NAME, personColor, personSex,
-  ssColor, remColor, hrvColor, rhrColor, durationColor,
-  sleepDurationMin, fmtDuration,
+  ssColor, remColor, hrvColor, rhrColor,
 } from '@/lib/sleep';
 import { coachInsights, type InsightTone } from '@/lib/coach';
 import { tierFor, maxStreakFor, todayISO, MAX_LEVEL } from '@/lib/gamify';
@@ -72,7 +71,6 @@ export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
 
   const mine = entries.filter(e => e.name === player.name).sort((a, b) => a.date.localeCompare(b.date));
   const last = mine[mine.length - 1] ?? null;
-  const lastDur = last ? sleepDurationMin(last.start, last.end) : null;
 
   const last7 = mine.slice(-7);
   const prev7 = mine.slice(-14, -7);
@@ -127,13 +125,12 @@ export function PlayerDrawer({ player, entries, currentUser, periodLabel }: {
         </div>
       </div>
 
-      {/* Last night — five numbers, one row */}
+      {/* Last night — four numbers, one row */}
       {last && (
         <section>
           <div className="label mb-1">{last.date === todayISO() ? 'Azi' : 'Ultimul log'}</div>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             <Stat label="SS" value={last.ss} color={ssColor(last.ss)} />
-            <Stat label="Somn" value={lastDur != null ? fmtDuration(lastDur) : '—'} color={durationColor(lastDur)} />
             <Stat label="REM" value={last.rem != null ? `${last.rem}m` : '—'} color={remColor(last.rem)} />
             <Stat label="HRV" value={last.hrv != null ? last.hrv : '—'} color={hrvColor(last.hrv)} />
             <Stat label="RHR" value={last.rhr > 0 ? last.rhr : '—'} color={last.rhr > 0 ? rhrColor(last.rhr, personSex(player.name)) : 'var(--color-fg-dim)'} />

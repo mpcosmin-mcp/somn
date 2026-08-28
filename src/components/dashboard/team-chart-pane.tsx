@@ -3,21 +3,19 @@ import { useMemo, useState } from 'react';
 import {
   type SleepEntry,
   NAMES, FIRST_NAME, personColor, personSex, rhrCutoffs,
-  sleepDurationMin, fmtDuration, DUR_TARGET,
   lastNDays,
 } from '@/lib/sleep';
 import { Card } from '@/components/ui/card';
 import { TeamChart } from '@/components/ui/team-chart';
 
 type Range = '7' | '30' | 'all';
-type Metric = 'ss' | 'rem' | 'rhr' | 'hrv' | 'dur';
+type Metric = 'ss' | 'rem' | 'rhr' | 'hrv';
 
 const METRIC_META: Record<Metric, { label: string; unit: string; target: number; lowerBetter?: boolean }> = {
   ss:  { label: 'Sleep Score', unit: '',    target: 75 },
   rem: { label: 'REM',         unit: 'min', target: 90 },
   rhr: { label: 'RHR',         unit: 'bpm', target: 60, lowerBetter: true },
   hrv: { label: 'HRV',         unit: 'ms',  target: 45 },
-  dur: { label: 'Durată',      unit: 'min', target: DUR_TARGET },
 };
 
 /**
@@ -55,7 +53,6 @@ export function TeamChartPane({ entries, initialFocus = [] }: { entries: SleepEn
       const values = allDates.map(d => {
         const v = personMap.get(d);
         if (!v) return null;
-        if (metric === 'dur') return sleepDurationMin(v.start, v.end);
         return (v[metric] as number | null) ?? null;
       });
       return {
@@ -128,7 +125,7 @@ export function TeamChartPane({ entries, initialFocus = [] }: { entries: SleepEn
           </button>
         ))}
         <span className="text-[10px] text-[var(--color-fg-muted)] ml-auto num">
-          target {metric === 'dur' ? fmtDuration(meta.target) : `${meta.lowerBetter ? '< ' : ''}${meta.target}${meta.unit}`}
+          target {meta.lowerBetter ? '< ' : ''}{meta.target}{meta.unit}
         </span>
       </div>
 
@@ -168,7 +165,6 @@ export function TeamChartPane({ entries, initialFocus = [] }: { entries: SleepEn
         unit={meta.unit}
         lowerBetter={meta.lowerBetter}
         colorByTarget={focusUsers.length === 1}
-        fmt={metric === 'dur' ? fmtDuration : undefined}
       />
     </Card>
   );

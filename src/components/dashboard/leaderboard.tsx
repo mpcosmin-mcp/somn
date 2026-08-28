@@ -1,10 +1,9 @@
 'use client';
 import { useMemo, useState } from 'react';
 import {
-  type SleepEntry, type AggEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
-  sleepDurationMin, fmtDuration, durationColor, bedtimeFrom18, personSex, rhrCutoffs,
+  type SleepEntry, NAMES, FIRST_NAME, ssColor, rhrColor, hrvColor, remColor, personColor, lastNDays, aggregate,
+  personSex, rhrCutoffs,
 } from '@/lib/sleep';
-import { SleepSchedule, type ScheduleRow } from '@/components/dashboard/sleep-schedule';
 import { xpLevel, xpBreakdown, tierFor, streakFor, maxStreakFor } from '@/lib/gamify';
 import { fmtDate, fmtDateShort } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -30,7 +29,6 @@ interface Row {
   rhr: number;
   hrv: number | null;
   rem: number | null;
-  dur: number | null;
   entries: number;
   xp: number;
   level: number;
@@ -49,7 +47,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
   const [period, setPeriod] = useState<Period>('today');
   const [openRow, setOpenRow] = useState<Row | null>(null);
 
-  const { rows, latestDate, periodLabel, schedule, scopedEntries } = useMemo(() => {
+  const { rows, latestDate, periodLabel, scopedEntries } = useMemo(() => {
     const spec = PERIODS.find(p => p.id === period)!;
     let scoped: SleepEntry[];
     let label = '';
@@ -67,34 +65,9 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
     }
     const aggRows = aggregate(scoped);
 
-    const durByName = new Map<string, number | null>();
-    for (const n of NAMES) {
-      const ds = scoped
-        .filter(e => e.name === n)
-        .map(e => sleepDurationMin(e.start, e.end))
-        .filter((d): d is number => d != null);
-      durByName.set(n, ds.length ? Math.round(ds.reduce((s, v) => s + v, 0) / ds.length) : null);
-    }
-
-    const schedule: ScheduleRow[] = [];
-    for (const n of NAMES) {
-      const es = scoped.filter(e => e.name === n && e.start && e.end);
-      const starts = es.map(e => bedtimeFrom18(e.start)).filter((v): v is number => v != null);
-      const ends = es.map(e => bedtimeFrom18(e.end)).filter((v): v is number => v != null);
-      if (starts.length && ends.length) {
-        const avg = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
-        schedule.push({ name: n, start: avg(starts), end: avg(ends) });
-      }
-    }
-
     // ── Permanent (ALL-TIME) distinctions — computed on the full history so
     // they never flip when you switch the Azi/7z/30z/Total tab. Once earned, kept.
     const allAgg = aggregate(entries);
-    const allDur = new Map<string, number>();
-    for (const n of NAMES) {
-      const ds = entries.filter(e => e.name === n).map(e => sleepDurationMin(e.start, e.end)).filter((d): d is number => d != null);
-      allDur.set(n, ds.length ? ds.reduce((s, v) => s + v, 0) / ds.length : -1);
-    }
     const remBest = bestBy(allAgg, r => r.rem ?? -1);
     const ssBest = bestBy(allAgg, r => r.ss);
     // RHR is compared against each person's own sex baseline, not raw. Women run
@@ -102,22 +75,15 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
     // to a man every single time regardless of who was actually fitter.
     const rhrBest = bestBy(allAgg, r => (r.rhr > 0 ? rhrCutoffs(personSex(r.name))[1] - r.rhr : -Infinity));
     const hrvBest = bestBy(allAgg, r => r.hrv ?? -1);
-    const durBest = bestBy(NAMES.map(n => ({ name: n, val: allDur.get(n) ?? -1 })), r => r.val);
     const streakBest = bestBy(NAMES.map(n => ({ name: n, val: maxStreakFor(entries, n) })), r => r.val);
 
     // ── Period leaders — the COMPETITIVE layer, recomputed for the selected tab.
     // Deliberately separate from the permanent all-time distinctions above: those
     // never move, these are this week's / month's crown and are meant to be taken.
-    const perDur = new Map<string, number>();
-    for (const n of NAMES) {
-      const ds = scoped.filter(e => e.name === n).map(e => sleepDurationMin(e.start, e.end)).filter((d): d is number => d != null);
-      perDur.set(n, ds.length ? ds.reduce((s, v) => s + v, 0) / ds.length : -1);
-    }
     const pSsBest = bestBy(aggRows, r => r.ss);
     const pRemBest = bestBy(aggRows, r => r.rem ?? -1);
     const pHrvBest = bestBy(aggRows, r => r.hrv ?? -1);
     const pRhrBest = bestBy(aggRows, r => (r.rhr > 0 ? rhrCutoffs(personSex(r.name))[1] - r.rhr : -Infinity));
-    const pDurBest = bestBy(NAMES.map(n => ({ name: n, val: perDur.get(n) ?? -1 })), r => r.val);
     const pLogBest = bestBy(aggRows, r => r.entries);
     // With one logger there is no contest — a crown nobody competed for is noise.
     const contested = aggRows.length >= 2;
@@ -141,7 +107,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       const badges: Row['badges'] = [];
       if (aAll) {
         if (ssBest?.name === n) badges.push({ emoji: '👑', label: 'best SS (total)' });
-        if (durBest?.name === n && (allDur.get(n) ?? 0) > 0) badges.push({ emoji: '😴', label: 'cel mai mult somn' });
         if (remBest?.name === n && (aAll.rem ?? 0) > 0) badges.push({ emoji: '🌙', label: 'REM master' });
         if (rhrBest?.name === n && aAll.rhr > 0) badges.push({ emoji: '🫀', label: 'cel mai bun RHR (vs. baseline)' });
         if (hrvBest?.name === n && (aAll.hrv ?? 0) > 0) badges.push({ emoji: '💓', label: 'high HRV' });
@@ -155,7 +120,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         if (pRemBest?.name === n && (a.rem ?? 0) > 0) periodBadges.push({ emoji: '🌙', label: 'cel mai mult REM' });
         if (pRhrBest?.name === n && a.rhr > 0) periodBadges.push({ emoji: '🫀', label: 'cel mai bun RHR' });
         if (pHrvBest?.name === n && (a.hrv ?? 0) > 0) periodBadges.push({ emoji: '💓', label: 'cel mai mare HRV' });
-        if (pDurBest?.name === n && (perDur.get(n) ?? 0) > 0) periodBadges.push({ emoji: '😴', label: 'cel mai mult somn' });
         if (pLogBest?.name === n) periodBadges.push({ emoji: '📝', label: 'cele mai multe loguri' });
       }
 
@@ -165,7 +129,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
         rhr: a?.rhr ?? 0,
         hrv: a?.hrv ?? null,
         rem: a?.rem ?? null,
-        dur: durByName.get(n) ?? null,
         entries: a?.entries ?? 0,
         xp,
         level: lvl,
@@ -179,7 +142,7 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
       };
     }).sort((a, b) => b.ss - a.ss);
 
-    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label, schedule, scopedEntries: scoped };
+    return { rows: built, latestDate: scoped.map(e => e.date).sort().slice(-1)[0] || '', periodLabel: label, scopedEntries: scoped };
   }, [entries, period]);
 
   const champion = rows[0]?.hasData ? rows[0] : null;
@@ -231,8 +194,6 @@ export function Leaderboard({ entries, currentUser }: { entries: SleepEntry[]; c
           <span className="ml-auto text-[9px] num text-[var(--color-fg-muted)]">{fmtDate(latestDate)}</span>
         )}
       </div>
-
-      <SleepSchedule rows={schedule} currentUser={currentUser} />
 
       <div className="px-3 pb-3 pt-1 space-y-1">
         {rows.map((r, i) => (
@@ -341,12 +302,6 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
                       <span className="num">HRV <strong style={{ color: hrvColor(row.hrv) }}>{row.hrv}</strong></span>
                     </>
                   )}
-                  {row.dur != null && (
-                    <>
-                      <span className="text-[var(--color-fg-dim)]">·</span>
-                      <span className="num"><strong style={{ color: durationColor(row.dur) }}>{fmtDuration(row.dur)}</strong></span>
-                    </>
-                  )}
                   <span className="text-[var(--color-fg-dim)] ml-auto">{row.entries}d</span>
                 </>
               ) : (
@@ -374,7 +329,6 @@ function LeaderRow({ row, rank, isMe, entries, scopedEntries, currentUser, perio
             <div className="mb-1">
               <div className="text-[9px] num text-[var(--color-fg-dim)] mb-0.5">
                 {fmtDateShort(latestEntry.date)}
-                {latestEntry.end && <span> · {latestEntry.end}</span>}
               </div>
               <p className="text-xs text-[var(--color-fg-muted)] italic whitespace-pre-line break-words">
                 “{latestEntry.journal}”

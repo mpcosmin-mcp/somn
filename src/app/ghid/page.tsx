@@ -188,7 +188,6 @@ export default function GhidPage() {
           <Metric name="RHR — femei" better="mic e mai bine" bands="<60 excelent · <65 bun · <75 sub · ≥75 slab" />
           <Metric name="HRV" better="mare e mai bine" bands="≥60 excelent · ≥45 bun · ≥30 sub · <30 slab" />
           <Metric name="REM (min)" better="mare e mai bine" bands="≥110 excelent · ≥90 bun · ≥70 sub · <70 slab" />
-          <Metric name="Durată somn" better="7-9h ideal" bands="<6h slab · 6-7h sub · 7-9h bun · >9h prea mult" />
         </div>
         <p className="text-[10px] text-[var(--color-fg-dim)] mt-3 leading-snug">
           RHR e calibrat pe sex — femeile au un puls de repaus mai mare cu ~5 bpm la bază. Doar Sleep Score-ul intră în XP; restul metricilor

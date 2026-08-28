@@ -4,13 +4,12 @@ import {
   type SleepEntry, type RangeKey,
   LOG_FIELDS, RANGES, parseInRange,
   ssColor, ssTier, remColor, rhrColor, hrvColor, personSex,
-  FIRST_NAME, sleepDurationMin, fmtDuration,
+  FIRST_NAME,
 } from '@/lib/sleep';
 import { todayStr, fmtDate, fmtDateShort, cn } from '@/lib/utils';
 import { submitEntries } from '@/lib/client-api';
 import { Button } from '@/components/ui/button';
 import { NumPad, type PadKey } from '@/components/dashboard/num-pad';
-import { TimeRangeSlider } from '@/components/dashboard/time-range-slider';
 
 /* ─────────────────────────────────────────────────────────
    One logger for one night or for a whole week away.
@@ -22,6 +21,9 @@ import { TimeRangeSlider } from '@/components/dashboard/time-range-slider';
 
    Nothing is written until ✓, and then every night is judged on its own — a
    typo on Wednesday rejects Wednesday, not the week.
+
+   No bedtime, no wake time: a night is the four numbers Garmin already
+   computed, and REM sits last because Garmin keeps it on its own screen.
    ───────────────────────────────────────────────────────── */
 
 const STRIP_DAYS = 14;
@@ -31,8 +33,6 @@ type Vals = Record<RangeKey, string>;
 interface Night {
   date: string;
   v: Vals;
-  start: string;
-  end: string;
   journal: string;
   /** An entry already exists for this date — saving overwrites it. */
   had: boolean;
@@ -61,7 +61,7 @@ function ready(n: Night): boolean {
 
 /** Anything typed at all — a half-filled night keeps the sheet open. */
 function touched(n: Night): boolean {
-  return LOG_FIELDS.some(f => n.v[f.key] !== '') || !!n.journal || !!n.start;
+  return LOG_FIELDS.some(f => n.v[f.key] !== '') || !!n.journal;
 }
 
 function metricColor(k: RangeKey, value: number, name: string): string {
@@ -107,8 +107,6 @@ export function SleepLogger({
             hrv: ex.hrv != null ? String(ex.hrv) : '',
           }
         : { ...EMPTY_VALS },
-      start: ex?.start ?? '',
-      end: ex?.end ?? '',
       journal: ex?.journal ?? '',
       had: !!ex,
       saved: false,
@@ -123,8 +121,8 @@ export function SleepLogger({
   /** The next digit replaces what's there instead of appending — armed every
    *  time the cursor lands somewhere new, so a correction is one keystroke. */
   const [fresh, setFresh] = useState(true);
-  /** Which night has its times + note open. Keyed by date, so moving the
-   *  cursor collapses it without an effect reaching in to reset a boolean. */
+  /** Which night has its note open. Keyed by date, so moving the cursor
+   *  collapses it without an effect reaching in to reset a boolean. */
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState('');
@@ -172,18 +170,19 @@ export function SleepLogger({
     const { i, f } = cursor;
     const night = nights[i];
     if (!night || night.saved) return;
-    const key = LOG_FIELDS[f].key;
-    const max = RANGES[key][1];
+    const field = LOG_FIELDS[f];
+    const key = field.key;
     const cur = fresh ? '' : night.v[key];
     const next = (cur + d).replace(/^0+(?=\d)/, '');
     // One digit too many for this metric — drop it rather than storing a value
     // the store would bounce anyway.
-    if (Number(next) > max) return;
+    if (Number(next) > RANGES[key][1]) return;
     writeField(i, key, next);
     setFresh(false);
     // The field is full the moment another digit couldn't fit. That one rule is
-    // what makes the pad hands-free.
-    if (Number(next) * 10 > max) step(1);
+    // what makes the pad hands-free — and it runs off the advance ceiling, not
+    // the validation bound, so a normal HRV doesn't stall the chain.
+    if (Number(next) * 10 > (field.advanceMax ?? RANGES[key][1])) step(1);
   }, [cursor, nights, fresh, writeField, step]);
 
   const saveRef = useRef<() => void>(() => {});
@@ -276,8 +275,6 @@ export function SleepLogger({
         rem: num(n.v.rem, 'rem'),
         hrv: num(n.v.hrv, 'hrv'),
         journal: n.journal.trim() || null,
-        start: n.start || null,
-        end: n.end || null,
       }));
     if (!payload.length) {
       setBanner('Nicio noapte completă — scorul și RHR sunt obligatorii.');
@@ -477,6 +474,13 @@ export function SleepLogger({
                         {raw || (isCursor ? '|' : '–')}
                       </span>
                       <span className="label text-[9px]">{f.label}</span>
+                      {/* REM lives on a different Garmin screen than the other
+                          three. Saying so on the field is why it's typed last. */}
+                      {f.hint && (
+                        <span className="text-[8px] leading-none text-[var(--color-fg-muted)] whitespace-nowrap">
+                          ↗ {f.hint}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -491,18 +495,13 @@ export function SleepLogger({
                     onClick={() => setExpandedDate(d => (d === n.date ? null : n.date))}
                     className="mt-2 text-[11px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
                   >
-                    {expandedDate === n.date ? '− ore & notă' : '+ ore & notă'}
-                    {(n.start || n.journal) && expandedDate !== n.date && (
+                    {expandedDate === n.date ? '− notă' : '+ notă'}
+                    {n.journal && expandedDate !== n.date && (
                       <span className="ml-1 text-[var(--color-accent)]">•</span>
                     )}
                   </button>
                   {expandedDate === n.date && (
                     <div className="mt-3 flex flex-col gap-3">
-                      <TimeRangeSlider
-                        start={n.start || '23:00'}
-                        end={n.end || '07:00'}
-                        onChange={(s, e) => setNights(prev => prev.map((x, idx) => (idx === i ? { ...x, start: s, end: e } : x)))}
-                      />
                       <textarea
                         value={n.journal}
                         onChange={e => setNights(prev => prev.map((x, idx) => (idx === i ? { ...x, journal: e.target.value } : x)))}
@@ -642,14 +641,6 @@ function DoneScreen({ saved, user, onClose, label, bare }: {
               {tier.label}
             </div>
           </div>
-          {sleepDurationMin(one.start, one.end) != null && (
-            <div className="text-center mb-4">
-              <span className="text-xs text-[var(--color-fg-muted)]">ai dormit </span>
-              <span className="num font-bold text-lg" style={{ color: 'var(--color-accent)' }}>
-                {fmtDuration(sleepDurationMin(one.start, one.end))}
-              </span>
-            </div>
-          )}
         </>
       ) : (
         <div className="flex flex-col gap-1 mb-4 max-h-56 overflow-y-auto">
